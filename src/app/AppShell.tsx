@@ -21,7 +21,9 @@ export function AppShell() {
     <div className="app-shell">
       <aside className="feature-sidebar" aria-label="功能导航">
         <div className="brand">
-          <span className="brand-mark" aria-hidden="true">D</span>
+          <span className="brand-mark" aria-hidden="true">
+            D
+          </span>
           <div>
             <strong>Diary</strong>
             <span>写给自己的时间</span>

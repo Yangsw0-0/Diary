@@ -8,14 +8,14 @@ M1 工程骨架已建立，日记文件读写等核心功能尚未实现：[项�
 
 ## 仓库目录
 
-| 目录 | 用途 |
-| --- | --- |
-| `docs/` | 产品规划、架构说明和项目进度。 |
-| `src/` | 后续 React、TypeScript 前端与业务代码。 |
-| `src-tauri/` | 后续 Tauri、Rust 桌面端和文件系统代码。 |
-| `tests/` | 测试代码与人工编写的示例数据。 |
-| `scripts/` | 开发、检查与打包辅助脚本。 |
-| `notes/` | 本地无关笔记；被 Git 忽略，不随项目推送。 |
+| 目录         | 用途                                      |
+| ------------ | ----------------------------------------- |
+| `docs/`      | 产品规划、架构说明和项目进度。            |
+| `src/`       | 后续 React、TypeScript 前端与业务代码。   |
+| `src-tauri/` | 后续 Tauri、Rust 桌面端和文件系统代码。   |
+| `tests/`     | 测试代码与人工编写的示例数据。            |
+| `scripts/`   | 开发、检查与打包辅助脚本。                |
+| `notes/`     | 本地无关笔记；被 Git 忽略，不随项目推送。 |
 
 仓库根目录保留 README、`.gitignore`、`package.json`、Vite 和 TypeScript 配置。`src/` 已包含可切换「日记」「标签」的界面骨架，`src-tauri/` 已包含可启动的 macOS 桌面壳。
 
@@ -33,7 +33,7 @@ rustup default stable
 ```sh
 npm ci
 npm run tauri:dev   # 启动桌面窗口和 Vite 开发服务器
-npm run check       # lint、Vitest、类型检查、前端生产构建
+npm run check       # 格式、lint、Vitest、类型检查、前端生产构建
 npm run tauri:build # 打包桌面应用
 ```
 

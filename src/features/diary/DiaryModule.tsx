@@ -22,7 +22,9 @@ export function DiaryModule() {
       </section>
       <section className="module-content" aria-label="日记正文">
         <div className="empty-state">
-          <div className="empty-state-icon"><BookOpenText aria-hidden="true" /></div>
+          <div className="empty-state-icon">
+            <BookOpenText aria-hidden="true" />
+          </div>
           <p className="eyebrow">YOUR SPACE TO WRITE</p>
           <h2>每天，留下一点记录</h2>
           <p>写作与本地文件功能正在准备中。</p>

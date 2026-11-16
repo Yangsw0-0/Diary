@@ -18,7 +18,9 @@ export function TagsModule() {
       </section>
       <section className="module-content" aria-label="标签内容">
         <div className="empty-state">
-          <div className="empty-state-icon"><Tags aria-hidden="true" /></div>
+          <div className="empty-state-icon">
+            <Tags aria-hidden="true" />
+          </div>
           <p className="eyebrow">FOLLOW YOUR THEMES</p>
           <h2>把同一个主题，放在一起看</h2>
           <p>标签聚合功能正在准备中。</p>

@@ -15,7 +15,7 @@
 | Git 和 GitHub | 已完成 | 本地 `main` 已推送至[私有仓库](https://github.com/Yangsw0-0/Diary)。 |
 | 目录整理与本进度文档 | 已完成 | `docs/`、`src/`、`src-tauri/`、`tests/`、`scripts/` 分工明确；无关笔记保存在忽略的 `notes/`。 |
 | 可运行桌面应用 | 已完成 | Tauri 开发窗口已启动，macOS `.app` 与 `.dmg` 打包成功。 |
-| M1 工程骨架与界面 | 已完成 | React/TypeScript、shadcn/ui 三栏外壳、模块接口、Vitest 和检查命令已建立；GitHub Actions 待推送后核对。 |
+| M1 工程骨架与界面 | 已完成 | React/TypeScript、shadcn/ui 三栏外壳、模块接口、Vitest 和 GitHub Actions 已建立。 |
 | 写作、标签、导航、附件 | 未开始 | 下一步 M2：首次选择目录与文件仓储；随后执行 M3–M6。 |
 | 旧日记导入和 Windows 适配 | 未开始 | 依赖核心功能；导入规则还需脱敏旧文件样例。 |
 
@@ -49,10 +49,10 @@ M4 的纯解析测试可以在 M2、M3 期间准备。M7 的旧文件解析规�
 | ID | 状态 | 任务 | 验收条件 |
 | --- | --- | --- | --- |
 | M1-01 | 已完成 | 初始化 Vite、React、TypeScript 与 Tauri 2 | macOS 开发窗口启动；`.app`、`.dmg` 打包成功；README 写明命令。 |
-| M1-02 | 已完成 | 启用严格类型检查、格式检查和 Vitest | `npm run check` 通过，导航交互测试通过。 |
+| M1-02 | 已完成 | 启用严格类型检查、格式检查和 Vitest | `npm run check` 覆盖 Prettier、lint、Vitest、类型检查和前端构建；导航交互测试通过。 |
 | M1-03 | 已完成 | 建立 `domain/application/infrastructure/features` 分层与依赖注入入口 | 领域层不依赖 React/Tauri；工程可编译。 |
 | M1-04 | 已完成 | 建立 shadcn/ui 与最小三栏 AppShell | 日记和标签入口可切换；760 像素宽度无水平溢出。 |
-| M1-05 | 待验证 | 配置 GitHub Actions | 工作流已编写；推送后确认类型检查、测试和构建通过。 |
+| M1-05 | 已完成 | 配置 GitHub Actions | 首次推送的 `Check` 工作流通过；更新后的工作流将复验格式、类型检查、测试和构建。 |
 
 ## M2：首次选目录与文件仓储
 
@@ -139,6 +139,6 @@ M4 的纯解析测试可以在 M2、M3 期间准备。M7 的旧文件解析规�
 
 ## 最近完成
 
-- **2026-11-16**：完成 M1 工程骨架、本地检查、Rust 编译和 macOS 打包；GitHub Actions 待首次推送验证。
+- **2026-11-16**：完成 M1 工程骨架、本地检查、Rust 编译和 macOS 打包；首次 GitHub Actions `Check` 运行通过。
 - **2026-11-16**：完成项目规划、私有 GitHub 仓库和初始推送；确认选目录、原位渲染编辑、只读标签、导航历史、附件需求。
 - **2026-11-16**：整理目录并建立本进度文档；应用实现尚未开始。
