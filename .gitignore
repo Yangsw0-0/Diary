@@ -13,6 +13,7 @@ settings.json
 # User diary data if the repository itself is selected as the diary root
 /[0-9][0-9][0-9][0-9]/
 /assets/
+/notes/
 
 # OS and editor files
 .DS_Store
