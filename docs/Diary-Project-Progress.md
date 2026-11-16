@@ -52,7 +52,7 @@ M4 的纯解析测试可以在 M2、M3 期间准备。M7 的旧文件解析规�
 | M1-02 | 已完成 | 启用严格类型检查、格式检查和 Vitest | `npm run check` 覆盖 Prettier、lint、Vitest、类型检查和前端构建；导航交互测试通过。 |
 | M1-03 | 已完成 | 建立 `domain/application/infrastructure/features` 分层与依赖注入入口 | 领域层不依赖 React/Tauri；工程可编译。 |
 | M1-04 | 已完成 | 建立 shadcn/ui 与最小三栏 AppShell | 日记和标签入口可切换；760 像素宽度无水平溢出。 |
-| M1-05 | 已完成 | 配置 GitHub Actions | 首次推送的 `Check` 工作流通过；更新后的工作流将复验格式、类型检查、测试和构建。 |
+| M1-05 | 已完成 | 配置 GitHub Actions | 更新后的 [`Check` 工作流](https://github.com/Yangsw0-0/Diary/actions/runs/43896931349)已通过格式、类型检查、测试和构建。 |
 
 ## M2：首次选目录与文件仓储
 
