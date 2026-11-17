@@ -14,11 +14,14 @@ import { useNavigation } from '@/app/NavigationContext'
 import type { DiarySession } from '@/application/DiarySession'
 import type { TagIndex } from '@/application/TagIndex'
 import type { TagSection, TagReadFailure, TagService } from '@/application/TagService'
+import { attachmentFileName, type AttachmentService } from '@/application/AttachmentService'
+import type { DiaryDate } from '@/domain/DiaryDate'
 
 interface TagsContextValue {
   readonly index: TagIndex
   readonly service: TagService
   readonly session: DiarySession
+  readonly attachments: AttachmentService
 }
 
 const TagsContext = createContext<TagsContextValue | null>(null)
@@ -33,13 +36,57 @@ function useTags() {
   return { ...context, version, dirty, navigation, selectedKey }
 }
 
-export function createTagsPanels(index: TagIndex, service: TagService, session: DiarySession) {
+export function createTagsPanels(
+  index: TagIndex,
+  service: TagService,
+  session: DiarySession,
+  attachments: AttachmentService,
+) {
   function Provider({ children }: PropsWithChildren) {
     return (
-      <TagsContext.Provider value={{ index, service, session }}>{children}</TagsContext.Provider>
+      <TagsContext.Provider value={{ index, service, session, attachments }}>
+        {children}
+      </TagsContext.Provider>
     )
   }
   return { Provider, List: TagsList, Detail: TagsDetail }
+}
+
+function TagImage({
+  date,
+  url,
+  alt,
+  attachments,
+}: {
+  date: DiaryDate
+  url: string
+  alt: string
+  attachments: AttachmentService
+}) {
+  const [preview, setPreview] = useState<string | null>(null)
+  const [error, setError] = useState(false)
+  useEffect(() => {
+    if (!attachmentFileName(date, url)) return
+    let current = true
+    let objectUrl: string | null = null
+    void attachments
+      .previewUrl(date, url)
+      .then((resolved) => {
+        if (current) {
+          objectUrl = resolved
+          setPreview(resolved)
+        } else if (resolved.startsWith('blob:')) URL.revokeObjectURL(resolved)
+      })
+      .catch(() => {
+        if (current) setError(true)
+      })
+    return () => {
+      current = false
+      if (objectUrl?.startsWith('blob:')) URL.revokeObjectURL(objectUrl)
+    }
+  }, [attachments, date, url])
+  if (error) return <span role="status">图片无法预览：{alt}</span>
+  return <img src={attachmentFileName(date, url) ? (preview ?? '') : url} alt={alt} />
 }
 
 export function TagsList() {
@@ -95,7 +142,7 @@ export function TagsList() {
 }
 
 export function TagsDetail() {
-  const { index, service, selectedKey, version, dirty, navigation } = useTags()
+  const { index, service, selectedKey, version, dirty, navigation, attachments } = useTags()
   const [loadedKey, setLoadedKey] = useState<string | null>(null)
   const [sections, setSections] = useState<readonly TagSection[]>([])
   const [failures, setFailures] = useState<readonly TagReadFailure[]>([])
@@ -203,7 +250,37 @@ export function TagsDetail() {
               </Button>
             </h3>
             <div className="tag-section-content">
-              <Markdown remarkPlugins={[remarkGfm]}>{markdown}</Markdown>
+              <Markdown
+                remarkPlugins={[remarkGfm]}
+                components={{
+                  img: ({ src, alt }) => (
+                    <TagImage
+                      date={occurrence.date}
+                      url={src ?? ''}
+                      alt={alt ?? ''}
+                      attachments={attachments}
+                    />
+                  ),
+                  a: ({ href, children }) => (
+                    <a
+                      href={href}
+                      onClick={(event) => {
+                        if (!href || !attachmentFileName(occurrence.date, href)) return
+                        event.preventDefault()
+                        void attachments
+                          .openUrl(occurrence.date, href)
+                          .catch((reason: unknown) =>
+                            setError(reason instanceof Error ? reason.message : '无法打开附件'),
+                          )
+                      }}
+                    >
+                      {children}
+                    </a>
+                  ),
+                }}
+              >
+                {markdown}
+              </Markdown>
             </div>
           </section>
         ))}

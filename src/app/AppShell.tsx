@@ -1,5 +1,10 @@
-import { Fragment } from 'react'
-import { ArrowLeft, ArrowRight } from 'lucide-react'
+import {
+  Fragment,
+  useState,
+  type CSSProperties,
+  type PointerEvent as ReactPointerEvent,
+} from 'react'
+import { ArrowLeft, ArrowRight, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import type { DiarySession } from '@/application/DiarySession'
 import { NavigationContext } from './NavigationContext'
 import { useAppNavigation } from './useAppNavigation'
@@ -14,6 +19,9 @@ interface AppShellProps {
   readonly onChooseRoot?: () => void
   readonly choosingRoot?: boolean
   readonly workspaceIssue?: string | null
+  readonly initialSidebarWidth?: number | null
+  readonly initialSidebarCollapsed?: boolean
+  readonly onSavePreferences?: (width: number | null, collapsed: boolean) => Promise<void>
 }
 
 export function AppShell({
@@ -23,15 +31,72 @@ export function AppShell({
   onChooseRoot,
   choosingRoot,
   workspaceIssue,
+  initialSidebarWidth = null,
+  initialSidebarCollapsed = false,
+  onSavePreferences,
 }: AppShellProps) {
+  const [sidebarWidth, setSidebarWidth] = useState(initialSidebarWidth)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(initialSidebarCollapsed)
+  const [sidebarPeek, setSidebarPeek] = useState(false)
+  const [sidebarError, setSidebarError] = useState<string | null>(null)
+  const saveSidebar = (width: number | null, collapsed: boolean) => {
+    void onSavePreferences?.(width, collapsed).catch((reason: unknown) =>
+      setSidebarError(reason instanceof Error ? reason.message : '无法保存侧栏设置'),
+    )
+  }
+  const toggleSidebar = () => {
+    const collapsed = !sidebarCollapsed
+    setSidebarCollapsed(collapsed)
+    setSidebarPeek(false)
+    saveSidebar(sidebarWidth, collapsed)
+  }
+  const startResize = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (sidebarCollapsed) return
+    event.preventDefault()
+    const move = (pointer: PointerEvent) => {
+      setSidebarWidth(Math.round(Math.max(172, Math.min(pointer.clientX, window.innerWidth / 3))))
+    }
+    const stop = (pointer: PointerEvent) => {
+      const width = Math.round(Math.max(172, Math.min(pointer.clientX, window.innerWidth / 3)))
+      setSidebarWidth(width)
+      saveSidebar(width, false)
+      window.removeEventListener('pointermove', move)
+      window.removeEventListener('pointerup', stop)
+    }
+    window.addEventListener('pointermove', move)
+    window.addEventListener('pointerup', stop)
+  }
   const { navigation, navigating, registerContent, updateScroll } = useAppNavigation(session)
   const activeId = navigation.view.moduleId
   const activeModule = registry.require(activeId)
 
   return (
     <NavigationContext.Provider value={navigation}>
-      <div className="app-shell">
-        <aside className="feature-sidebar" aria-label="功能导航">
+      <div
+        className="app-shell"
+        data-sidebar-collapsed={sidebarCollapsed}
+        data-sidebar-peek={sidebarPeek}
+        style={
+          {
+            '--sidebar-expanded-width': sidebarWidth ? `${sidebarWidth}px` : '25vw',
+          } as CSSProperties
+        }
+      >
+        {sidebarCollapsed && (
+          <button
+            className="sidebar-peek-trigger"
+            aria-label="显示侧栏"
+            onMouseEnter={() => setSidebarPeek(true)}
+            onFocus={() => setSidebarPeek(true)}
+          />
+        )}
+        <aside
+          className="feature-sidebar"
+          aria-label="功能导航"
+          onMouseLeave={() => {
+            if (sidebarCollapsed) setSidebarPeek(false)
+          }}
+        >
           <div className="brand">
             <span className="brand-mark" aria-hidden="true">
               D
@@ -40,6 +105,19 @@ export function AppShell({
               <strong>Diary</strong>
               <span>写给自己的时间</span>
             </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="sidebar-toggle"
+              aria-label={sidebarCollapsed ? '固定展开侧栏' : '收起侧栏'}
+              onClick={toggleSidebar}
+            >
+              {sidebarCollapsed ? (
+                <PanelLeftOpen aria-hidden="true" />
+              ) : (
+                <PanelLeftClose aria-hidden="true" />
+              )}
+            </Button>
           </div>
           <Separator />
           <nav className="feature-nav" aria-label="页面">
@@ -64,6 +142,33 @@ export function AppShell({
             })}
           </nav>
           <div className="sidebar-footer">本地 Markdown 日记</div>
+          {!sidebarCollapsed && (
+            <div
+              className="sidebar-resize-handle"
+              role="separator"
+              aria-label="调整侧栏宽度"
+              aria-orientation="vertical"
+              aria-valuenow={sidebarWidth ?? Math.round(window.innerWidth * 0.25)}
+              tabIndex={0}
+              onPointerDown={startResize}
+              onKeyDown={(event) => {
+                if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
+                event.preventDefault()
+                const width = Math.round(
+                  Math.max(
+                    172,
+                    Math.min(
+                      (sidebarWidth ?? window.innerWidth * 0.25) +
+                        (event.key === 'ArrowRight' ? 16 : -16),
+                      window.innerWidth / 3,
+                    ),
+                  ),
+                )
+                setSidebarWidth(width)
+                saveSidebar(width, false)
+              }}
+            />
+          )}
         </aside>
         <main className="workspace">
           <header className="workspace-header">
@@ -109,6 +214,11 @@ export function AppShell({
           {workspaceIssue && (
             <p role="alert" className="workspace-error">
               {workspaceIssue}
+            </p>
+          )}
+          {sidebarError && (
+            <p role="alert" className="workspace-error">
+              {sidebarError}
             </p>
           )}
           {registry.list().map((module) => {

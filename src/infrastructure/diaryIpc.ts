@@ -55,6 +55,7 @@ const errorCodes: readonly DiaryErrorCode[] = [
   'corrupt_file',
   'permission_denied',
   'invalid_date',
+  'invalid_attachment',
   'unexpected',
 ]
 

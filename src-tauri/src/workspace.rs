@@ -17,6 +17,10 @@ use crate::{
 #[serde(rename_all = "camelCase")]
 struct Settings {
     diary_root: String,
+    #[serde(default)]
+    sidebar_width: Option<u16>,
+    #[serde(default)]
+    sidebar_collapsed: bool,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -25,6 +29,8 @@ pub struct WorkspaceStatus {
     pub root: Option<String>,
     pub configured_root: Option<String>,
     pub issue: Option<String>,
+    pub sidebar_width: Option<u16>,
+    pub sidebar_collapsed: bool,
 }
 
 #[derive(Clone)]
@@ -33,27 +39,47 @@ pub struct WorkspaceState {
     selected: Arc<RwLock<Option<PathBuf>>>,
     startup_issue: Arc<Mutex<Option<String>>>,
     save_gate: Arc<Mutex<()>>,
+    preferences: Arc<RwLock<(Option<u16>, bool)>>,
 }
 
 impl WorkspaceState {
     pub fn new(settings_path: PathBuf) -> Self {
-        let (selected, issue) = match fs::read(&settings_path) {
+        let (selected, preferences, issue) = match fs::read(&settings_path) {
             Ok(bytes) => match serde_json::from_slice::<Settings>(&bytes) {
-                Ok(settings) => (Some(PathBuf::from(settings.diary_root)), None),
-                Err(error) => (None, Some(format!("设置文件无法读取：{error}"))),
+                Ok(settings) => (
+                    Some(PathBuf::from(settings.diary_root)),
+                    (settings.sidebar_width, settings.sidebar_collapsed),
+                    None,
+                ),
+                Err(error) => (
+                    None,
+                    (None, false),
+                    Some(format!("设置文件无法读取：{error}")),
+                ),
             },
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => (None, None),
-            Err(error) => (None, Some(format!("设置文件无法读取：{error}"))),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                (None, (None, false), None)
+            }
+            Err(error) => (
+                None,
+                (None, false),
+                Some(format!("设置文件无法读取：{error}")),
+            ),
         };
         Self {
             settings_path,
             selected: Arc::new(RwLock::new(selected)),
             startup_issue: Arc::new(Mutex::new(issue)),
             save_gate: Arc::new(Mutex::new(())),
+            preferences: Arc::new(RwLock::new(preferences)),
         }
     }
 
     pub fn status(&self) -> WorkspaceStatus {
+        let preferences = *self
+            .preferences
+            .read()
+            .unwrap_or_else(|poison| poison.into_inner());
         let selected = self
             .selected
             .read()
@@ -67,11 +93,15 @@ impl WorkspaceState {
                     root: Some(root.to_string_lossy().into_owned()),
                     configured_root,
                     issue: None,
+                    sidebar_width: preferences.0,
+                    sidebar_collapsed: preferences.1,
                 },
                 Err(error) => WorkspaceStatus {
                     root: None,
                     configured_root,
                     issue: Some(error.message),
+                    sidebar_width: preferences.0,
+                    sidebar_collapsed: preferences.1,
                 },
             },
             None => WorkspaceStatus {
@@ -82,12 +112,22 @@ impl WorkspaceState {
                     .lock()
                     .unwrap_or_else(|poison| poison.into_inner())
                     .clone(),
+                sidebar_width: preferences.0,
+                sidebar_collapsed: preferences.1,
             },
         }
     }
 
     pub fn set_root(&self, candidate: &Path) -> Result<WorkspaceStatus, AppError> {
         let root = validate_root(candidate, true)?;
+        let _save_guard = self
+            .save_gate
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner());
+        let preferences = *self
+            .preferences
+            .read()
+            .unwrap_or_else(|poison| poison.into_inner());
         let mut selected = self
             .selected
             .write()
@@ -99,6 +139,8 @@ impl WorkspaceState {
         fs::create_dir_all(parent).map_err(AppError::from_io)?;
         let bytes = serde_json::to_vec(&Settings {
             diary_root: root.to_string_lossy().into_owned(),
+            sidebar_width: preferences.0,
+            sidebar_collapsed: preferences.1,
         })
         .map_err(|error| AppError::new("unexpected", error.to_string()))?;
         atomic_write(&self.settings_path, &bytes)?;
@@ -111,7 +153,38 @@ impl WorkspaceState {
             root: Some(root.to_string_lossy().into_owned()),
             configured_root: Some(root.to_string_lossy().into_owned()),
             issue: None,
+            sidebar_width: preferences.0,
+            sidebar_collapsed: preferences.1,
         })
+    }
+
+    pub fn set_ui_preferences(&self, width: Option<u16>, collapsed: bool) -> Result<(), AppError> {
+        if width.is_some_and(|value| !(172..=500).contains(&value)) {
+            return Err(AppError::new("invalid_response", "侧栏宽度无效"));
+        }
+        let _save_guard = self
+            .save_gate
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner());
+        let selected = self
+            .selected
+            .read()
+            .unwrap_or_else(|poison| poison.into_inner());
+        let root = selected
+            .as_ref()
+            .ok_or_else(|| AppError::new("not_found", "请先选择日记文件夹"))?;
+        let bytes = serde_json::to_vec(&Settings {
+            diary_root: root.to_string_lossy().into_owned(),
+            sidebar_width: width,
+            sidebar_collapsed: collapsed,
+        })
+        .map_err(|error| AppError::new("unexpected", error.to_string()))?;
+        atomic_write(&self.settings_path, &bytes)?;
+        *self
+            .preferences
+            .write()
+            .unwrap_or_else(|poison| poison.into_inner()) = (width, collapsed);
+        Ok(())
     }
 
     pub fn with_root<T>(
@@ -201,6 +274,18 @@ pub async fn choose_diary_root(
         .await
         .map_err(|error| AppError::new("unexpected", error.to_string()))?
         .map(Some)
+}
+
+#[tauri::command]
+pub async fn save_ui_preferences(
+    state: State<'_, WorkspaceState>,
+    width: Option<u16>,
+    collapsed: bool,
+) -> Result<(), AppError> {
+    let workspace = state.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || workspace.set_ui_preferences(width, collapsed))
+        .await
+        .map_err(|error| AppError::new("unexpected", error.to_string()))?
 }
 
 pub fn settings_path(app: &AppHandle) -> Result<PathBuf, AppError> {
@@ -329,6 +414,24 @@ mod tests {
         read_task.join().unwrap();
         done_rx.recv_timeout(Duration::from_secs(1)).unwrap();
         switch_task.join().unwrap();
+        fs::remove_dir_all(base).unwrap();
+    }
+
+    #[test]
+    fn sidebar_preferences_survive_restart_and_root_switch() {
+        let base = std::env::temp_dir().join(format!("diary-ui-prefs-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&base);
+        fs::create_dir(&base).unwrap();
+        let root = base.join("diaries");
+        fs::create_dir(&root).unwrap();
+        let settings = base.join("config/settings.json");
+        let state = WorkspaceState::new(settings.clone());
+        state.set_root(&root).unwrap();
+        state.set_ui_preferences(Some(240), true).unwrap();
+        let restored = WorkspaceState::new(settings);
+        assert_eq!(restored.status().sidebar_width, Some(240));
+        assert!(restored.status().sidebar_collapsed);
+        assert!(restored.set_ui_preferences(Some(100), false).is_err());
         fs::remove_dir_all(base).unwrap();
     }
 }

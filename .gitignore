@@ -6,6 +6,7 @@ node_modules/
 dist/
 target/
 src-tauri/target/
+/releases/
 
 # Local configuration and secrets
 .env

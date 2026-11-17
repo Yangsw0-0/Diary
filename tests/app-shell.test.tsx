@@ -2,7 +2,7 @@ vi.mock('@/features/diary/CrepeEditor', () => ({
   CrepeEditor: ({ markdown }: { markdown: string }) => <pre>{markdown}</pre>,
 }))
 import { afterEach, expect, it, vi } from 'vitest'
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { AppShell } from '@/app/AppShell'
 import { createApp } from '@/app/bootstrap'
@@ -111,7 +111,7 @@ it('groups dates by year and displays long titles without changing the date labe
     '2025-01-01',
   )
   expect(screen.getByText(longTitle)).toHaveAttribute('title', longTitle)
-  expect(screen.getByText('2025')).toBeInTheDocument()
+  expect(screen.getAllByText('2025').length).toBeGreaterThan(0)
   expect(screen.getByText('2024')).toBeInTheDocument()
 })
 
@@ -156,6 +156,27 @@ it('uses the parsed visible heading for a formatted diary title', async () => {
   renderShell(diary)
   expect(await screen.findByText('Bold')).toHaveAttribute('title', 'Bold')
   expect(screen.queryByText('**Bold**')).not.toBeInTheDocument()
+})
+
+it('collapses, peeks and remembers a resized sidebar without changing the page', async () => {
+  const user = userEvent.setup()
+  const app = createApp(repository)
+  const save = vi.fn(async () => {})
+  const { container } = render(
+    <AppShell registry={app.registry} session={app.services.session} onSavePreferences={save} />,
+  )
+  const shell = container.querySelector('.app-shell')!
+  fireEvent.pointerDown(screen.getByRole('separator', { name: '调整侧栏宽度' }), { clientX: 220 })
+  fireEvent.pointerMove(window, { clientX: 240 })
+  fireEvent.pointerUp(window, { clientX: 240 })
+  expect(save).toHaveBeenCalledWith(240, false)
+  await user.click(screen.getByRole('button', { name: '收起侧栏' }))
+  expect(shell).toHaveAttribute('data-sidebar-collapsed', 'true')
+  await user.hover(screen.getByRole('button', { name: '显示侧栏' }))
+  expect(shell).toHaveAttribute('data-sidebar-peek', 'true')
+  await user.click(screen.getByRole('button', { name: '固定展开侧栏' }))
+  expect(shell).toHaveAttribute('data-sidebar-collapsed', 'false')
+  expect(screen.getByRole('button', { name: '日记' })).toHaveAttribute('aria-current', 'page')
 })
 
 it('offers explicit conflict recovery actions in the editor', async () => {

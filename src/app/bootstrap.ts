@@ -6,12 +6,31 @@ import { createTagsPanels } from '@/features/tags/TagsPanels'
 import { ModuleRegistry } from './moduleRegistry'
 import { createServices } from './services'
 import type { WorkspaceGateway } from '@/application/WorkspaceService'
+import type { AttachmentGateway } from '@/application/AttachmentService'
 
 /** Composition root. Stateful services are created once, outside React rendering. */
-export function createApp(repository?: DiaryRepository, workspaceGateway?: WorkspaceGateway) {
-  const services = createServices(repository, workspaceGateway)
-  const diaryPanels = createDiaryPanels(services.session, () => new CrepeEditorAdapter())
-  const tagPanels = createTagsPanels(services.tagIndex, services.tags, services.session)
+export function createApp(
+  repository?: DiaryRepository,
+  workspaceGateway?: WorkspaceGateway,
+  attachmentGateway?: AttachmentGateway,
+) {
+  const services = createServices(repository, workspaceGateway, attachmentGateway)
+  const diaryPanels = createDiaryPanels(
+    services.session,
+    services.attachments,
+    (date) =>
+      new CrepeEditorAdapter({
+        onUpload: async (file) =>
+          (await services.attachments.importFile(date, file)).attachment.relativePath,
+        previewUrl: (url) => services.attachments.previewUrl(date, url),
+      }),
+  )
+  const tagPanels = createTagsPanels(
+    services.tagIndex,
+    services.tags,
+    services.session,
+    services.attachments,
+  )
   const registry = new ModuleRegistry('diary')
   registry.register({
     id: 'diary',

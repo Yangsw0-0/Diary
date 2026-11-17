@@ -13,22 +13,40 @@ function decodeStatus(value: unknown): WorkspaceStatus {
     throw new DiaryError('invalid_response', '工作区状态格式错误')
   }
   const data = value as Record<string, unknown>
+  const width = data.sidebarWidth
+  if (
+    width != null &&
+    (!Number.isInteger(width) || (width as number) < 172 || (width as number) > 500)
+  ) {
+    throw new DiaryError('invalid_response', '侧栏宽度格式错误')
+  }
+  if (data.sidebarCollapsed != null && typeof data.sidebarCollapsed !== 'boolean') {
+    throw new DiaryError('invalid_response', '侧栏状态格式错误')
+  }
   return {
     root: nullableString(data.root),
     configuredRoot: nullableString(data.configuredRoot),
     issue: nullableString(data.issue),
+    sidebarWidth: width == null ? null : (width as number),
+    sidebarCollapsed: data.sidebarCollapsed === true,
   }
 }
 
 export const workspaceCommands = {
   status: 'get_workspace_status',
   choose: 'choose_diary_root',
+  preferences: 'save_ui_preferences',
 } as const
 
 export class TauriWorkspaceGateway implements WorkspaceGateway {
-  private readonly invokeCommand: (command: string) => Promise<unknown>
+  private readonly invokeCommand: (
+    command: string,
+    args?: Record<string, unknown>,
+  ) => Promise<unknown>
 
-  constructor(invokeCommand: (command: string) => Promise<unknown> = invoke) {
+  constructor(
+    invokeCommand: (command: string, args?: Record<string, unknown>) => Promise<unknown> = invoke,
+  ) {
     this.invokeCommand = invokeCommand
   }
 
@@ -44,6 +62,14 @@ export class TauriWorkspaceGateway implements WorkspaceGateway {
     try {
       const result = await this.invokeCommand(workspaceCommands.choose)
       return result === null ? null : decodeStatus(result)
+    } catch (error) {
+      throw mapIpcError(error)
+    }
+  }
+
+  async savePreferences(width: number | null, collapsed: boolean): Promise<void> {
+    try {
+      await this.invokeCommand(workspaceCommands.preferences, { width, collapsed })
     } catch (error) {
       throw mapIpcError(error)
     }

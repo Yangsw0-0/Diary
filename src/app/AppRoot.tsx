@@ -145,6 +145,11 @@ export function AppRoot({ registry, services }: AppRootProps) {
         onChooseRoot={() => void chooseRoot()}
         choosingRoot={choosing}
         workspaceIssue={error}
+        initialSidebarWidth={status.sidebarWidth ?? null}
+        initialSidebarCollapsed={status.sidebarCollapsed ?? false}
+        onSavePreferences={(width, collapsed) =>
+          services.workspace.savePreferences(width, collapsed)
+        }
       />
       {closePrompt && (
         <div className="diary-close-overlay">

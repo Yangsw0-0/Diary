@@ -17,6 +17,10 @@ interface Props {
   } | null
   readonly onMissingSection: () => void
   readonly onReady: () => void
+  readonly insertRequest?: { readonly id: number; readonly markdown: string } | null
+  readonly onFiles?: (files: readonly File[]) => void
+  readonly onOpenLink?: (url: string) => void
+  readonly onInsertError?: (message: string) => void
 }
 
 export function CrepeEditor({
@@ -28,6 +32,10 @@ export function CrepeEditor({
   focusRequest,
   onMissingSection,
   onReady,
+  insertRequest,
+  onFiles,
+  onOpenLink,
+  onInsertError,
 }: Props) {
   const root = useRef<HTMLDivElement>(null)
   const onChangeRef = useRef(onChange)
@@ -38,6 +46,9 @@ export function CrepeEditor({
   const missingRef = useRef(onMissingSection)
   const readyRef = useRef(onReady)
   const lastFocusId = useRef<number | null>(null)
+  const lastInsertId = useRef<number | null>(null)
+  const insertRef = useRef(insertRequest)
+  const insertErrorRef = useRef(onInsertError)
   const [error, setError] = useState<string | null>(null)
   onChangeRef.current = onChange
   onComposingRef.current = onComposing
@@ -45,6 +56,18 @@ export function CrepeEditor({
   focusRef.current = focusRequest
   missingRef.current = onMissingSection
   readyRef.current = onReady
+  insertRef.current = insertRequest
+  insertErrorRef.current = onInsertError
+
+  const insertIfNeeded = (adapter: EditorAdapter, request = insertRef.current) => {
+    if (!request || lastInsertId.current === request.id) return
+    try {
+      adapter.insertMarkdown(request.markdown)
+      lastInsertId.current = request.id
+    } catch (reason) {
+      insertErrorRef.current?.(reason instanceof Error ? reason.message : '无法插入附件链接')
+    }
+  }
 
   // This editor is intentionally uncontrolled. DiaryDetail changes its key when
   // a disk reload replaces markdown, creating a fresh editor and undo history.
@@ -62,6 +85,7 @@ export function CrepeEditor({
             if (disposed) void adapter.destroy()
             else {
               adapter.setReadonly(readOnlyRef.current)
+              insertIfNeeded(adapter)
               const request = focusRef.current
               if (request) {
                 lastFocusId.current = request.id
@@ -94,12 +118,44 @@ export function CrepeEditor({
     else if (focusRequest.restoreScroll) onReady()
   }, [focusRequest, onMissingSection, onReady])
 
+  useEffect(() => {
+    if (adapterRef.current) insertIfNeeded(adapterRef.current, insertRequest)
+  }, [insertRequest])
+
   return (
     <div
       className="diary-crepe-container"
       aria-busy={readOnly}
       onCompositionStart={() => onComposingRef.current(true)}
       onCompositionEnd={() => onComposingRef.current(false)}
+      onPasteCapture={(event) => {
+        const images = [...event.clipboardData.files].filter((file) =>
+          file.type.startsWith('image/'),
+        )
+        if (images.length) {
+          event.preventDefault()
+          onFiles?.(images)
+        }
+      }}
+      onDragOver={(event) => {
+        if (event.dataTransfer.types.includes('Files')) event.preventDefault()
+      }}
+      onDropCapture={(event) => {
+        const files = [...event.dataTransfer.files]
+        if (files.length) {
+          event.preventDefault()
+          onFiles?.(files)
+        }
+      }}
+      onClickCapture={(event) => {
+        const target = event.target
+        const anchor = target instanceof Element ? target.closest('a[href]') : null
+        const url = anchor?.getAttribute('href')
+        if (url?.startsWith('../assets/')) {
+          event.preventDefault()
+          onOpenLink?.(url)
+        }
+      }}
     >
       {error && (
         <p role="alert" className="workspace-error">

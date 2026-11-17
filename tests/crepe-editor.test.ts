@@ -34,3 +34,19 @@ it('focuses the requested repeated top-level section by key and ordinal', async 
     HTMLElement.prototype.scrollIntoView = original
   }
 })
+
+it('inserts a rendered attachment link and keeps its relative path in Markdown', async () => {
+  const root = document.createElement('div')
+  document.body.append(root)
+  const adapter = new CrepeEditorAdapter()
+  try {
+    await adapter.mount(root, '# 2024-02-29\n\n正文', () => {})
+    adapter.insertMarkdown(
+      '[资料](../assets/2024/2024-02-29/att-00000000000000000000000000000000.pdf)',
+    )
+    expect(adapter.getMarkdown()).toContain('../assets/2024/2024-02-29/att-')
+  } finally {
+    await adapter.destroy()
+    root.remove()
+  }
+})

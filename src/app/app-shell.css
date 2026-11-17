@@ -3,20 +3,73 @@
 }
 
 .app-shell {
+  position: relative;
   display: grid;
-  grid-template-columns: clamp(172px, 19vw, 224px) minmax(0, 1fr);
+  grid-template-columns: clamp(172px, var(--sidebar-expanded-width), 33vw) minmax(0, 1fr);
   min-width: 760px;
   min-height: 100vh;
   background: var(--background);
 }
 
 .feature-sidebar {
+  position: relative;
+  grid-column: 1;
+  grid-row: 1;
   display: flex;
   flex-direction: column;
   min-width: 0;
   padding: 26px 14px 18px;
   border-right: 1px solid var(--border);
   background: var(--sidebar);
+}
+
+.app-shell[data-sidebar-collapsed='true'] {
+  grid-template-columns: 0 minmax(0, 1fr);
+}
+
+.app-shell[data-sidebar-collapsed='true'] .feature-sidebar {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 30;
+  width: clamp(172px, var(--sidebar-expanded-width), 33vw);
+  visibility: hidden;
+  pointer-events: none;
+  box-shadow: 12px 0 24px rgb(0 0 0 / 0.08);
+}
+
+.app-shell[data-sidebar-peek='true'] .feature-sidebar {
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.sidebar-peek-trigger {
+  position: absolute;
+  inset: 0 auto 0 0;
+  z-index: 20;
+  width: 12px;
+  cursor: pointer;
+}
+
+.sidebar-toggle {
+  margin-left: auto;
+  flex: none;
+}
+
+.sidebar-resize-handle {
+  position: absolute;
+  top: 0;
+  right: -4px;
+  bottom: 0;
+  z-index: 5;
+  width: 8px;
+  cursor: col-resize;
+}
+
+.sidebar-resize-handle:hover,
+.sidebar-resize-handle:focus-visible {
+  background: var(--diary-active);
 }
 
 .brand {
@@ -94,6 +147,8 @@
 }
 
 .workspace {
+  grid-column: 2;
+  grid-row: 1;
   display: flex;
   flex-direction: column;
   min-width: 0;
@@ -376,6 +431,19 @@
   font-size: 11px;
   font-weight: 700;
 }
+.diary-year-divider {
+  display: grid;
+  justify-items: center;
+  gap: 5px;
+  margin: 18px 10px 8px;
+  color: var(--diary-subtle);
+  font-size: 10px;
+}
+.diary-year-divider hr {
+  width: 100%;
+  border: 0;
+  border-top: 1px solid var(--border);
+}
 .diary-date-button {
   display: flex;
   flex-direction: column;
@@ -388,6 +456,22 @@
 }
 .diary-list-date {
   font-size: 12px;
+}
+.attachment-file-input {
+  display: none;
+}
+.attachment-error {
+  padding: 8px 24px;
+  color: var(--destructive);
+  font-size: 12px;
+}
+.tag-section-content img {
+  max-width: 100%;
+  height: auto;
+}
+.diary-save-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 .diary-list-title {
   display: block;

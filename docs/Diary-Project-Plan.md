@@ -30,7 +30,7 @@ Diary 是一个本地 Markdown 日记应用。日记页用于写作和按日期�
 
 日记位于所选根文件夹的年份子目录，每天一个文件，例如 `2026/2026-11-16.md`。只有用户选择文件夹并首次成功保存相应日记时，才创建所需的年份目录和文件。日期以文件名为准，正文首行必须是 `# YYYY-MM-DD 可选标题`，且日期与文件名一致；新建时由应用生成该首行。日期列表只展示一次月日，一级标题没有附加标题时只显示日期。文件名与年份目录必须一致，按 ISO 日期排序；文件采用 UTF-8 与 `\n` 换行，读取兼容 `\r\n`。不符合首行规则的现有文件仍保留在原处，扫描时逐项提示；保存不写入不符合规则的内容。
 
-图片及附件统一复制到所选根目录的 `assets/<年份>/<日期>/<生成的唯一文件名>`，日记中使用相对路径，例如 `![说明](../assets/2026/2026-11-16/abc123.png)`。粘贴或拖入图片时显示预览；其他附件插入普通 Markdown 链接，点击后由系统打开。复制成功后再插入链接；复制失败时保留编辑器内容并提示。附件原件不随日记小节移动或标签重排而变化；删除引用时暂不自动删除附件，避免误删被其他日记引用的文件。备份时需要同时复制年份目录和 `assets/`。
+图片及附件统一复制到所选根目录的 `assets/<年份>/<日期>/<生成的唯一文件名>`，日记中使用相对路径，例如 `![说明](../assets/2026/2026-11-16/att-<唯一编号>.png)`。支持粘贴或拖入图片、选择普通附件；单个文件须非空且不超过 20 MiB。PNG、JPEG、GIF、WebP、AVIF 按图片预览，其他类型插入普通 Markdown 链接，点击后由系统打开。复制成功后再插入链接；复制失败时保留编辑器内容并提示。附件原件不随日记小节移动或标签重排而变化；删除引用时不自动删除附件，避免误删被其他日记引用的文件。备份时需要同时复制年份目录和 `assets/`。
 
 ```markdown
 # 2026-11-16 开始实习的第一天
@@ -119,11 +119,11 @@ class TagIndex {
 
 ## 6. 存储、保存与异常处理
 
-Rust 暴露 `choose_diary_root`、`list_diaries`、`read_diary`、`save_diary`、`import_attachment` 等受控命令。只有文件夹选择命令接收操作系统选择器返回的根路径；读写日记和附件时，前端仅传经过校验的日期或待导入文件引用，不传任意目标绝对路径。Rust 统一组合并约束目标路径必须位于所选根目录内。每个日期最多一个文件。若正文一级标题日期与文件名不符，提示修正，不暗中移动文件。无效文件名或无法读取的文件需要显示错误，其余日记继续加载。
+Rust 暴露 `choose_diary_root`、`list_diaries`、`read_diary`、`save_diary`、`import_attachment`、`preview_attachment`、`open_attachment`、`save_ui_preferences` 等受控命令。只有文件夹选择命令接收操作系统选择器返回的根路径；附件导入由前端文件选择器/粘贴/拖放提供字节和名称，日记及附件命令不接收任意目标绝对路径。Rust 独立校验日期、生成的附件文件名及目录，约束路径位于所选根目录内。每个日期最多一个文件。若正文一级标题日期与文件名不符，提示修正，不暗中移动文件。无效文件名或无法读取的文件需要显示错误，其余日记继续加载。
 
 IPC 契约：`DiaryDate` 在 TypeScript 边界转为 `YYYY-MM-DD` 字符串；Rust 独立验证日期和路径。`list_diaries` 返回 `{ entries: [{ date, markdown, revision }], failures: [{ fileName, reason }] }`，有效条目按日期倒序排列。Rust 只读文件和报告错误，一级标题提取由 TypeScript `MarkdownSectionExtractor` 统一完成。`read_diary`、`save_diary` 返回相同的 `{ date, markdown, revision }`；存储错误使用 `{ code, message }`，`code` 包括 `conflict`、`not_found`、`corrupt_file`、`permission_denied`、`invalid_date`。前端在 IPC 边界校验返回数据并将未知错误归一为 `unexpected`。`save_diary` 接收 `expectation: { kind: 'new' } | { kind: 'match', revision: string }`；Rust 命令参数名使用 `camelCase` JSON 字段，两侧测试共用 `tests/fixtures/diary-ipc.json`。
 
-附件的 Markdown 链接继续保留相对路径，以便整体迁移。预览时不能直接把该路径交给 webview；M6 由 Rust 在已选根目录下安全解析并读取附件，再提供受控的预览 URL 或二进制数据。不得仅凭 CSP 的 `asset:` 声明认为本地附件可访问，也不得对任意系统路径开放资源 scope。
+附件的 Markdown 链接继续保留相对路径，以便整体迁移。预览时不能直接把该路径交给 webview；Rust 按日期和受控文件名读取图片字节，前端生成临时 `blob:` URL 并在视图销毁时释放。点击普通附件时 Rust 再次校验路径，交由 macOS 系统打开。不得仅凭 CSP 的 `asset:` 声明认为本地附件可访问，也不得对任意系统路径开放资源 scope。
 
 M2 的文件命令在后台阻塞线程执行；工作区的读锁允许多个读取并行，切换根目录取得写锁并等待当前文件操作结束，保存另由互斥门串行化。前端切换功能页时保持两个模块挂载，避免日记视图状态被卸载。M3 已增加独立的编辑会话与草稿保存队列，更换根目录前先等待保存；M4 的标签索引从有效日记重建，保存成功后仅替换当天记录。
 
@@ -181,9 +181,10 @@ src-tauri/src/
 ├── lib.rs                          # 注册 Tauri 命令
 ├── diary_commands.rs               # 命令参数校验与响应
 ├── diary_storage.rs                # 路径、枚举与原子读写
+├── attachment_commands.rs          # 附件 IPC 命令
 ├── error.rs                        # IPC 错误契约
 ├── workspace.rs                    # 用户所选根目录与配置
-└── attachment_storage.rs           # 附件路径与安全复制
+└── attachment_storage.rs           # 附件路径、安全复制与受控读取
 ```
 
 `domain` 不依赖 React、Tauri 或 Milkdown；`application` 不调用具体 UI；`infrastructure` 负责第三方 API；`features` 只处理页面状态和交互。业务规则集中在服务和索引类，不在两个页面各实现一套。首版不为简单类型增加继承层级。

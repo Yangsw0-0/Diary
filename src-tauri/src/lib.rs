@@ -1,3 +1,5 @@
+mod attachment_commands;
+mod attachment_storage;
 mod diary_commands;
 mod diary_storage;
 mod error;
@@ -25,9 +27,13 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             workspace::get_workspace_status,
             workspace::choose_diary_root,
+            workspace::save_ui_preferences,
             diary_commands::list_diaries,
             diary_commands::read_diary,
             diary_commands::save_diary,
+            attachment_commands::import_attachment,
+            attachment_commands::preview_attachment,
+            attachment_commands::open_attachment,
         ])
         .run(tauri::generate_context!())
         .expect("error while building tauri application");
