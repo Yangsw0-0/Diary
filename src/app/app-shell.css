@@ -590,3 +590,26 @@
   gap: 8px;
   margin-top: 6px;
 }
+
+.workspace-navigation {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+.workspace-navigation > span {
+  margin-left: 8px;
+}
+.workspace-navigation button {
+  width: 29px;
+}
+.tag-section-date-button {
+  height: auto;
+  padding: 0;
+  color: var(--foreground);
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.tag-section-date-button:hover {
+  text-decoration: underline;
+}

@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { DiarySession, type DiarySessionSnapshot } from '@/application/DiarySession'
 import type { EditorAdapter } from '@/application/EditorAdapter'
 import { CrepeEditor } from './CrepeEditor'
+import { useNavigation } from '@/app/NavigationContext'
 
 const DiaryContext = createContext<{
   session: DiarySession
@@ -40,6 +41,7 @@ export function createDiaryPanels(session: DiarySession, createAdapter: () => Ed
 
 export function DiaryList() {
   const [session, { entries, failures, selected, loading, opening, error }] = useDiary()
+  const navigation = useNavigation()
   let year = ''
   return (
     <>
@@ -60,7 +62,7 @@ export function DiaryList() {
           </Button>
           <Button
             size="sm"
-            onClick={() => void session.create()}
+            onClick={() => void navigation.createDiary()}
             disabled={loading || opening}
             aria-label="新建今日日记"
           >
@@ -96,7 +98,7 @@ export function DiaryList() {
                   className="diary-date-button"
                   aria-label={entry.date.toString()}
                   aria-current={selected?.date.equals(entry.date) ? 'true' : undefined}
-                  onClick={() => void session.open(entry.date)}
+                  onClick={() => void navigation.openDiary(entry.date)}
                   disabled={opening}
                 >
                   <span className="diary-list-date">{entry.date.toString()}</span>
@@ -129,6 +131,7 @@ export function DiaryList() {
 
 export function DiaryDetail() {
   const [session, { selected, opening }, createAdapter] = useDiary()
+  const navigation = useNavigation()
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (
@@ -228,6 +231,9 @@ export function DiaryDetail() {
         onComposing={(value) => session.setComposing(value)}
         readOnly={opening}
         createAdapter={createAdapter}
+        focusRequest={navigation.view.moduleId === 'diary' ? navigation.focusRequest : null}
+        onMissingSection={navigation.reportMissingSection}
+        onReady={navigation.restoreScroll}
       />
     </article>
   )

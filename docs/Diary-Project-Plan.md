@@ -83,10 +83,10 @@ Diary 是一个本地 Markdown 日记应用。日记页用于写作和按日期�
 | `WorkspaceService` | 首次选目录、保存所选根路径、校验可用性及切换目录；不自行创建根文件夹。 |
 | `AttachmentService` | 将导入的图片/附件复制到 `assets/`，生成唯一文件名与相对 Markdown 链接。 |
 | `NavigationHistory` | 管理当前视图、后退栈和前进栈；每条记录包含页面、所选日期或标签、目标小节及滚动位置。 |
-| `EditorAdapter`（接口） | `load`、`getMarkdown`、`onChange`、`focusSection`；`CrepeEditorAdapter` 封装 Milkdown。 |
-| `FeatureModule`（接口） | 提供导航元数据及 `List`、`Detail` 两个内容插槽；`bootstrap.ts` 注册模块，`AppShell` 负责导航与两栏容器。 |
+| `EditorAdapter`（接口） | mount、getMarkdown、setReadonly、focusSection、destroy；CrepeEditorAdapter 封装 Milkdown，正文滚动位置由 AppShell 统一捕获和恢复。 |
+| `FeatureModule`（接口） | 提供导航标签及 List、Detail、Provider 插槽；AppShell 集中管理类型化导航状态和内容区滚动位置。 |
 
-标签功能通过 `openDiarySection(ref)` 请求日记页打开并定位，不直接操作日记页内部状态。`revision` 可采用文件内容哈希：Rust 保存前检查磁盘版本是否仍与读取时一致，外部修改冲突时保留编辑器草稿并提示处理。
+标签功能通过 `openDiarySection(ref)` 请求日记页打开并定位，不直接操作日记页内部状态。AppShell 持有进程内导航历史，按模块保存选中日期或标签及正文滚动位置；编辑器适配器只负责按标签键和当日出现序号定位可见标题。`revision` 可采用文件内容哈希：Rust 保存前检查磁盘版本是否仍与读取时一致，外部修改冲突时保留编辑器草稿并提示处理。
 
 导航历史仅在当前应用进程的内存中，关闭应用后清空。普通导航先记录当前视图状态并清空前进栈；后退将当前状态压入前进栈，再恢复上一状态；前进反向操作。视图状态包括功能页、选中的标签/日期、标签详情滚动容器的位置，以及日记编辑器当前小节和滚动位置。恢复滚动应在目标视图渲染完成后进行；当标签内容因编辑而变短时，将滚动位置限制在新的有效范围。用户在日记中修改后点击后退，须先等待自动保存完成；保存失败则保留草稿，并且不能因视图切换丢失。历史不写进 `settings.json`。
 

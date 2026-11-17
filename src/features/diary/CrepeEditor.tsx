@@ -7,18 +7,41 @@ interface Props {
   readonly onComposing: (value: boolean) => void
   readonly readOnly: boolean
   readonly createAdapter: () => EditorAdapter
+  readonly focusRequest: {
+    readonly key: string
+    readonly ordinal: number
+    readonly id: number
+  } | null
+  readonly onMissingSection: () => void
+  readonly onReady: () => void
 }
 
-export function CrepeEditor({ markdown, onChange, onComposing, readOnly, createAdapter }: Props) {
+export function CrepeEditor({
+  markdown,
+  onChange,
+  onComposing,
+  readOnly,
+  createAdapter,
+  focusRequest,
+  onMissingSection,
+  onReady,
+}: Props) {
   const root = useRef<HTMLDivElement>(null)
   const onChangeRef = useRef(onChange)
   const onComposingRef = useRef(onComposing)
   const adapterRef = useRef<EditorAdapter | null>(null)
   const readOnlyRef = useRef(readOnly)
+  const focusRef = useRef(focusRequest)
+  const missingRef = useRef(onMissingSection)
+  const readyRef = useRef(onReady)
+  const lastFocusId = useRef<number | null>(null)
   const [error, setError] = useState<string | null>(null)
   onChangeRef.current = onChange
   onComposingRef.current = onComposing
   readOnlyRef.current = readOnly
+  focusRef.current = focusRequest
+  missingRef.current = onMissingSection
+  readyRef.current = onReady
 
   useEffect(() => {
     const adapter = createAdapter()
@@ -32,7 +55,14 @@ export function CrepeEditor({ markdown, onChange, onComposing, readOnly, createA
         .then(
           () => {
             if (disposed) void adapter.destroy()
-            else adapter.setReadonly(readOnlyRef.current)
+            else {
+              adapter.setReadonly(readOnlyRef.current)
+              const request = focusRef.current
+              if (request) {
+                lastFocusId.current = request.id
+                if (!adapter.focusSection(request.key, request.ordinal)) missingRef.current()
+              } else readyRef.current()
+            }
           },
           (reason: unknown) => {
             if (!disposed) setError(reason instanceof Error ? reason.message : '编辑器无法启动')
@@ -49,6 +79,13 @@ export function CrepeEditor({ markdown, onChange, onComposing, readOnly, createA
   useEffect(() => {
     adapterRef.current?.setReadonly(readOnly)
   }, [readOnly])
+
+  useEffect(() => {
+    const adapter = adapterRef.current
+    if (!adapter || !focusRequest || lastFocusId.current === focusRequest.id) return
+    lastFocusId.current = focusRequest.id
+    if (!adapter.focusSection(focusRequest.key, focusRequest.ordinal)) onMissingSection()
+  }, [focusRequest, onMissingSection])
 
   return (
     <div

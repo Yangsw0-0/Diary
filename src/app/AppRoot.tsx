@@ -140,6 +140,7 @@ export function AppRoot({ registry, services }: AppRootProps) {
       <AppShell
         key={status.root}
         registry={registry}
+        session={services.session}
         root={status.root}
         onChooseRoot={() => void chooseRoot()}
         choosingRoot={choosing}

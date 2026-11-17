@@ -2,7 +2,7 @@
 
 一个本地 Markdown 日记应用。首版面向 macOS，使用 Tauri 2、React、TypeScript 和 Rust；Windows 支持列入后续阶段。
 
-M4 标签提取与只读聚合已建立：[项目规划](./docs/Diary-Project-Plan.md) · [进度与任务](./docs/Diary-Project-Progress.md)。
+M5 原文跳转与导航历史已建立：[项目规划](./docs/Diary-Project-Plan.md) · [进度与任务](./docs/Diary-Project-Progress.md)。
 
 日记根文件夹由用户首次启动时自行选择。日记正文与附件属于用户数据，不应提交到本代码仓库。
 
@@ -39,7 +39,7 @@ npm run tauri:build # 打包桌面应用
 
 只预览前端界面时可运行 `npm run dev`，打开 `http://localhost:1420`。此时没有 Tauri 文件系统能力，工作区状态会提示连接失败。Rust 端单独检查可运行 `cargo check --locked --manifest-path src-tauri/Cargo.toml`。
 
-M2 已实现 `choose_diary_root`、`get_workspace_status`、`list_diaries`、`read_diary` 和 `save_diary`。M3 已接入 Milkdown Crepe：编辑器允许规范化 Markdown（例如列表符号），按日期新建和打开，保存时使用 revision 冲突检测。M4 已接入标签提取与聚合：顶层二级标题作为标签，保存后更新当天索引，标签详情只读并在展示前核对原文件 revision。用户选择的根目录记录在应用配置目录的 `settings.json`，日记正文仍只存在于用户选定的文件夹。存储测试使用临时目录，不使用真实日记。
+M2 已实现 `choose_diary_root`、`get_workspace_status`、`list_diaries`、`read_diary` 和 `save_diary`。M3 已接入 Milkdown Crepe：编辑器允许规范化 Markdown（例如列表符号），按日期新建和打开，保存时使用 revision 冲突检测。M4 已接入标签提取与聚合：顶层二级标题作为标签，保存后更新当天索引，标签详情只读并在展示前核对原文件 revision。M5 已支持点击标签日期跳回原日记小节，以及后退、前进和阅读位置恢复；导航历史仅保存在本次运行的内存中。用户选择的根目录记录在应用配置目录的 `settings.json`，日记正文仍只存在于用户选定的文件夹。存储测试使用临时目录，不使用真实日记。
 
 本机如需将 Rust 工具链和缓存完全限制在项目内，可将 `CARGO_HOME`、`RUSTUP_HOME`、`CARGO_TARGET_DIR` 和 `TMPDIR` 分别指向 `Diary/.cache/cargo`、`Diary/.cache/rustup`、`Diary/.cache/tauri-target` 和 `Diary/.cache/tmp`。这些路径已被 Git 忽略。本机开发使用此方式，没有修改系统 Rust 环境。
 

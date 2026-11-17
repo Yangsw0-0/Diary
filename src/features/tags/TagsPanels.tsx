@@ -10,6 +10,7 @@ import { Tags } from 'lucide-react'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Button } from '@/components/ui/button'
+import { useNavigation } from '@/app/NavigationContext'
 import type { DiarySession } from '@/application/DiarySession'
 import type { TagIndex } from '@/application/TagIndex'
 import type { TagSection, TagReadFailure, TagService } from '@/application/TagService'
@@ -18,8 +19,6 @@ interface TagsContextValue {
   readonly index: TagIndex
   readonly service: TagService
   readonly session: DiarySession
-  readonly selectedKey: string | null
-  readonly select: (key: string) => void
 }
 
 const TagsContext = createContext<TagsContextValue | null>(null)
@@ -27,25 +26,24 @@ const TagsContext = createContext<TagsContextValue | null>(null)
 function useTags() {
   const context = useContext(TagsContext)
   if (!context) throw new Error('Tag panels require a provider')
+  const navigation = useNavigation()
   const version = useSyncExternalStore(context.index.subscribe, context.index.getVersion)
   const diary = useSyncExternalStore(context.session.subscribe, context.session.getSnapshot)
-  return { ...context, version, diary }
+  const selectedKey = navigation.view.moduleId === 'tags' ? navigation.view.key : null
+  return { ...context, version, diary, navigation, selectedKey }
 }
 
 export function createTagsPanels(index: TagIndex, service: TagService, session: DiarySession) {
   function Provider({ children }: PropsWithChildren) {
-    const [selectedKey, select] = useState<string | null>(null)
     return (
-      <TagsContext.Provider value={{ index, service, session, selectedKey, select }}>
-        {children}
-      </TagsContext.Provider>
+      <TagsContext.Provider value={{ index, service, session }}>{children}</TagsContext.Provider>
     )
   }
   return { Provider, List: TagsList, Detail: TagsDetail }
 }
 
 export function TagsList() {
-  const { index, selectedKey, select, diary } = useTags()
+  const { index, selectedKey, navigation, diary } = useTags()
   const { frequent, singleDay } = index.listGroups()
   const dirty = !!diary.selected && diary.selected.version !== diary.selected.savedVersion
   const groupButton = (group: (typeof frequent)[number]) => (
@@ -54,7 +52,7 @@ export function TagsList() {
         variant="ghost"
         className="tag-group-button"
         aria-current={selectedKey === group.key ? 'true' : undefined}
-        onClick={() => select(group.key)}
+        onClick={() => void navigation.openTag(group.key)}
       >
         <span title={group.displayTitle}>{group.displayTitle}</span>
         <small>{group.dayCount} 天</small>
@@ -98,7 +96,7 @@ export function TagsList() {
 }
 
 export function TagsDetail() {
-  const { index, service, selectedKey, version, diary } = useTags()
+  const { index, service, selectedKey, version, diary, navigation } = useTags()
   const [loadedKey, setLoadedKey] = useState<string | null>(null)
   const [sections, setSections] = useState<readonly TagSection[]>([])
   const [failures, setFailures] = useState<readonly TagReadFailure[]>([])
@@ -132,6 +130,10 @@ export function TagsDetail() {
       controller.abort()
     }
   }, [service, selectedKey, version])
+
+  useEffect(() => {
+    if (selectedKey && loadedKey === selectedKey && !loading) navigation.restoreScroll()
+  }, [selectedKey, loadedKey, loading, sections, navigation.restoreScroll])
 
   if (!selectedKey)
     return (
@@ -187,8 +189,20 @@ export function TagsDetail() {
             className="tag-section"
           >
             <h3>
-              {occurrence.date.toString()}
-              {occurrence.ordinal > 0 ? ' · 第 ' + (occurrence.ordinal + 1) + ' 次' : ''}
+              <Button
+                variant="link"
+                className="tag-section-date-button"
+                onClick={() =>
+                  void navigation.openDiarySection({
+                    date: occurrence.date,
+                    key: occurrence.key,
+                    ordinal: occurrence.ordinal,
+                  })
+                }
+              >
+                {occurrence.date.toString()}
+                {occurrence.ordinal > 0 ? ' · 第 ' + (occurrence.ordinal + 1) + ' 次' : ''}
+              </Button>
             </h3>
             <div className="tag-section-content">
               <Markdown remarkPlugins={[remarkGfm]}>{markdown}</Markdown>

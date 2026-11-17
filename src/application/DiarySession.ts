@@ -178,6 +178,13 @@ export class DiarySession {
     }
   }
 
+  async deselect(): Promise<boolean> {
+    ++this.navigationSequence
+    if (!(await this.flush())) return false
+    this.set({ selected: null, error: null, opening: false })
+    return true
+  }
+
   async create(date: DiaryDate = todayDate()): Promise<boolean> {
     if (this.snapshot.entries.some((entry) => entry.date.equals(date))) return this.open(date)
     const sequence = ++this.navigationSequence

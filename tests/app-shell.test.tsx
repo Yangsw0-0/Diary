@@ -10,6 +10,12 @@ import type { DiaryRepository } from '@/domain/DiaryRepository'
 import { DiaryDate } from '@/domain/DiaryDate'
 import { DiaryError } from '@/domain/DiaryError'
 
+function renderShell(repo: DiaryRepository) {
+  const app = createApp(repo)
+  render(<AppShell registry={app.registry} session={app.services.session} />)
+  return app
+}
+
 const repository: DiaryRepository = {
   list: async () => ({ entries: [], failures: [] }),
   read: async () => {
@@ -24,7 +30,7 @@ afterEach(cleanup)
 
 it('switches between diary and tags without showing fake diary data', async () => {
   const user = userEvent.setup()
-  render(<AppShell registry={createApp(repository).registry} />)
+  renderShell(repository)
 
   expect(screen.getByRole('region', { name: '日记列表' })).toBeInTheDocument()
   expect(screen.getByRole('button', { name: '日记' })).toHaveAttribute('aria-current', 'page')
@@ -44,7 +50,7 @@ it('keeps the selected diary mounted when visiting tags', async () => {
     read: async () => entry,
     save: async () => entry,
   }
-  render(<AppShell registry={createApp(diary).registry} />)
+  renderShell(diary)
   await user.click(await screen.findByRole('button', { name: '2024-02-29' }))
   expect(await screen.findByText('# 2024-02-29 Saved')).toBeInTheDocument()
   await user.click(screen.getByRole('button', { name: '标签' }))
@@ -74,7 +80,7 @@ it('keeps the current diary when another date fails to load', async () => {
     read,
     save: async () => first,
   }
-  render(<AppShell registry={createApp(diary).registry} />)
+  renderShell(diary)
   await user.click(await screen.findByRole('button', { name: '2024-02-29' }))
   expect(await screen.findByText('# 2024-02-29 Saved')).toBeInTheDocument()
   await user.click(screen.getByRole('button', { name: '2024-03-01' }))
@@ -99,7 +105,7 @@ it('groups dates by year and displays long titles without changing the date labe
     read: async (day) => (day.equals(newer.date) ? newer : older),
     save: async () => newer,
   }
-  render(<AppShell registry={createApp(diary).registry} />)
+  renderShell(diary)
   expect(await screen.findByRole('button', { name: '2025-01-01' })).toHaveAttribute(
     'aria-label',
     '2025-01-01',
@@ -126,7 +132,7 @@ it('shows frequent tags by day, keeps single-day tags collapsed and renders read
     read: async (day) => (day.equals(first.date) ? first : second),
     save: async () => second,
   }
-  render(<AppShell registry={createApp(diary).registry} />)
+  renderShell(diary)
   await user.click(screen.getByRole('button', { name: '标签' }))
   expect(await screen.findByRole('button', { name: /工作.*2 天/ })).toBeInTheDocument()
   expect(screen.getByText('仅出现一次（1）')).toBeInTheDocument()
@@ -147,7 +153,7 @@ it('uses the parsed visible heading for a formatted diary title', async () => {
     read: async () => entry,
     save: async () => entry,
   }
-  render(<AppShell registry={createApp(diary).registry} />)
+  renderShell(diary)
   expect(await screen.findByText('Bold')).toHaveAttribute('title', 'Bold')
   expect(screen.queryByText('**Bold**')).not.toBeInTheDocument()
 })
@@ -167,7 +173,7 @@ it('offers explicit conflict recovery actions in the editor', async () => {
     },
   }
   const app = createApp(diary)
-  render(<AppShell registry={app.registry} />)
+  render(<AppShell registry={app.registry} session={app.services.session} />)
   await user.click(await screen.findByRole('button', { name: '2024-02-29' }))
   disk = { date: day, markdown: '# 2024-02-29 External', revision: 'r2' }
   app.services.session.edit('# 2024-02-29 My draft')
