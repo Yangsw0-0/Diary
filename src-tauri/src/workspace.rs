@@ -204,13 +204,14 @@ mod tests {
             std::env::temp_dir().join(format!("diary-workspace-{}-{nonce}", std::process::id()));
         let root = base.join("journals");
         fs::create_dir_all(&root).unwrap();
+        let canonical_root = fs::canonicalize(&root).unwrap();
         let settings = base.join("config/settings.json");
         let state = WorkspaceState::new(settings.clone());
         assert!(state.status().root.is_none());
         state.set_root(&root).unwrap();
         assert_eq!(
             WorkspaceState::new(settings).status().root,
-            Some(root.to_string_lossy().into_owned())
+            Some(canonical_root.to_string_lossy().into_owned())
         );
         fs::remove_dir(&root).unwrap();
         assert!(state.status().root.is_none());
@@ -230,6 +231,7 @@ mod tests {
         let second = base.join("second");
         fs::create_dir_all(&first).unwrap();
         fs::create_dir(&second).unwrap();
+        let canonical_second = fs::canonicalize(&second).unwrap();
         let settings = base.join("config/settings.json");
         let state = WorkspaceState::new(settings.clone());
         state.set_root(&first).unwrap();
@@ -251,7 +253,7 @@ mod tests {
         );
         assert_eq!(
             WorkspaceState::new(settings).status().root,
-            Some(second.to_string_lossy().into_owned())
+            Some(canonical_second.to_string_lossy().into_owned())
         );
         fs::remove_dir_all(base).unwrap();
     }
