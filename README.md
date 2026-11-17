@@ -33,7 +33,7 @@ M1–M6 已实现，macOS 正式版为 `1.0.0`；当前修订版本为 `1.0.4`�
 
 ## macOS 安装
 
-最新 `1.0.4` 修订包在 [releases/v1.0.4/Diary_1.0.4_aarch64.zip](./releases/v1.0.4/Diary_1.0.4_aarch64.zip)，适用于 Apple 芯片 Mac。解压后退出旧版 Diary，再将 `Diary.app` 拖到「应用程序」文件夹替换旧版。`1.0.0` 原始 DMG 仍在 [releases/v1.0.0](./releases/v1.0.0)。首次运行请选择一个已有的日记文件夹。应用使用临时（ad hoc）签名，未做 Apple 公证；macOS 若阻止打开，请在系统设置的「隐私与安全性」中确认你信任此应用后手动放行。不要忽略来源不明安装包的安全提示。
+最新 `1.0.4` 安装包可从 [GitHub Release 下载](https://github.com/Yangsw0-0/Diary/releases/tag/v1.0.4)，适用于 Apple 芯片 Mac。直接下载：[Diary_1.0.4_aarch64.zip](https://github.com/Yangsw0-0/Diary/releases/download/v1.0.4/Diary_1.0.4_aarch64.zip)。解压后退出旧版 Diary，再将 `Diary.app` 拖到「应用程序」文件夹替换旧版。首次运行请选择一个已有的日记文件夹。应用使用临时（ad hoc）签名，未做 Apple 公证；macOS 若阻止打开，请在系统设置的「隐私与安全性」中确认你信任此应用后手动放行。不要忽略来源不明安装包的安全提示。
 
 本版本只支持 macOS。附件上限为单个 20 MiB；删除正文中的附件链接不会清理附件文件，清理时请在备份后手动核对。项目不提供云同步或自动备份，建议定期复制整个日记根目录。
 

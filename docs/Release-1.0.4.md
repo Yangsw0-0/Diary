@@ -12,5 +12,5 @@
 - `npm run check`：前端 69 项测试通过；Rust 19 项测试通过。
 - 生产 CSS 已确认使用共享背景变量，且不再设置固定的深灰画布值。
 - `.app` 与 ZIP 已构建；ZIP 解压后的签名和版本 `1.0.4` 已核对。原生窗口中的视觉效果仍待人工复核。
-- 本地安装包：[Diary_1.0.4_aarch64.zip](../releases/v1.0.4/Diary_1.0.4_aarch64.zip)。SHA-256：`2d54f22e939f27273de8ee6dc8cbc45f56502d35e1930dd9bdb8262fd5f00ea3`。
-- ZIP 未纳入 Git。退出旧版应用后解压并替换 `Diary.app`；日记数据目录不会随应用包一起替换。
+- [GitHub 下载 Diary_1.0.4_aarch64.zip](https://github.com/Yangsw0-0/Diary/releases/download/v1.0.4/Diary_1.0.4_aarch64.zip)。SHA-256：`2d54f22e939f27273de8ee6dc8cbc45f56502d35e1930dd9bdb8262fd5f00ea3`。
+- ZIP 作为 Release 附件提供，未纳入 Git 源码。退出旧版应用后解压并替换 `Diary.app`；日记数据目录不会随应用包一起替换。
