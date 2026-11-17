@@ -53,7 +53,7 @@ it('keeps the selected diary mounted when visiting tags', async () => {
   expect(screen.getByRole('button', { name: '2024-02-29' })).toHaveAttribute('aria-current', 'true')
 })
 
-it('clears stale diary content when another date fails to load', async () => {
+it('keeps the current diary when another date fails to load', async () => {
   const user = userEvent.setup()
   const first = {
     date: DiaryDate.parse('2024-02-29'),
@@ -79,7 +79,7 @@ it('clears stale diary content when another date fails to load', async () => {
   expect(await screen.findByText('# 2024-02-29 Saved')).toBeInTheDocument()
   await user.click(screen.getByRole('button', { name: '2024-03-01' }))
   expect(await screen.findByText('文件已损坏')).toBeInTheDocument()
-  expect(screen.queryByText('# 2024-02-29 Saved')).not.toBeInTheDocument()
+  expect(screen.getByText('# 2024-02-29 Saved')).toBeInTheDocument()
 })
 
 it('groups dates by year and displays long titles without changing the date label', async () => {
@@ -134,4 +134,50 @@ it('shows frequent tags by day, keeps single-day tags collapsed and renders read
   expect(await screen.findByText('第二天')).toBeInTheDocument()
   expect(screen.getByText('第一天').tagName).toBe('STRONG')
   expect(screen.getByText('第二次')).toBeInTheDocument()
+})
+
+it('uses the parsed visible heading for a formatted diary title', async () => {
+  const entry = {
+    date: DiaryDate.parse('2026-07-11'),
+    markdown: '# 2026-07-11 **Bold**',
+    revision: 'r1',
+  }
+  const diary: DiaryRepository = {
+    list: async () => ({ entries: [entry], failures: [] }),
+    read: async () => entry,
+    save: async () => entry,
+  }
+  render(<AppShell registry={createApp(diary).registry} />)
+  expect(await screen.findByText('Bold')).toHaveAttribute('title', 'Bold')
+  expect(screen.queryByText('**Bold**')).not.toBeInTheDocument()
+})
+
+it('offers explicit conflict recovery actions in the editor', async () => {
+  const user = userEvent.setup()
+  const day = DiaryDate.parse('2024-02-29')
+  let disk = { date: day, markdown: '# 2024-02-29 Old', revision: 'r1' }
+  const diary: DiaryRepository = {
+    list: async () => ({ entries: [disk], failures: [] }),
+    read: async () => disk,
+    save: async (_date, markdown, expected) => {
+      if (expected.kind !== 'match' || expected.revision !== disk.revision)
+        throw new DiaryError('conflict', '日记已被外部修改')
+      disk = { date: day, markdown, revision: 'r3' }
+      return disk
+    },
+  }
+  const app = createApp(diary)
+  render(<AppShell registry={app.registry} />)
+  await user.click(await screen.findByRole('button', { name: '2024-02-29' }))
+  disk = { date: day, markdown: '# 2024-02-29 External', revision: 'r2' }
+  app.services.session.edit('# 2024-02-29 My draft')
+  expect(await app.services.session.flush()).toBe(false)
+  expect(await screen.findByRole('button', { name: '覆盖保存' })).toBeInTheDocument()
+  const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true)
+  try {
+    await user.click(screen.getByRole('button', { name: '覆盖保存' }))
+    await vi.waitFor(() => expect(disk.markdown).toBe('# 2024-02-29 My draft'))
+  } finally {
+    confirm.mockRestore()
+  }
 })

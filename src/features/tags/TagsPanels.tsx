@@ -12,7 +12,7 @@ import remarkGfm from 'remark-gfm'
 import { Button } from '@/components/ui/button'
 import type { DiarySession } from '@/application/DiarySession'
 import type { TagIndex } from '@/application/TagIndex'
-import type { TagSection, TagService } from '@/application/TagService'
+import type { TagSection, TagReadFailure, TagService } from '@/application/TagService'
 
 interface TagsContextValue {
   readonly index: TagIndex
@@ -69,6 +69,11 @@ export function TagsList() {
           <h2>标签</h2>
         </div>
       </div>
+      {index.isStale() && (
+        <p className="panel-message workspace-error" role="alert">
+          标签索引需要重建，请刷新日记列表。
+        </p>
+      )}
       {dirty && (
         <p className="panel-message" role="status">
           当前日记有未保存修改，保存后更新标签。
@@ -96,23 +101,27 @@ export function TagsDetail() {
   const { index, service, selectedKey, version, diary } = useTags()
   const [loadedKey, setLoadedKey] = useState<string | null>(null)
   const [sections, setSections] = useState<readonly TagSection[]>([])
+  const [failures, setFailures] = useState<readonly TagReadFailure[]>([])
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   useEffect(() => {
     if (!selectedKey) return
     let current = true
+    const controller = new AbortController()
     setLoading(true)
     setError(null)
-    void service.getSections(selectedKey).then(
+    void service.getSections(selectedKey, controller.signal).then(
       (next) => {
         if (!current) return
-        setSections(next)
+        setSections(next.sections)
+        setFailures(next.failures)
         setLoadedKey(selectedKey)
         setLoading(false)
       },
       (reason: unknown) => {
         if (!current) return
         setSections([])
+        setFailures([])
         setLoadedKey(selectedKey)
         setError(reason instanceof Error ? reason.message : '读取标签内容失败')
         setLoading(false)
@@ -120,6 +129,7 @@ export function TagsDetail() {
     )
     return () => {
       current = false
+      controller.abort()
     }
   }, [service, selectedKey, version])
 
@@ -152,6 +162,18 @@ export function TagsDetail() {
         <p role="alert" className="workspace-error">
           {error}
         </p>
+      )}
+      {!loading && failures.length > 0 && (
+        <div role="status" className="diary-failures">
+          <strong>{failures.length} 个日期读取失败</strong>
+          <ul>
+            {failures.map((failure) => (
+              <li key={failure.date.toString()}>
+                {failure.date.toString()}：{failure.message}
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
       {!loading && !error && loadedKey === selectedKey && sections.length === 0 && (
         <p className="panel-message">此标签的原文已变化或不存在。</p>

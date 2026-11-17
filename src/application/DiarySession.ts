@@ -12,6 +12,7 @@ export interface DiaryDraft {
   readonly savedVersion: number
   readonly saving: boolean
   readonly error: DiaryError | null
+  readonly editorEpoch: number
 }
 
 export interface DiarySessionSnapshot {
@@ -19,6 +20,7 @@ export interface DiarySessionSnapshot {
   readonly failures: readonly DiaryFileFailure[]
   readonly selected: DiaryDraft | null
   readonly loading: boolean
+  readonly opening: boolean
   readonly error: DiaryError | null
 }
 
@@ -43,13 +45,16 @@ export class DiarySession {
     failures: [],
     selected: null,
     loading: true,
+    opening: false,
     error: null,
   }
   private timer: ReturnType<typeof setTimeout> | null = null
+  private loadPromise: Promise<void> | null = null
   private savePromise: Promise<boolean> | null = null
   private composing = false
   private generation = 0
   private navigationSequence = 0
+  private externalCheckSequence = 0
 
   private readonly service: DiaryService
   private readonly debounceMs: number
@@ -66,9 +71,19 @@ export class DiarySession {
 
   getSnapshot = (): DiarySessionSnapshot => this.snapshot
 
+  getSummary(date: DiaryDate): string | undefined {
+    return this.service.getSummary(date)?.title
+  }
+
   private set(next: Partial<DiarySessionSnapshot>): void {
     this.snapshot = { ...this.snapshot, ...next }
-    this.listeners.forEach((listener) => listener())
+    for (const listener of this.listeners) {
+      try {
+        listener()
+      } catch {
+        /* View listeners cannot invalidate a committed save. */
+      }
+    }
   }
 
   private updateDraft(next: Partial<DiaryDraft>): void {
@@ -77,42 +92,70 @@ export class DiarySession {
 
   reset(): void {
     this.clearTimer()
+    this.loadPromise = null
     this.generation++
     this.navigationSequence++
+    this.externalCheckSequence++
     this.composing = false
     this.service.clearIndex()
-    this.set({ entries: [], failures: [], selected: null, loading: true, error: null })
+    this.set({
+      entries: [],
+      failures: [],
+      selected: null,
+      loading: true,
+      opening: false,
+      error: null,
+    })
   }
 
-  async load(): Promise<void> {
+  load(): Promise<void> {
+    if (this.loadPromise) return this.loadPromise
     const generation = this.generation
     this.set({ loading: true, error: null })
-    try {
-      const scan = await this.service.list()
-      if (generation === this.generation)
-        this.set({ entries: scan.entries, failures: scan.failures, loading: false })
-    } catch (reason) {
-      if (generation === this.generation)
-        this.set({ loading: false, error: diaryError(reason, '读取日记列表失败') })
-    }
+    const run = this.service
+      .list()
+      .then(
+        (scan) => {
+          if (generation === this.generation)
+            this.set({ entries: scan.entries, failures: scan.failures, loading: false })
+        },
+        (reason: unknown) => {
+          if (generation === this.generation)
+            this.set({ loading: false, error: diaryError(reason, '读取日记列表失败') })
+        },
+      )
+      .finally(() => {
+        if (this.loadPromise === run) this.loadPromise = null
+      })
+    this.loadPromise = run
+    return run
+  }
+
+  resetAndLoad(): Promise<void> {
+    this.reset()
+    return this.load()
   }
 
   async refresh(): Promise<boolean> {
     if (!(await this.flush())) return false
+    await this.checkExternalChange()
     await this.load()
     return !this.snapshot.error
   }
 
   async open(date: DiaryDate): Promise<boolean> {
     const sequence = ++this.navigationSequence
-    if (this.snapshot.selected?.date.equals(date)) return true
-    if (!(await this.flush())) return false
-    if (sequence !== this.navigationSequence) return false
-    const generation = this.generation
-    this.set({ error: null })
+    if (this.snapshot.selected?.date.equals(date)) {
+      this.set({ opening: false })
+      return true
+    }
+    this.set({ opening: true, error: null })
     try {
+      if (!(await this.flush()) || sequence !== this.navigationSequence) return false
       const entry = await this.service.read(date)
-      if (generation !== this.generation || sequence !== this.navigationSequence) return false
+      if (sequence !== this.navigationSequence) return false
+      // Input events that arrived while the read was in flight still belong to the old draft.
+      if (!(await this.flush()) || sequence !== this.navigationSequence) return false
       this.set({
         selected: {
           date,
@@ -122,36 +165,46 @@ export class DiarySession {
           savedVersion: 0,
           saving: false,
           error: null,
+          editorEpoch: 0,
         },
       })
       return true
     } catch (reason) {
-      if (generation === this.generation && sequence === this.navigationSequence)
-        this.set({ selected: null, error: diaryError(reason, '读取日记失败') })
+      if (sequence === this.navigationSequence)
+        this.set({ error: diaryError(reason, '读取日记失败') })
       return false
+    } finally {
+      if (sequence === this.navigationSequence) this.set({ opening: false })
     }
   }
 
   async create(date: DiaryDate = todayDate()): Promise<boolean> {
     if (this.snapshot.entries.some((entry) => entry.date.equals(date))) return this.open(date)
     const sequence = ++this.navigationSequence
-    if (this.snapshot.selected?.date.equals(date)) return true
-    if (!(await this.flush())) return false
-    if (sequence !== this.navigationSequence) return false
-    this.set({
-      selected: {
-        date,
-        markdown: `# ${date.toString()}\n\n`,
-        revision: null,
-        version: 1,
-        savedVersion: 0,
-        saving: false,
-        error: null,
-      },
-      error: null,
-    })
-    this.scheduleSave()
-    return true
+    if (this.snapshot.selected?.date.equals(date)) {
+      this.set({ opening: false })
+      return true
+    }
+    this.set({ opening: true, error: null })
+    try {
+      if (!(await this.flush()) || sequence !== this.navigationSequence) return false
+      this.set({
+        selected: {
+          date,
+          markdown: `# ${date.toString()}\n\n`,
+          revision: null,
+          version: 1,
+          savedVersion: 0,
+          saving: false,
+          error: null,
+          editorEpoch: 0,
+        },
+      })
+      this.scheduleSave()
+      return true
+    } finally {
+      if (sequence === this.navigationSequence) this.set({ opening: false })
+    }
   }
 
   edit(markdown: string): void {
@@ -170,6 +223,165 @@ export class DiarySession {
   isDirty(): boolean {
     const selected = this.snapshot.selected
     return !!selected && (selected.version !== selected.savedVersion || selected.saving)
+  }
+
+  async checkExternalChange(): Promise<void> {
+    const selected = this.snapshot.selected
+    if (!selected || selected.saving || this.snapshot.opening) return
+    const sequence = ++this.externalCheckSequence
+    try {
+      const remote = await this.service.read(selected.date)
+      const current = this.snapshot.selected
+      if (
+        sequence !== this.externalCheckSequence ||
+        !current ||
+        !current.date.equals(selected.date) ||
+        current.saving ||
+        this.snapshot.opening ||
+        remote.revision === current.revision
+      )
+        return
+      if (current.version !== current.savedVersion) {
+        this.updateDraft({
+          error: new DiaryError('conflict', '日记已被外部修改，当前草稿尚未保存'),
+        })
+        return
+      }
+      this.service.reindex(remote)
+      this.replaceEntry(remote)
+      this.set({
+        selected: {
+          ...current,
+          markdown: remote.markdown,
+          revision: remote.revision,
+          editorEpoch: current.editorEpoch + 1,
+          error: null,
+        },
+      })
+    } catch (reason) {
+      if (
+        sequence === this.externalCheckSequence &&
+        this.snapshot.selected?.date.equals(selected.date)
+      )
+        this.updateDraft({ error: diaryError(reason, '检查外部修改失败') })
+    }
+  }
+
+  async prepareWorkspaceSwitch(): Promise<boolean> {
+    ++this.navigationSequence
+    this.set({ opening: true, error: null })
+    const saved = await this.flush()
+    if (!saved) this.set({ opening: false })
+    return saved
+  }
+
+  finishWorkspaceSwitch(): void {
+    this.set({ opening: false })
+  }
+
+  async reloadSelected(): Promise<boolean> {
+    const previous = this.snapshot.selected
+    if (!previous) return false
+    const sequence = ++this.navigationSequence
+    this.clearTimer()
+    this.set({ opening: true, error: null })
+    try {
+      if (this.savePromise) await this.savePromise
+      const loaded = await this.service.read(previous.date)
+      if (sequence !== this.navigationSequence) return false
+      this.service.reindex(loaded)
+      this.replaceEntry(loaded)
+      this.set({
+        selected: {
+          date: previous.date,
+          markdown: loaded.markdown,
+          revision: loaded.revision,
+          version: 0,
+          savedVersion: 0,
+          saving: false,
+          error: null,
+          editorEpoch: previous.editorEpoch + 1,
+        },
+      })
+      return true
+    } catch (reason) {
+      if (sequence === this.navigationSequence)
+        this.updateDraft({ error: diaryError(reason, '重新加载日记失败') })
+      return false
+    } finally {
+      if (sequence === this.navigationSequence) this.set({ opening: false })
+    }
+  }
+
+  async discardDraft(): Promise<boolean> {
+    const selected = this.snapshot.selected
+    if (!selected) return true
+    ++this.navigationSequence
+    this.clearTimer()
+    this.set({ opening: true })
+    if (this.savePromise) await this.savePromise
+    if (this.snapshot.selected?.date.equals(selected.date)) {
+      this.set({ selected: null, error: null, opening: false })
+    }
+    return true
+  }
+
+  async overwriteSelected(): Promise<boolean> {
+    const selected = this.snapshot.selected
+    if (!selected) return false
+    ++this.navigationSequence
+    this.clearTimer()
+    this.set({ opening: true, error: null })
+    try {
+      if (this.savePromise) await this.savePromise
+      if (!this.isDirty()) return true
+      const run = this.overwriteLoop()
+      this.savePromise = run
+      try {
+        return await run
+      } finally {
+        if (this.savePromise === run) this.savePromise = null
+      }
+    } finally {
+      this.set({ opening: false })
+    }
+  }
+
+  private async overwriteLoop(): Promise<boolean> {
+    const draft = this.snapshot.selected
+    if (!draft) return false
+    try {
+      let expectation: { kind: 'new' } | { kind: 'match'; revision: string }
+      try {
+        const remote = await this.service.read(draft.date)
+        expectation = { kind: 'match', revision: remote.revision }
+      } catch (reason) {
+        if (!(reason instanceof DiaryError) || reason.code !== 'not_found') throw reason
+        expectation = { kind: 'new' }
+      }
+      const current = this.snapshot.selected
+      if (!current || !current.date.equals(draft.date)) return false
+      this.updateDraft({ saving: true, error: null })
+      const saved = await this.service.save(current.date, current.markdown, expectation)
+      this.updateDraft({
+        revision: saved.revision,
+        savedVersion: current.version,
+        saving: false,
+        error: null,
+      })
+      this.replaceEntry(saved)
+      return await this.saveLoop()
+    } catch (reason) {
+      this.updateDraft({ saving: false, error: diaryError(reason, '覆盖保存失败') })
+      return false
+    }
+  }
+
+  private replaceEntry(saved: DiaryEntry): void {
+    const entries = this.snapshot.entries.filter((entry) => !entry.date.equals(saved.date))
+    entries.push(saved)
+    entries.sort((a, b) => b.date.compare(a.date))
+    this.set({ entries })
   }
 
   private clearTimer(): void {
@@ -219,10 +431,7 @@ export class DiarySession {
           saving: false,
           error: null,
         })
-        const entries = this.snapshot.entries.filter((entry) => !entry.date.equals(saved.date))
-        entries.push(saved)
-        entries.sort((a, b) => b.date.compare(a.date))
-        this.set({ entries })
+        this.replaceEntry(saved)
       } catch (reason) {
         this.updateDraft({ saving: false, error: diaryError(reason, '保存日记失败') })
         return false

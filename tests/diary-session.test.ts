@@ -133,3 +133,91 @@ it('keeps the latest date selection when reads finish out of order', async () =>
   expect(await olderRequest).toBe(false)
   expect(session.getSnapshot().selected?.date.toString()).toBe('2024-03-01')
 })
+
+it('saves edits that arrive while opening another date', async () => {
+  const first = { date, markdown: '# 2024-02-29 Old', revision: 'r0' }
+  const second = { date: nextDate, markdown: '# 2024-03-01 Next', revision: 'r0' }
+  const { repo, files } = repository([first, second])
+  let release!: () => void
+  const pending = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  let reading = false
+  const read = repo.read
+  repo.read = async (day) => {
+    if (day.equals(nextDate)) {
+      reading = true
+      await pending
+    }
+    return read(day)
+  }
+  const session = new DiarySession(new DiaryService(repo), 60_000)
+  await session.load()
+  await session.open(date)
+  const opening = session.open(nextDate)
+  await vi.waitFor(() => expect(reading).toBe(true))
+  expect(session.getSnapshot().opening).toBe(true)
+  session.edit('# 2024-02-29 Late edit')
+  release()
+  expect(await opening).toBe(true)
+  expect(files.get(date.toString())?.markdown).toBe('# 2024-02-29 Late edit')
+  expect(session.getSnapshot().selected?.date.toString()).toBe('2024-03-01')
+})
+
+it('retains the current draft if reading the next date fails', async () => {
+  const first = { date, markdown: '# 2024-02-29 Old', revision: 'r0' }
+  const { repo } = repository([first])
+  const session = new DiarySession(new DiaryService(repo), 60_000)
+  await session.load()
+  await session.open(date)
+  session.edit('# 2024-02-29 My text')
+  expect(await session.open(nextDate)).toBe(false)
+  expect(session.getSnapshot().selected?.date.toString()).toBe('2024-02-29')
+  expect(session.getSnapshot().selected?.markdown).toBe('# 2024-02-29 My text')
+  expect(session.getSnapshot().error?.code).toBe('not_found')
+})
+
+it('offers reload, explicit overwrite and discard after a conflict', async () => {
+  const first = { date, markdown: '# 2024-02-29 Old', revision: 'r0' }
+  const { repo, files } = repository([first])
+  const session = new DiarySession(new DiaryService(repo), 60_000)
+  await session.load()
+  await session.open(date)
+  session.edit('# 2024-02-29 My draft')
+  files.set(date.toString(), { ...first, markdown: '# 2024-02-29 External', revision: 'external' })
+  expect(await session.flush()).toBe(false)
+  expect(session.getSnapshot().selected?.error?.code).toBe('conflict')
+  expect(await session.overwriteSelected()).toBe(true)
+  expect(files.get(date.toString())?.markdown).toBe('# 2024-02-29 My draft')
+  expect(session.isDirty()).toBe(false)
+  files.set(date.toString(), {
+    ...first,
+    markdown: '# 2024-02-29 New external',
+    revision: 'external2',
+  })
+  session.edit('# 2024-02-29 Another draft')
+  expect(await session.flush()).toBe(false)
+  expect(await session.reloadSelected()).toBe(true)
+  expect(session.getSnapshot().selected?.markdown).toBe('# 2024-02-29 New external')
+  expect(session.getSnapshot().selected?.editorEpoch).toBe(1)
+  session.edit('# 2024-02-29 Unsaved')
+  expect(await session.discardDraft()).toBe(true)
+  expect(session.getSnapshot().selected).toBeNull()
+})
+
+it('refreshes a clean same-day editor after an external change and warns on dirty conflicts', async () => {
+  const first = { date, markdown: '# 2024-02-29 Old', revision: 'r0' }
+  const { repo, files } = repository([first])
+  const session = new DiarySession(new DiaryService(repo), 60_000)
+  await session.load()
+  await session.open(date)
+  files.set(date.toString(), { ...first, markdown: '# 2024-02-29 External', revision: 'r1' })
+  await session.checkExternalChange()
+  expect(session.getSnapshot().selected?.markdown).toBe('# 2024-02-29 External')
+  expect(session.getSnapshot().selected?.editorEpoch).toBe(1)
+  session.edit('# 2024-02-29 Local')
+  files.set(date.toString(), { ...first, markdown: '# 2024-02-29 Newer', revision: 'r2' })
+  await session.checkExternalChange()
+  expect(session.getSnapshot().selected?.markdown).toBe('# 2024-02-29 Local')
+  expect(session.getSnapshot().selected?.error?.code).toBe('conflict')
+})

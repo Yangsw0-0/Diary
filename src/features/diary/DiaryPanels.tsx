@@ -8,34 +8,38 @@ import {
 import { BookOpenText, CalendarDays, Plus, RefreshCw, Save } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { DiarySession, type DiarySessionSnapshot } from '@/application/DiarySession'
-import type { DiaryDate } from '@/domain/DiaryDate'
+import type { EditorAdapter } from '@/application/EditorAdapter'
 import { CrepeEditor } from './CrepeEditor'
 
-const DiaryContext = createContext<DiarySession | null>(null)
+const DiaryContext = createContext<{
+  session: DiarySession
+  createAdapter: () => EditorAdapter
+} | null>(null)
 
-function useDiary(): [DiarySession, DiarySessionSnapshot] {
-  const session = useContext(DiaryContext)
-  if (!session) throw new Error('Diary panels require a provider')
-  return [session, useSyncExternalStore(session.subscribe, session.getSnapshot)]
+function useDiary(): readonly [DiarySession, DiarySessionSnapshot, () => EditorAdapter] {
+  const context = useContext(DiaryContext)
+  if (!context) throw new Error('Diary panels require a provider')
+  return [
+    context.session,
+    useSyncExternalStore(context.session.subscribe, context.session.getSnapshot),
+    context.createAdapter,
+  ] as const
 }
 
-export function createDiaryPanels(session: DiarySession) {
+export function createDiaryPanels(session: DiarySession, createAdapter: () => EditorAdapter) {
   function Provider({ children }: PropsWithChildren) {
     useEffect(() => {
       void session.load()
     }, [])
-    return <DiaryContext.Provider value={session}>{children}</DiaryContext.Provider>
+    return (
+      <DiaryContext.Provider value={{ session, createAdapter }}>{children}</DiaryContext.Provider>
+    )
   }
   return { Provider, List: DiaryList, Detail: DiaryDetail }
 }
 
-export function diaryTitle(markdown: string, date: DiaryDate): string {
-  const first = markdown.split(/\r?\n/, 1)[0] ?? ''
-  return first.replace(new RegExp(`^# ${date.toString()}(?:\\s+)?`), '').trim() || '未命名日记'
-}
-
 export function DiaryList() {
-  const [session, { entries, failures, selected, loading, error }] = useDiary()
+  const [session, { entries, failures, selected, loading, opening, error }] = useDiary()
   let year = ''
   return (
     <>
@@ -49,7 +53,7 @@ export function DiaryList() {
             size="sm"
             variant="outline"
             onClick={() => void session.refresh()}
-            disabled={loading}
+            disabled={loading || opening}
             aria-label="刷新日记列表"
           >
             <RefreshCw aria-hidden="true" />
@@ -57,7 +61,7 @@ export function DiaryList() {
           <Button
             size="sm"
             onClick={() => void session.create()}
-            disabled={loading}
+            disabled={loading || opening}
             aria-label="新建今日日记"
           >
             <Plus aria-hidden="true" />
@@ -81,6 +85,7 @@ export function DiaryList() {
       {entries.length > 0 && (
         <ul className="diary-date-list">
           {entries.map((entry) => {
+            const title = session.getSummary(entry.date) ?? ''
             const showYear = year !== entry.date.year
             year = entry.date.year
             return (
@@ -92,11 +97,14 @@ export function DiaryList() {
                   aria-label={entry.date.toString()}
                   aria-current={selected?.date.equals(entry.date) ? 'true' : undefined}
                   onClick={() => void session.open(entry.date)}
+                  disabled={opening}
                 >
                   <span className="diary-list-date">{entry.date.toString()}</span>
-                  <span className="diary-list-title" title={diaryTitle(entry.markdown, entry.date)}>
-                    {diaryTitle(entry.markdown, entry.date)}
-                  </span>
+                  {title && (
+                    <span className="diary-list-title" title={title}>
+                      {title}
+                    </span>
+                  )}
                 </Button>
               </li>
             )
@@ -120,10 +128,14 @@ export function DiaryList() {
 }
 
 export function DiaryDetail() {
-  const [session, { selected }] = useDiary()
+  const [session, { selected, opening }, createAdapter] = useDiary()
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 's') {
+      if (
+        (event.metaKey || event.ctrlKey) &&
+        event.key.toLowerCase() === 's' &&
+        document.querySelector('.workspace-panels:not([hidden]) .diary-editor-layout')
+      ) {
         event.preventDefault()
         void session.flush()
       }
@@ -168,11 +180,54 @@ export function DiaryDetail() {
           </Button>
         </div>
       </div>
+      {opening && (
+        <p className="diary-transition-notice" role="status">
+          正在切换，请稍候…
+        </p>
+      )}
+      {selected.error && (
+        <div className="diary-recovery" role="alert">
+          <span>{selected.error.message}。草稿仍保留在编辑器中。</span>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              if (window.confirm('重新加载将放弃当前草稿，确定继续？'))
+                void session.reloadSelected()
+            }}
+          >
+            重新加载磁盘版本
+          </Button>
+          {selected.error.code === 'conflict' && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                if (window.confirm('覆盖保存会用当前草稿替换磁盘上的版本，确定继续？'))
+                  void session.overwriteSelected()
+              }}
+            >
+              覆盖保存
+            </Button>
+          )}
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              if (window.confirm('确定放弃当前草稿？')) void session.discardDraft()
+            }}
+          >
+            放弃草稿
+          </Button>
+        </div>
+      )}
       <CrepeEditor
-        key={selected.date.toString()}
+        key={selected.date.toString() + ':' + selected.editorEpoch}
         markdown={selected.markdown}
         onChange={(markdown) => session.edit(markdown)}
         onComposing={(value) => session.setComposing(value)}
+        readOnly={opening}
+        createAdapter={createAdapter}
       />
     </article>
   )

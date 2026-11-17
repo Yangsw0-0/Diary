@@ -25,6 +25,10 @@ export class CrepeEditorAdapter implements EditorAdapter {
     }
   }
 
+  setReadonly(value: boolean): void {
+    this.editor?.setReadonly(value)
+  }
+
   getMarkdown(): string {
     if (!this.editor) throw new Error('编辑器尚未启动')
     return this.editor.getMarkdown()

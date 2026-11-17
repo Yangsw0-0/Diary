@@ -18,6 +18,7 @@ export function AppRoot({ registry, services }: AppRootProps) {
   const [loading, setLoading] = useState(true)
   const [choosing, setChoosing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [closePrompt, setClosePrompt] = useState(false)
 
   useEffect(() => {
     let current = true
@@ -54,12 +55,15 @@ export function AppRoot({ registry, services }: AppRootProps) {
         .onCloseRequested((event) => {
           if (!services.session.isDirty()) return
           event.preventDefault()
-          void services.session.flush().then((saved) => {
+          void services.session.prepareWorkspaceSwitch().then((saved) => {
             if (saved && !disposed) void getCurrentWindow().destroy()
-            else if (!saved)
+            else if (!saved) {
+              services.session.finishWorkspaceSwitch()
               setError(
                 services.session.getSnapshot().selected?.error?.message ?? '请先完成输入并保存日记',
               )
+              setClosePrompt(true)
+            }
           })
         })
         .then((stop) => {
@@ -74,11 +78,19 @@ export function AppRoot({ registry, services }: AppRootProps) {
     }
   }, [services.session])
 
+  useEffect(() => {
+    const check = () => {
+      void services.session.checkExternalChange()
+    }
+    window.addEventListener('focus', check)
+    return () => window.removeEventListener('focus', check)
+  }, [services.session])
+
   const chooseRoot = useCallback(async () => {
     setChoosing(true)
     setError(null)
     try {
-      if (!(await services.session.flush())) {
+      if (!(await services.session.prepareWorkspaceSwitch())) {
         setError(
           services.session.getSnapshot().selected?.error?.message ?? '请先完成当前输入并保存日记',
         )
@@ -86,12 +98,13 @@ export function AppRoot({ registry, services }: AppRootProps) {
       }
       const next = await services.workspace.chooseRoot()
       if (next && next.root !== status?.root) {
-        services.session.reset()
+        void services.session.resetAndLoad()
         setStatus(next)
       }
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : '选择文件夹失败')
     } finally {
+      services.session.finishWorkspaceSwitch()
       setChoosing(false)
     }
   }, [services.workspace, services.session, status?.root])
@@ -123,13 +136,42 @@ export function AppRoot({ registry, services }: AppRootProps) {
   }
 
   return (
-    <AppShell
-      key={status.root}
-      registry={registry}
-      root={status.root}
-      onChooseRoot={() => void chooseRoot()}
-      choosingRoot={choosing}
-      workspaceIssue={error}
-    />
+    <>
+      <AppShell
+        key={status.root}
+        registry={registry}
+        root={status.root}
+        onChooseRoot={() => void chooseRoot()}
+        choosingRoot={choosing}
+        workspaceIssue={error}
+      />
+      {closePrompt && (
+        <div className="diary-close-overlay">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="未保存的日记"
+            className="diary-close-dialog"
+          >
+            <h2>日记尚未保存</h2>
+            <p>{services.session.getSnapshot().selected?.error?.message ?? '当前草稿无法保存。'}</p>
+            <p>可以继续编辑并重试，或明确放弃草稿后关闭应用。</p>
+            <div>
+              <Button variant="outline" onClick={() => setClosePrompt(false)}>
+                继续编辑
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => {
+                  void services.session.discardDraft().then(() => void getCurrentWindow().destroy())
+                }}
+              >
+                放弃草稿并关闭
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   )
 }

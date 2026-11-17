@@ -1,6 +1,7 @@
 import { BookOpenText, Tags } from 'lucide-react'
 import type { DiaryRepository } from '@/domain/DiaryRepository'
 import { createDiaryPanels } from '@/features/diary/DiaryPanels'
+import { CrepeEditorAdapter } from '@/infrastructure/CrepeEditorAdapter'
 import { createTagsPanels } from '@/features/tags/TagsPanels'
 import { ModuleRegistry } from './moduleRegistry'
 import { createServices } from './services'
@@ -9,7 +10,7 @@ import type { WorkspaceGateway } from '@/application/WorkspaceService'
 /** Composition root. Stateful services are created once, outside React rendering. */
 export function createApp(repository?: DiaryRepository, workspaceGateway?: WorkspaceGateway) {
   const services = createServices(repository, workspaceGateway)
-  const diaryPanels = createDiaryPanels(services.session)
+  const diaryPanels = createDiaryPanels(services.session, () => new CrepeEditorAdapter())
   const tagPanels = createTagsPanels(services.tagIndex, services.tags, services.session)
   const registry = new ModuleRegistry('diary')
   registry.register({

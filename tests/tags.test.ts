@@ -86,9 +86,9 @@ it('rechecks revisions and rebuilds a changed day before slicing details', async
     save: async () => current,
   }
   const sections = await new TagService(new DiaryService(repo, index), index).getSections('工作')
-  expect(sections).toHaveLength(1)
-  expect(sections[0]?.markdown).toContain('新内容')
-  expect(sections[0]?.markdown).not.toContain('旧内容')
+  expect(sections.sections).toHaveLength(1)
+  expect(sections.sections[0]?.markdown).toContain('新内容')
+  expect(sections.sections[0]?.markdown).not.toContain('旧内容')
   expect(index.getOccurrences('工作')[0]?.revision).toBe('r2')
   expect(read).toHaveBeenCalledTimes(1)
 })
@@ -102,7 +102,9 @@ it('does not show stale content when an externally changed heading removes a tag
     read: async () => changed,
     save: async () => changed,
   }
-  expect(await new TagService(new DiaryService(repo, index), index).getSections('工作')).toEqual([])
+  expect(
+    (await new TagService(new DiaryService(repo, index), index).getSections('工作')).sections,
+  ).toEqual([])
   expect(index.getOccurrences('工作')).toEqual([])
   expect(index.getOccurrences('家庭')).toHaveLength(1)
 })
@@ -148,4 +150,73 @@ it('keeps a save made during a slow list scan in the returned list and index', a
   expect((await listing).entries[0]?.revision).toBe('r2')
   expect(index.getOccurrences('旧名')).toEqual([])
   expect(index.getOccurrences('新名')).toHaveLength(1)
+})
+
+it('treats a committed file as saved even if tag projection fails', async () => {
+  class FailingIndex extends TagIndex {
+    override replaceDay(): void {
+      throw new Error('index failed')
+    }
+  }
+  const index = new FailingIndex()
+  const saved = entry(day, '# 2024-12-31\n## 工作\nSaved', 'r2')
+  const repo: DiaryRepository = {
+    list: async () => ({ entries: [], failures: [] }),
+    read: async () => saved,
+    save: async () => saved,
+  }
+  const diary = new DiaryService(repo, index)
+  expect((await diary.save(day, saved.markdown, { kind: 'new' })).revision).toBe('r2')
+  expect(index.isStale()).toBe(true)
+})
+
+it('returns readable tag days when another day cannot be read', async () => {
+  const index = new TagIndex()
+  const first = entry(day, '# 2024-12-31\n## 工作\n第一天')
+  const second = entry(next, '# 2025-01-01\n## 工作\n第二天')
+  index.rebuild([first, second])
+  const repo: DiaryRepository = {
+    list: async () => ({ entries: [first, second], failures: [] }),
+    read: async (date) => {
+      if (date.equals(next)) throw new Error('没有读取权限')
+      return first
+    },
+    save: async () => first,
+  }
+  const result = await new TagService(new DiaryService(repo, index), index).getSections('工作')
+  expect(result.sections.map((section) => section.markdown)).toEqual([
+    expect.stringContaining('第一天'),
+  ])
+  expect(result.failures.map((failure) => [failure.date.toString(), failure.message])).toEqual([
+    ['2025-01-01', '没有读取权限'],
+  ])
+})
+
+it('does not repair the index after a canceled tag read', async () => {
+  const index = new TagIndex()
+  const first = entry(day, '# 2024-12-31\n## 工作\n旧内容')
+  const changed = entry(day, '# 2024-12-31\n## 新标签\n新内容', 'r2')
+  index.rebuild([first])
+  let release!: () => void
+  const pending = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  const repo: DiaryRepository = {
+    list: async () => ({ entries: [first], failures: [] }),
+    read: async () => {
+      await pending
+      return changed
+    },
+    save: async () => changed,
+  }
+  const controller = new AbortController()
+  const reading = new TagService(new DiaryService(repo, index), index).getSections(
+    '工作',
+    controller.signal,
+  )
+  controller.abort()
+  release()
+  expect((await reading).sections).toEqual([])
+  expect(index.getOccurrences('工作')).toHaveLength(1)
+  expect(index.getOccurrences('新标签')).toEqual([])
 })

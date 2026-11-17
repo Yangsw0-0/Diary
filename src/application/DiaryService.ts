@@ -32,7 +32,11 @@ export class DiaryService {
       ...changed.map((item) => item.entry),
     ]
     entries.sort((a, b) => b.date.compare(a.date))
-    this.index.rebuild(entries)
+    try {
+      this.index.rebuild(entries)
+    } catch {
+      this.index.markStale()
+    }
     return { ...scan, entries }
   }
 
@@ -47,11 +51,21 @@ export class DiaryService {
   ): Promise<DiaryEntry> {
     const saved = await this.repository.save(date, markdown, expectation)
     this.latestSaved.set(date.toString(), { entry: saved, serial: ++this.saveSerial })
-    this.index.replaceDay(
-      date,
-      this.extractor.parse(saved.markdown, date, saved.revision).occurrences,
-    )
+    this.reindex(saved)
     return saved
+  }
+
+  reindex(entry: DiaryEntry): void {
+    try {
+      const parsed = this.extractor.parse(entry.markdown, entry.date, entry.revision)
+      this.index.replaceDay(entry.date, parsed.occurrences, parsed.summary)
+    } catch {
+      this.index.markStale()
+    }
+  }
+
+  getSummary(date: DiaryDate) {
+    return this.index.getSummary(date)
   }
 
   clearIndex(): void {

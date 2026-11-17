@@ -2,5 +2,6 @@
 export interface EditorAdapter {
   mount(root: HTMLElement, markdown: string, onChange: (markdown: string) => void): Promise<void>
   getMarkdown(): string
+  setReadonly(value: boolean): void
   destroy(): Promise<void>
 }
