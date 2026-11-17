@@ -1,8 +1,10 @@
 # Diary
 
-一个本地 Markdown 日记应用。首版面向 macOS，使用 Tauri 2、React、TypeScript 和 Rust；Windows 支持列入后续阶段。
+一个本地 Markdown 日记应用。首个正式版面向 macOS，使用 Tauri 2、React、TypeScript 和 Rust。Windows 适配目前不在计划内。
 
-M5 原文跳转与导航历史已建立：[项目规划](./docs/Diary-Project-Plan.md) · [进度与任务](./docs/Diary-Project-Progress.md)。
+M1–M5 已完成；M6 将完成附件、桌面体验与 macOS 正式版验收，通过后发布 `1.0.0`。当前 `0.1.0` 为开发试用版本，现有安装包早于 M5，须重新构建才能体验最新功能。旧文件导入属于后续额外工作。
+
+[项目规划](./docs/Diary-Project-Plan.md) · [进度与任务](./docs/Diary-Project-Progress.md)
 
 日记根文件夹由用户首次启动时自行选择。日记正文与附件属于用户数据，不应提交到本代码仓库。
 
