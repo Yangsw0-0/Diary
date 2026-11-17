@@ -80,3 +80,16 @@ it('validates workspace IPC responses and preserves cancel', async () => {
     new TauriWorkspaceGateway(vi.fn().mockResolvedValue({ root: 3 })).getStatus(),
   ).rejects.toMatchObject({ code: 'invalid_response' })
 })
+
+it('shows an actionable onboarding state when reading settings fails', async () => {
+  const gateway: WorkspaceGateway = {
+    getStatus: async () => {
+      throw new Error('设置读取失败')
+    },
+    chooseRoot: async () => ({ root: '/chosen', configuredRoot: '/chosen', issue: null }),
+  }
+  render(<AppRoot {...createApp(repository, gateway)} />)
+  expect(await screen.findByRole('alert')).toHaveTextContent('设置读取失败')
+  await userEvent.setup().click(screen.getByRole('button', { name: '选择文件夹' }))
+  expect(await screen.findByRole('button', { name: '更换文件夹' })).toBeInTheDocument()
+})

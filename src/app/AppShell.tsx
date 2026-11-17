@@ -1,10 +1,10 @@
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
-import type { ModuleRegistry } from './moduleRegistry'
+import type { ModuleCatalog } from './moduleRegistry'
 
 interface AppShellProps {
-  readonly registry: ModuleRegistry
+  readonly registry: ModuleCatalog
   readonly root?: string
   readonly onChooseRoot?: () => void
   readonly choosingRoot?: boolean
@@ -20,19 +20,6 @@ export function AppShell({
 }: AppShellProps) {
   const [activeId, setActiveId] = useState(registry.defaultId)
   const activeModule = registry.require(activeId)
-  const ActiveList = activeModule.List
-  const ActiveDetail = activeModule.Detail
-  const ActiveProvider = activeModule.Provider
-  const panels = (
-    <div className="workspace-panels">
-      <section className="module-list" aria-label={activeModule.listLabel}>
-        <ActiveList />
-      </section>
-      <section className="module-content" aria-label={activeModule.detailLabel}>
-        <ActiveDetail />
-      </section>
-    </div>
-  )
 
   return (
     <div className="app-shell">
@@ -87,7 +74,26 @@ export function AppShell({
             {workspaceIssue}
           </p>
         )}
-        {ActiveProvider ? <ActiveProvider>{panels}</ActiveProvider> : panels}
+        {registry.list().map((module) => {
+          const List = module.List
+          const Detail = module.Detail
+          const Provider = module.Provider
+          const panels = (
+            <div className="workspace-panels" hidden={activeId !== module.id}>
+              <section className="module-list" aria-label={module.listLabel}>
+                <List />
+              </section>
+              <section className="module-content" aria-label={module.detailLabel}>
+                <Detail />
+              </section>
+            </div>
+          )
+          return Provider ? (
+            <Provider key={module.id}>{panels}</Provider>
+          ) : (
+            <Fragment key={module.id}>{panels}</Fragment>
+          )
+        })}
       </main>
     </div>
   )

@@ -1,3 +1,4 @@
+/** Storage semantics and adapter failures share one UI-facing error shape. */
 export type DiaryErrorCode =
   | 'conflict'
   | 'not_found'

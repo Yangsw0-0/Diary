@@ -1,7 +1,7 @@
 use std::{
     fs,
     path::{Path, PathBuf},
-    sync::Mutex,
+    sync::{Arc, Mutex, RwLock},
 };
 
 use serde::{Deserialize, Serialize};
@@ -27,10 +27,12 @@ pub struct WorkspaceStatus {
     pub issue: Option<String>,
 }
 
+#[derive(Clone)]
 pub struct WorkspaceState {
     settings_path: PathBuf,
-    selected: Mutex<Option<PathBuf>>,
-    startup_issue: Mutex<Option<String>>,
+    selected: Arc<RwLock<Option<PathBuf>>>,
+    startup_issue: Arc<Mutex<Option<String>>>,
+    save_gate: Arc<Mutex<()>>,
 }
 
 impl WorkspaceState {
@@ -45,15 +47,16 @@ impl WorkspaceState {
         };
         Self {
             settings_path,
-            selected: Mutex::new(selected),
-            startup_issue: Mutex::new(issue),
+            selected: Arc::new(RwLock::new(selected)),
+            startup_issue: Arc::new(Mutex::new(issue)),
+            save_gate: Arc::new(Mutex::new(())),
         }
     }
 
     pub fn status(&self) -> WorkspaceStatus {
         let selected = self
             .selected
-            .lock()
+            .read()
             .unwrap_or_else(|poison| poison.into_inner());
         let configured_root = selected
             .as_ref()
@@ -87,7 +90,7 @@ impl WorkspaceState {
         let root = validate_root(candidate, true)?;
         let mut selected = self
             .selected
-            .lock()
+            .write()
             .unwrap_or_else(|poison| poison.into_inner());
         let parent = self
             .settings_path
@@ -117,13 +120,24 @@ impl WorkspaceState {
     ) -> Result<T, AppError> {
         let selected = self
             .selected
-            .lock()
+            .read()
             .unwrap_or_else(|poison| poison.into_inner());
         let path = selected
             .as_ref()
             .ok_or_else(|| AppError::new("not_found", "请先选择日记文件夹"))?;
         let root = validate_root(path, false)?;
         operation(&root)
+    }
+
+    pub fn with_write_root<T>(
+        &self,
+        operation: impl FnOnce(&Path) -> Result<T, AppError>,
+    ) -> Result<T, AppError> {
+        let _save_guard = self
+            .save_gate
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner());
+        self.with_root(operation)
     }
 }
 
@@ -153,8 +167,13 @@ fn validate_root(path: &Path, probe_write: bool) -> Result<PathBuf, AppError> {
 }
 
 #[tauri::command]
-pub fn get_workspace_status(state: State<'_, WorkspaceState>) -> WorkspaceStatus {
-    state.status()
+pub async fn get_workspace_status(
+    state: State<'_, WorkspaceState>,
+) -> Result<WorkspaceStatus, AppError> {
+    let workspace = state.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || workspace.status())
+        .await
+        .map_err(|error| AppError::new("unexpected", error.to_string()))
 }
 
 #[tauri::command]
@@ -177,7 +196,11 @@ pub async fn choose_diary_root(
     let path = selected
         .into_path()
         .map_err(|error| AppError::new("unexpected", error.to_string()))?;
-    state.set_root(&path).map(Some)
+    let workspace = state.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || workspace.set_root(&path))
+        .await
+        .map_err(|error| AppError::new("unexpected", error.to_string()))?
+        .map(Some)
 }
 
 pub fn settings_path(app: &AppHandle) -> Result<PathBuf, AppError> {
@@ -192,7 +215,11 @@ pub fn settings_path(app: &AppHandle) -> Result<PathBuf, AppError> {
 mod tests {
     use super::*;
     use crate::diary_storage::{self, DiaryDate, RevisionExpectation};
-    use std::time::{SystemTime, UNIX_EPOCH};
+    use std::{
+        sync::mpsc,
+        thread,
+        time::{Duration, SystemTime, UNIX_EPOCH},
+    };
 
     #[test]
     fn selection_persists_and_missing_root_requires_reselection() {
@@ -237,7 +264,9 @@ mod tests {
         state.set_root(&first).unwrap();
         let date = DiaryDate::parse("2024-02-29").unwrap();
         state
-            .with_root(|root| diary_storage::save(root, &date, "first", RevisionExpectation::New))
+            .with_root(|root| {
+                diary_storage::save(root, &date, "# 2024-02-29 first", RevisionExpectation::New)
+            })
             .unwrap();
         state.set_root(&second).unwrap();
         assert!(
@@ -249,12 +278,57 @@ mod tests {
         );
         assert_eq!(
             diary_storage::read(&first, &date).unwrap().markdown,
-            "first"
+            "# 2024-02-29 first"
         );
         assert_eq!(
             WorkspaceState::new(settings).status().root,
             Some(canonical_second.to_string_lossy().into_owned())
         );
+        fs::remove_dir_all(base).unwrap();
+    }
+
+    #[test]
+    fn root_switch_waits_for_an_in_flight_file_operation() {
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let base = std::env::temp_dir().join(format!("diary-lock-{}-{nonce}", std::process::id()));
+        let first = base.join("first");
+        let second = base.join("second");
+        fs::create_dir_all(&first).unwrap();
+        fs::create_dir(&second).unwrap();
+        let state = WorkspaceState::new(base.join("config/settings.json"));
+        state.set_root(&first).unwrap();
+
+        let (entered_tx, entered_rx) = mpsc::channel();
+        let (release_tx, release_rx) = mpsc::channel();
+        let reader = state.clone();
+        let read_task = thread::spawn(move || {
+            reader
+                .with_root(|_| {
+                    entered_tx.send(()).unwrap();
+                    release_rx.recv().unwrap();
+                    Ok(())
+                })
+                .unwrap();
+        });
+        entered_rx.recv_timeout(Duration::from_secs(1)).unwrap();
+
+        let (started_tx, started_rx) = mpsc::channel();
+        let (done_tx, done_rx) = mpsc::channel();
+        let writer = state.clone();
+        let switch_task = thread::spawn(move || {
+            started_tx.send(()).unwrap();
+            writer.set_root(&second).unwrap();
+            done_tx.send(()).unwrap();
+        });
+        started_rx.recv_timeout(Duration::from_secs(1)).unwrap();
+        assert!(done_rx.recv_timeout(Duration::from_millis(50)).is_err());
+        release_tx.send(()).unwrap();
+        read_task.join().unwrap();
+        done_rx.recv_timeout(Duration::from_secs(1)).unwrap();
+        switch_task.join().unwrap();
         fs::remove_dir_all(base).unwrap();
     }
 }

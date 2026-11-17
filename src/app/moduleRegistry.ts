@@ -12,7 +12,14 @@ export interface FeatureModule {
   readonly Provider?: ComponentType<PropsWithChildren>
 }
 
-export class ModuleRegistry {
+/** Read-only view consumed by the shell; registration stays in the composition root. */
+export interface ModuleCatalog {
+  readonly defaultId: string
+  require(id: string): FeatureModule
+  list(): readonly FeatureModule[]
+}
+
+export class ModuleRegistry implements ModuleCatalog {
   private readonly modules = new Map<string, FeatureModule>()
   readonly defaultId: string
 

@@ -10,6 +10,7 @@ import { BookOpenText, CalendarDays, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { DiaryService } from '@/application/DiaryService'
 import type { DiaryDate } from '@/domain/DiaryDate'
+import { DiaryError } from '@/domain/DiaryError'
 import type { DiaryEntry } from '@/domain/DiaryEntry'
 import type { DiaryFileFailure } from '@/domain/DiaryRepository'
 
@@ -18,12 +19,19 @@ interface DiaryPanelState {
   readonly failures: readonly DiaryFileFailure[]
   readonly selected: DiaryEntry | null
   readonly loading: boolean
-  readonly error: string | null
+  readonly error: DiaryError | null
   readonly select: (date: DiaryDate) => void
   readonly refresh: () => void
 }
 
 const DiaryContext = createContext<DiaryPanelState | null>(null)
+
+function asDiaryError(reason: unknown, fallback: string): DiaryError {
+  if (reason instanceof DiaryError) return reason
+  return new DiaryError('unexpected', reason instanceof Error ? reason.message : fallback, {
+    cause: reason,
+  })
+}
 
 function useDiaryPanels(): DiaryPanelState {
   const state = useContext(DiaryContext)
@@ -37,7 +45,7 @@ export function createDiaryPanels(service: DiaryService) {
     const [failures, setFailures] = useState<readonly DiaryFileFailure[]>([])
     const [selected, setSelected] = useState<DiaryEntry | null>(null)
     const [loading, setLoading] = useState(true)
-    const [error, setError] = useState<string | null>(null)
+    const [error, setError] = useState<DiaryError | null>(null)
     const [refreshKey, setRefreshKey] = useState(0)
     const readSequence = useRef(0)
 
@@ -54,7 +62,7 @@ export function createDiaryPanels(service: DiaryService) {
             setSelected(null)
           },
           (reason: unknown) => {
-            if (current) setError(reason instanceof Error ? reason.message : '读取日记列表失败')
+            if (current) setError(asDiaryError(reason, '读取日记列表失败'))
           },
         )
         .finally(() => {
@@ -68,13 +76,13 @@ export function createDiaryPanels(service: DiaryService) {
     function select(date: DiaryDate) {
       const sequence = ++readSequence.current
       setError(null)
+      setSelected(null)
       service.read(date).then(
         (entry) => {
           if (sequence === readSequence.current) setSelected(entry)
         },
         (reason: unknown) => {
-          if (sequence === readSequence.current)
-            setError(reason instanceof Error ? reason.message : '读取日记失败')
+          if (sequence === readSequence.current) setError(asDiaryError(reason, '读取日记失败'))
         },
       )
     }
@@ -120,7 +128,7 @@ export function DiaryList() {
       {loading && <p className="panel-message">正在读取日记…</p>}
       {error && (
         <p role="alert" className="panel-message workspace-error">
-          {error}
+          {error.message}
         </p>
       )}
       {!loading && entries.length === 0 && (

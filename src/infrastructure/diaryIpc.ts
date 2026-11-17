@@ -55,6 +55,7 @@ const errorCodes: readonly DiaryErrorCode[] = [
   'corrupt_file',
   'permission_denied',
   'invalid_date',
+  'unexpected',
 ]
 
 export function mapIpcError(error: unknown): DiaryError {

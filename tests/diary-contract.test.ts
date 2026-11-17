@@ -12,8 +12,15 @@ describe('DiaryDate', () => {
     expect(DiaryDate.parse('2024-02-29').year).toBe('2024')
     expect(DiaryDate.parse('2024-02-29').fileName).toBe('2024-02-29.md')
     expect(DiaryDate.parse('2024-02-29').compare(DiaryDate.parse('2024-03-01'))).toBe(-1)
-    for (const value of ['2023-02-29', '0000-01-01', '2024-13-01', '../2024-01-01', '2024-1-1']) {
-      expect(() => DiaryDate.parse(value)).toThrow()
+    expect(DiaryDate.parse('2024-02-29').equals(DiaryDate.parse('2024-02-29'))).toBe(true)
+    expect(JSON.stringify(DiaryDate.parse('2024-02-29'))).toBe('"2024-02-29"')
+    for (const value of fixture.invalidDates) {
+      expect(() => DiaryDate.parse(value)).toThrowError(DiaryError)
+      try {
+        DiaryDate.parse(value)
+      } catch (error) {
+        expect(error).toMatchObject({ code: 'invalid_date' })
+      }
     }
   })
 })
@@ -80,6 +87,9 @@ describe('TauriDiaryRepository IPC boundary', () => {
   it('decodes the shared Rust and TypeScript contract fixture', async () => {
     const repository = new TauriDiaryRepository(vi.fn().mockResolvedValue(fixture.scan))
     expect((await repository.list()).entries[0]?.date.toString()).toBe(fixture.entry.date)
+    const reader = new TauriDiaryRepository(vi.fn().mockResolvedValue(fixture.entry))
+    expect((await reader.read(date)).markdown).toBe(fixture.entry.markdown)
+    expect(fixture.newExpectation).toEqual({ kind: 'new' })
   })
 
   it('maps structured storage errors', async () => {
@@ -91,5 +101,12 @@ describe('TauriDiaryRepository IPC boundary', () => {
     )
     await expect(repository.read(date)).rejects.toMatchObject({ code: 'conflict' })
     await expect(repository.read(date)).rejects.toBeInstanceOf(DiaryError)
+  })
+
+  it('keeps a structured unexpected error message', async () => {
+    const repository = new TauriDiaryRepository(
+      vi.fn().mockRejectedValue(fixture.errors.unexpected),
+    )
+    await expect(repository.read(date)).rejects.toMatchObject(fixture.errors.unexpected)
   })
 })

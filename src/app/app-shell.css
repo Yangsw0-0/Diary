@@ -190,6 +190,10 @@
   min-height: 0;
 }
 
+.workspace-panels[hidden] {
+  display: none;
+}
+
 .module-list,
 .module-content {
   min-width: 0;

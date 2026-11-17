@@ -4,7 +4,7 @@ import type { DiaryEntry } from '@/domain/DiaryEntry'
 import type { DiaryRepository, DiaryScan, RevisionExpectation } from '@/domain/DiaryRepository'
 import { decodeEntry, decodeScan, diaryCommands, mapIpcError } from './diaryIpc'
 
-/** Adapter contract for Rust commands that will be implemented in M2. */
+/** Validates the Rust command contract at the IPC boundary. */
 export class TauriDiaryRepository implements DiaryRepository {
   private readonly invokeCommand: (
     command: string,

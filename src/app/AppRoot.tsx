@@ -2,12 +2,12 @@ import { useCallback, useEffect, useState } from 'react'
 import { FolderOpen } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { WorkspaceStatus } from '@/application/WorkspaceService'
-import type { ModuleRegistry } from './moduleRegistry'
+import type { ModuleCatalog } from './moduleRegistry'
 import type { AppServices } from './services'
 import { AppShell } from './AppShell'
 
 interface AppRootProps {
-  readonly registry: ModuleRegistry
+  readonly registry: ModuleCatalog
   readonly services: AppServices
 }
 

@@ -4,7 +4,7 @@ import type { DiaryDate } from '@/domain/DiaryDate'
 import type { DiaryEntry } from '@/domain/DiaryEntry'
 import type { RevisionExpectation } from '@/domain/DiaryRepository'
 
-/** Coordinates diary use cases; storage rules are added in M2 and save ordering in M3. */
+/** Coordinates diary use cases; edit-session save ordering belongs to M3. */
 export class DiaryService {
   private readonly repository: DiaryRepository
 

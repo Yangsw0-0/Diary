@@ -130,19 +130,33 @@ fn read_from_year(year_dir: &Path, date: &DiaryDate) -> Result<DiaryEntry, AppEr
     let revision = revision(&bytes);
     let markdown = String::from_utf8(bytes)
         .map_err(|_| AppError::new("corrupt_file", "日记不是 UTF-8 文件"))?;
-    if let Some(first_line) = markdown.lines().next()
-        && let Some(heading) = first_line.strip_prefix("# ")
-        && let Some(first_word) = heading.split_whitespace().next()
-        && DiaryDate::parse(first_word).is_ok()
-        && first_word != date.as_str()
-    {
-        return Err(AppError::new("corrupt_file", "正文日期与文件名不一致"));
-    }
+    validate_document_date(&markdown, date)
+        .map_err(|message| AppError::new("corrupt_file", message))?;
     Ok(DiaryEntry {
         date: date.as_str().to_owned(),
         markdown,
         revision,
     })
+}
+
+fn validate_document_date(markdown: &str, date: &DiaryDate) -> Result<(), &'static str> {
+    let first_line = markdown
+        .trim_start_matches('\u{feff}')
+        .lines()
+        .next()
+        .unwrap_or("");
+    let heading = first_line
+        .strip_prefix("# ")
+        .ok_or("日记首行必须是一级日期标题")?;
+    let date_text = heading
+        .split_whitespace()
+        .next()
+        .ok_or("日记首行缺少日期")?;
+    let heading_date = DiaryDate::parse(date_text).map_err(|_| "日记首行日期无效")?;
+    if heading_date != *date {
+        return Err("正文日期与文件名不一致");
+    }
+    Ok(())
 }
 
 pub fn read(root: &Path, date: &DiaryDate) -> Result<DiaryEntry, AppError> {
@@ -338,10 +352,12 @@ pub fn save(
     markdown: &str,
     expectation: RevisionExpectation,
 ) -> Result<DiaryEntry, AppError> {
+    let normalized = markdown.replace("\r\n", "\n").replace('\r', "\n");
+    validate_document_date(&normalized, date)
+        .map_err(|message| AppError::new("invalid_date", message))?;
     let year_dir = checked_year_dir(root, date, true)?;
     let path = year_dir.join(date.file_name());
     check_expectation(&year_dir, date, &expectation)?;
-    let normalized = markdown.replace("\r\n", "\n").replace('\r', "\n");
     let create_new = matches!(expectation, RevisionExpectation::New);
     atomic_write_checked(
         &path,
@@ -424,9 +440,14 @@ mod tests {
             ["2024-02-29", "2023-12-31"]
         );
         assert_eq!(
-            save(&root.0, &today, "overwrite", RevisionExpectation::New)
-                .unwrap_err()
-                .code,
+            save(
+                &root.0,
+                &today,
+                "# 2024-02-29 overwrite",
+                RevisionExpectation::New
+            )
+            .unwrap_err()
+            .code,
             "conflict"
         );
         fs::write(root.0.join("2024/2024-02-29.md"), "# 2024-02-29 External\n").unwrap();
@@ -434,7 +455,7 @@ mod tests {
             save(
                 &root.0,
                 &today,
-                "ours",
+                "# 2024-02-29 ours",
                 RevisionExpectation::Match {
                     revision: next.revision
                 }
@@ -479,10 +500,70 @@ mod tests {
         fs::write(root.0.join("2024/2023-12-31.md"), b"bad").unwrap();
         fs::write(root.0.join("2024/2024-01-02.md"), [0xff]).unwrap();
         fs::write(root.0.join("2024/2024-01-03.md"), "# 2024-01-04 mismatch").unwrap();
+        fs::write(root.0.join("2024/2024-01-04.md"), "plain text").unwrap();
+        fs::write(root.0.join("2024/2024-01-05.md"), "# 2024-02-30 invalid").unwrap();
         fs::write(root.0.join("2024-05-01.md"), "# 2024-05-01 misplaced").unwrap();
         let scan = list(&root.0).unwrap();
         assert_eq!(scan.entries.len(), 1);
-        assert_eq!(scan.failures.len(), 5);
+        assert_eq!(scan.failures.len(), 7);
+    }
+
+    #[test]
+    fn save_rejects_invalid_heading_without_changing_existing_file() {
+        let root = TestRoot::new();
+        let date = DiaryDate::parse("2024-02-29").unwrap();
+        for markdown in [
+            "",
+            "plain text",
+            "# 2024-02-30 invalid",
+            "# 2024-03-01 wrong",
+        ] {
+            assert_eq!(
+                save(&root.0, &date, markdown, RevisionExpectation::New)
+                    .unwrap_err()
+                    .code,
+                "invalid_date"
+            );
+        }
+        assert!(!root.0.join("2024").exists());
+        assert!(!root.0.join("2024/2024-02-29.md").exists());
+
+        let saved = save(
+            &root.0,
+            &date,
+            "# 2024-02-29 original",
+            RevisionExpectation::New,
+        )
+        .unwrap();
+        assert_eq!(
+            save(
+                &root.0,
+                &date,
+                "# 2024-03-01 wrong",
+                RevisionExpectation::Match {
+                    revision: saved.revision
+                }
+            )
+            .unwrap_err()
+            .code,
+            "invalid_date"
+        );
+        assert_eq!(
+            read(&root.0, &date).unwrap().markdown,
+            "# 2024-02-29 original"
+        );
+    }
+
+    #[test]
+    fn read_preserves_crlf_bytes_and_revision() {
+        let root = TestRoot::new();
+        let date = DiaryDate::parse("2024-02-29").unwrap();
+        fs::create_dir(root.0.join("2024")).unwrap();
+        let bytes = b"# 2024-02-29 Leap day\r\n\r\nBody\r\n";
+        fs::write(root.0.join("2024/2024-02-29.md"), bytes).unwrap();
+        let entry = read(&root.0, &date).unwrap();
+        assert_eq!(entry.markdown.as_bytes(), bytes);
+        assert_eq!(entry.revision, revision(bytes));
     }
 
     #[test]
@@ -531,9 +612,14 @@ mod tests {
         symlink(&outside.0, root.0.join("2024")).unwrap();
         let date = DiaryDate::parse("2024-01-01").unwrap();
         assert_eq!(
-            save(&root.0, &date, "secret", RevisionExpectation::New)
-                .unwrap_err()
-                .code,
+            save(
+                &root.0,
+                &date,
+                "# 2024-01-01 secret",
+                RevisionExpectation::New
+            )
+            .unwrap_err()
+            .code,
             "permission_denied"
         );
         assert_eq!(read(&root.0, &date).unwrap_err().code, "permission_denied");
@@ -563,5 +649,19 @@ mod tests {
         assert!(
             matches!(expectation, RevisionExpectation::Match { revision } if revision == "abc123")
         );
+        let new_expectation: RevisionExpectation =
+            serde_json::from_value(fixture["newExpectation"].clone()).unwrap();
+        assert!(matches!(new_expectation, RevisionExpectation::New));
+        assert_eq!(
+            serde_json::to_value(AppError::new("conflict", "file changed")).unwrap(),
+            fixture["errors"]["conflict"]
+        );
+        assert_eq!(
+            serde_json::to_value(AppError::new("unexpected", "disk I/O failed")).unwrap(),
+            fixture["errors"]["unexpected"]
+        );
+        for value in fixture["invalidDates"].as_array().unwrap() {
+            assert!(DiaryDate::parse(value.as_str().unwrap()).is_err());
+        }
     }
 }
