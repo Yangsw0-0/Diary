@@ -362,6 +362,7 @@ export function DiaryDetail() {
         readOnly={opening}
         createAdapter={() => createAdapter(selected.date)}
         insertRequest={insertRequest?.date.equals(selected.date) ? insertRequest : null}
+        onInserted={(id) => setInsertRequest((request) => (request?.id === id ? null : request))}
         onFiles={(files) => void importFiles(files)}
         onOpenLink={openLink}
         onInsertError={setAttachmentError}

@@ -612,8 +612,9 @@ dependencies = [
 
 [[package]]
 name = "diary"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
+ "libc",
  "log",
  "serde",
  "serde_json",
@@ -622,6 +623,7 @@ dependencies = [
  "tauri-build",
  "tauri-plugin-dialog",
  "tauri-plugin-log",
+ "url",
 ]
 
 [[package]]

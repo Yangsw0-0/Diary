@@ -23,7 +23,7 @@ it('renders a selected-root image in tag details through the safe preview gatewa
     read: async () => diary,
     save: async () => diary,
   }
-  const preview = vi.fn(async () => ({ bytes: [1, 2, 3], mimeType: 'image/png' }))
+  const preview = vi.fn(async () => ({ bytes: new Uint8Array([1, 2, 3]), mimeType: 'image/png' }))
   const attachments: AttachmentGateway = {
     import: async () => ({ fileName, relativePath: link, isImage: true }),
     preview,

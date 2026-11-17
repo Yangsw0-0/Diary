@@ -14,12 +14,10 @@ function decodeStatus(value: unknown): WorkspaceStatus {
   }
   const data = value as Record<string, unknown>
   const width = data.sidebarWidth
-  if (
-    width != null &&
-    (!Number.isInteger(width) || (width as number) < 172 || (width as number) > 500)
-  ) {
-    throw new DiaryError('invalid_response', '侧栏宽度格式错误')
-  }
+  const sidebarWidth =
+    typeof width === 'number' && Number.isInteger(width) && width >= 172 && width <= 500
+      ? width
+      : null
   if (data.sidebarCollapsed != null && typeof data.sidebarCollapsed !== 'boolean') {
     throw new DiaryError('invalid_response', '侧栏状态格式错误')
   }
@@ -30,7 +28,7 @@ function decodeStatus(value: unknown): WorkspaceStatus {
     root: nullableString(data.root),
     configuredRoot: nullableString(data.configuredRoot),
     issue: nullableString(data.issue),
-    sidebarWidth: width == null ? null : (width as number),
+    sidebarWidth,
     sidebarCollapsed: data.sidebarCollapsed === true,
     theme: data.theme === 'dark' ? 'dark' : 'light',
   }

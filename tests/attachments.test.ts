@@ -14,7 +14,10 @@ const relativePath = `../assets/2026/2026-11-17/${fileName}`
 it('copies before returning a relative Markdown link and limits readable paths', async () => {
   const importFile = vi.fn(async () => ({ fileName, relativePath, isImage: true }))
   const open = vi.fn(async () => {})
-  const preview = vi.fn(async () => ({ bytes: [137, 80, 78, 71], mimeType: 'image/png' }))
+  const preview = vi.fn(async () => ({
+    bytes: new Uint8Array([137, 80, 78, 71]),
+    mimeType: 'image/png',
+  }))
   const gateway: AttachmentGateway = {
     import: importFile,
     preview,
@@ -41,7 +44,7 @@ it('does not produce a link when copying fails', async () => {
     import: async () => {
       throw new Error('磁盘已满')
     },
-    preview: async () => ({ bytes: [], mimeType: 'image/png' }),
+    preview: async () => ({ bytes: new Uint8Array(), mimeType: 'image/png' }),
     open: async () => {},
   }
   await expect(
@@ -53,13 +56,33 @@ it('validates attachment responses at the Tauri IPC boundary', async () => {
   const invoke = vi
     .fn()
     .mockResolvedValueOnce({ fileName, relativePath, isImage: true })
-    .mockResolvedValueOnce({ bytes: [1, 2], mimeType: 'image/png' })
+    .mockResolvedValueOnce(new Uint8Array([1, 2]).buffer)
   const gateway = new TauriAttachmentGateway(invoke)
   expect((await gateway.import(day, 'a.png', new Uint8Array([1]))).relativePath).toBe(relativePath)
-  expect((await gateway.preview(day, fileName)).bytes).toEqual([1, 2])
+  expect((await gateway.preview(day, fileName)).bytes).toEqual(new Uint8Array([1, 2]))
+  expect(invoke.mock.calls[0]?.[1]).toEqual(new Uint8Array([1]))
   await expect(
     new TauriAttachmentGateway(
       vi.fn().mockResolvedValue({ bytes: [-1], mimeType: 'image/png' }),
     ).preview(day, fileName),
   ).rejects.toMatchObject({ code: 'invalid_response' })
+})
+
+it('passes a large attachment through raw IPC without expanding it into JSON numbers', async () => {
+  const bytes = new Uint8Array(1024 * 1024)
+  bytes[0] = 137
+  bytes[bytes.length - 1] = 42
+  const invoke = vi
+    .fn()
+    .mockResolvedValueOnce({ fileName, relativePath, isImage: true })
+    .mockResolvedValueOnce(bytes.buffer)
+  const gateway = new TauriAttachmentGateway(invoke)
+  await gateway.import(day, '图片.png', bytes)
+  expect(invoke.mock.calls[0]?.[1]).toBe(bytes)
+  expect(invoke.mock.calls[0]?.[2]).toMatchObject({
+    headers: { 'x-diary-date': '2026-11-17' },
+  })
+  const preview = await gateway.preview(day, fileName)
+  expect(preview.bytes).toHaveLength(bytes.length)
+  expect(preview.bytes[bytes.length - 1]).toBe(42)
 })

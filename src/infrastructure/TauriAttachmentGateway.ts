@@ -24,11 +24,12 @@ export class TauriAttachmentGateway implements AttachmentGateway {
 
   async import(date: DiaryDate, name: string, bytes: Uint8Array): Promise<ImportedAttachment> {
     try {
+      const encodedName = Array.from(new TextEncoder().encode(name), (byte) =>
+        byte.toString(16).padStart(2, '0'),
+      ).join('')
       const data = object(
-        await this.invokeCommand('import_attachment', {
-          date: date.toString(),
-          name,
-          bytes: Array.from(bytes),
+        await this.invokeCommand('import_attachment', bytes, {
+          headers: { 'x-diary-date': date.toString(), 'x-diary-name': encodedName },
         }),
       )
       if (
@@ -45,18 +46,26 @@ export class TauriAttachmentGateway implements AttachmentGateway {
 
   async preview(date: DiaryDate, fileName: string): Promise<AttachmentPreview> {
     try {
-      const data = object(
-        await this.invokeCommand('preview_attachment', { date: date.toString(), fileName }),
-      )
-      if (
-        !Array.isArray(data.bytes) ||
-        !data.bytes.every((byte) => Number.isInteger(byte) && byte >= 0 && byte <= 255) ||
-        typeof data.mimeType !== 'string' ||
-        !data.mimeType.startsWith('image/')
-      ) {
+      const data: unknown = await this.invokeCommand('preview_attachment', {
+        date: date.toString(),
+        fileName,
+      })
+      if (!(data instanceof ArrayBuffer)) {
         throw new DiaryError('invalid_response', '附件预览结果格式错误')
       }
-      return { bytes: data.bytes as number[], mimeType: data.mimeType }
+      const extension = fileName.split('.').at(-1)?.toLowerCase()
+      const mimeType = (
+        {
+          png: 'image/png',
+          jpg: 'image/jpeg',
+          jpeg: 'image/jpeg',
+          gif: 'image/gif',
+          webp: 'image/webp',
+          avif: 'image/avif',
+        } as Record<string, string>
+      )[extension ?? '']
+      if (!mimeType) throw new DiaryError('invalid_response', '附件预览格式错误')
+      return { bytes: new Uint8Array(data), mimeType }
     } catch (reason) {
       throw mapIpcError(reason)
     }

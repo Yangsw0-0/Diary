@@ -81,6 +81,18 @@ it('validates workspace IPC responses and preserves cancel', async () => {
   await expect(
     new TauriWorkspaceGateway(vi.fn().mockResolvedValue({ root: 3 })).getStatus(),
   ).rejects.toMatchObject({ code: 'invalid_response' })
+  for (const sidebarWidth of [0, 999]) {
+    const status = await new TauriWorkspaceGateway(
+      vi.fn().mockResolvedValue({
+        root: '/chosen',
+        configuredRoot: '/chosen',
+        issue: null,
+        sidebarWidth,
+      }),
+    ).getStatus()
+    expect(status.root).toBe('/chosen')
+    expect(status.sidebarWidth).toBeNull()
+  }
 })
 
 it('shows an actionable onboarding state when reading settings fails', async () => {

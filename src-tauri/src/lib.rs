@@ -3,6 +3,7 @@ mod attachment_storage;
 mod diary_commands;
 mod diary_storage;
 mod error;
+mod external_link;
 mod workspace;
 
 use tauri::Manager;
@@ -37,6 +38,7 @@ pub fn run() {
             attachment_commands::import_attachment,
             attachment_commands::preview_attachment,
             attachment_commands::open_attachment,
+            external_link::open_external_link,
         ])
         .run(tauri::generate_context!())
         .expect("error while building tauri application");

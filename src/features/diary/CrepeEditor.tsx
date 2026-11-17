@@ -18,6 +18,7 @@ interface Props {
   readonly onMissingSection: () => void
   readonly onReady: () => void
   readonly insertRequest?: { readonly id: number; readonly markdown: string } | null
+  readonly onInserted?: (id: number) => void
   readonly onFiles?: (files: readonly File[]) => void
   readonly onOpenLink?: (url: string) => void
   readonly onInsertError?: (message: string) => void
@@ -33,6 +34,7 @@ export function CrepeEditor({
   onMissingSection,
   onReady,
   insertRequest,
+  onInserted,
   onFiles,
   onOpenLink,
   onInsertError,
@@ -49,6 +51,7 @@ export function CrepeEditor({
   const lastInsertId = useRef<number | null>(null)
   const insertRef = useRef(insertRequest)
   const insertErrorRef = useRef(onInsertError)
+  const insertedRef = useRef(onInserted)
   const [error, setError] = useState<string | null>(null)
   onChangeRef.current = onChange
   onComposingRef.current = onComposing
@@ -58,12 +61,14 @@ export function CrepeEditor({
   readyRef.current = onReady
   insertRef.current = insertRequest
   insertErrorRef.current = onInsertError
+  insertedRef.current = onInserted
 
   const insertIfNeeded = (adapter: EditorAdapter, request = insertRef.current) => {
     if (!request || lastInsertId.current === request.id) return
     try {
       adapter.insertMarkdown(request.markdown)
       lastInsertId.current = request.id
+      insertedRef.current?.(request.id)
     } catch (reason) {
       insertErrorRef.current?.(reason instanceof Error ? reason.message : '无法插入附件链接')
     }

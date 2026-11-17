@@ -1,6 +1,6 @@
 [package]
 name = "diary"
-version = "1.0.0"
+version = "1.0.1"
 description = "A local Markdown diary app"
 authors = ["Yangsw0-0"]
 license = ""
@@ -25,3 +25,5 @@ tauri = { version = "2.12.6", features = [] }
 tauri-plugin-log = "2"
 tauri-plugin-dialog = "2"
 sha2 = "0.10"
+url = "2.5.8"
+libc = "0.2"

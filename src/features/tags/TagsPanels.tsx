@@ -16,6 +16,7 @@ import type { TagIndex } from '@/application/TagIndex'
 import type { TagSection, TagReadFailure, TagService } from '@/application/TagService'
 import { attachmentFileName, type AttachmentService } from '@/application/AttachmentService'
 import type { DiaryDate } from '@/domain/DiaryDate'
+import { openExternalLink } from '@/infrastructure/openExternalLink'
 
 interface TagsContextValue {
   readonly index: TagIndex
@@ -63,8 +64,8 @@ function TagImage({
   alt: string
   attachments: AttachmentService
 }) {
-  const [preview, setPreview] = useState<string | null>(null)
-  const [error, setError] = useState(false)
+  const [preview, setPreview] = useState<{ source: string; value: string } | null>(null)
+  const [failedSource, setFailedSource] = useState<string | null>(null)
   useEffect(() => {
     if (!attachmentFileName(date, url)) return
     let current = true
@@ -74,19 +75,25 @@ function TagImage({
       .then((resolved) => {
         if (current) {
           objectUrl = resolved
-          setPreview(resolved)
+          setPreview({ source: url, value: resolved })
+          setFailedSource(null)
         } else if (resolved.startsWith('blob:')) URL.revokeObjectURL(resolved)
       })
       .catch(() => {
-        if (current) setError(true)
+        if (current) setFailedSource(url)
       })
     return () => {
       current = false
       if (objectUrl?.startsWith('blob:')) URL.revokeObjectURL(objectUrl)
     }
   }, [attachments, date, url])
-  if (error) return <span role="status">图片无法预览：{alt}</span>
-  return <img src={attachmentFileName(date, url) ? (preview ?? '') : url} alt={alt} />
+  if (failedSource === url) return <span role="status">图片无法预览：{alt}</span>
+  return (
+    <img
+      src={attachmentFileName(date, url) ? (preview?.source === url ? preview.value : '') : url}
+      alt={alt}
+    />
+  )
 }
 
 export function TagsList() {
@@ -265,13 +272,14 @@ export function TagsDetail() {
                     <a
                       href={href}
                       onClick={(event) => {
-                        if (!href || !attachmentFileName(occurrence.date, href)) return
                         event.preventDefault()
-                        void attachments
-                          .openUrl(occurrence.date, href)
-                          .catch((reason: unknown) =>
-                            setError(reason instanceof Error ? reason.message : '无法打开附件'),
-                          )
+                        if (!href) return
+                        const opener = attachmentFileName(occurrence.date, href)
+                          ? attachments.openUrl(occurrence.date, href)
+                          : openExternalLink(href)
+                        void opener.catch((reason: unknown) =>
+                          setError(reason instanceof Error ? reason.message : '无法打开链接'),
+                        )
                       }}
                     >
                       {children}

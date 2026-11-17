@@ -1,6 +1,8 @@
 use std::{
     fs,
-    io::Write,
+    fs::OpenOptions,
+    io::{Read, Write},
+    os::unix::fs::OpenOptionsExt,
     path::{Path, PathBuf},
     process::Command,
     sync::atomic::{AtomicU64, Ordering},
@@ -141,7 +143,35 @@ pub fn import(
                     });
                 }
                 Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => continue,
-                Err(error) => return Err(AppError::from_io(error)),
+                Err(_) => {
+                    let mut source = fs::File::open(&temporary).map_err(AppError::from_io)?;
+                    let mut target = match OpenOptions::new()
+                        .write(true)
+                        .create_new(true)
+                        .open(&destination)
+                    {
+                        Ok(file) => file,
+                        Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => continue,
+                        Err(error) => return Err(AppError::from_io(error)),
+                    };
+                    let copied =
+                        std::io::copy(&mut source, &mut target).and_then(|_| target.sync_all());
+                    if let Err(error) = copied {
+                        drop(target);
+                        let _ = fs::remove_file(&destination);
+                        return Err(AppError::from_io(error));
+                    }
+                    return Ok(ImportedAttachment {
+                        relative_path: format!(
+                            "../assets/{}/{}/{}",
+                            date.year(),
+                            date.as_str(),
+                            name
+                        ),
+                        file_name: name,
+                        is_image: image_mime(&extension).is_some(),
+                    });
+                }
             }
         }
         Err(AppError::new("unexpected", "无法生成唯一附件文件名"))
@@ -158,14 +188,25 @@ pub fn preview(root: &Path, date: &DiaryDate, name: &str) -> Result<AttachmentPr
         .unwrap_or_default();
     let mime_type = image_mime(&extension)
         .ok_or_else(|| AppError::new("invalid_attachment", "只支持预览图片附件"))?;
-    let metadata = fs::metadata(&path).map_err(AppError::from_io)?;
+    let file = OpenOptions::new()
+        .read(true)
+        .custom_flags(libc::O_NOFOLLOW)
+        .open(&path)
+        .map_err(AppError::from_io)?;
+    let metadata = file.metadata().map_err(AppError::from_io)?;
+    if !metadata.is_file() {
+        return Err(AppError::new("permission_denied", "附件必须是普通文件"));
+    }
     if metadata.len() > MAX_ATTACHMENT_BYTES as u64 {
         return Err(AppError::new(
             "invalid_attachment",
             "图片超过 20 MiB 预览上限",
         ));
     }
-    let bytes = fs::read(path).map_err(AppError::from_io)?;
+    let mut bytes = Vec::new();
+    file.take(MAX_ATTACHMENT_BYTES as u64 + 1)
+        .read_to_end(&mut bytes)
+        .map_err(AppError::from_io)?;
     if bytes.len() > MAX_ATTACHMENT_BYTES {
         return Err(AppError::new(
             "invalid_attachment",
@@ -235,6 +276,33 @@ mod tests {
         symlink(&outside, base.join("assets")).unwrap();
         let date = DiaryDate::parse("2026-11-17").unwrap();
         assert!(import(&base, &date, "x.png", b"data").is_err());
+        fs::remove_dir_all(base).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn preview_rejects_symlink_and_oversized_file() {
+        use std::os::unix::fs::symlink;
+        let base = std::env::temp_dir().join(format!("diary-preview-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&base);
+        fs::create_dir(&base).unwrap();
+        let date = DiaryDate::parse("2026-11-17").unwrap();
+        let imported = import(&base, &date, "picture.png", b"small").unwrap();
+        let directory = base.join("assets/2026/2026-11-17");
+        let path = directory.join(&imported.file_name);
+        let outside = base.join("outside.png");
+        fs::write(&outside, b"outside").unwrap();
+        fs::remove_file(&path).unwrap();
+        symlink(&outside, &path).unwrap();
+        assert!(preview(&base, &date, &imported.file_name).is_err());
+        fs::remove_file(&path).unwrap();
+        let file = OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&path)
+            .unwrap();
+        file.set_len(MAX_ATTACHMENT_BYTES as u64 + 1).unwrap();
+        assert!(preview(&base, &date, &imported.file_name).is_err());
         fs::remove_dir_all(base).unwrap();
     }
 }

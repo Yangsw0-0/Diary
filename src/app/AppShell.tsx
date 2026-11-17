@@ -1,5 +1,7 @@
 import {
   Fragment,
+  useEffect,
+  useRef,
   useState,
   useSyncExternalStore,
   type CSSProperties,
@@ -51,7 +53,11 @@ export function AppShell({
   theme = 'light',
   onSaveTheme,
 }: AppShellProps) {
-  const [sidebarWidth, setSidebarWidth] = useState(initialSidebarWidth)
+  const [sidebarWidth, setSidebarWidth] = useState(
+    initialSidebarWidth != null && initialSidebarWidth >= 172 && initialSidebarWidth <= 500
+      ? initialSidebarWidth
+      : null,
+  )
   const [sidebarCollapsed, setSidebarCollapsed] = useState(initialSidebarCollapsed)
   const [sidebarPeek, setSidebarPeek] = useState(false)
   const [sidebarError, setSidebarError] = useState<string | null>(null)
@@ -60,6 +66,22 @@ export function AppShell({
   const [listCollapsed, setListCollapsed] = useState(false)
   const [detailExpanded, setDetailExpanded] = useState(false)
   const [zoom, setZoom] = useState(100)
+  const [viewportWidth, setViewportWidth] = useState(() => window.innerWidth)
+  const resizeCleanup = useRef<(() => void) | null>(null)
+  useEffect(() => () => resizeCleanup.current?.(), [])
+  useEffect(() => {
+    const update = () => setViewportWidth(window.innerWidth)
+    window.addEventListener('resize', update)
+    return () => window.removeEventListener('resize', update)
+  }, [])
+  const visibleSidebarWidth = Math.round(
+    Math.max(172, Math.min(sidebarWidth ?? viewportWidth * 0.25, viewportWidth / 3)),
+  )
+  const maxListWidth = Math.min(
+    420,
+    Math.max(220, viewportWidth - (sidebarCollapsed ? 0 : visibleSidebarWidth) - 300),
+  )
+  const visibleListWidth = Math.min(listWidth, maxListWidth)
   const sessionSnapshot = useSyncExternalStore(session.subscribe, session.getSnapshot)
   const saveSidebar = (width: number | null, collapsed: boolean) => {
     void onSavePreferences?.(width, collapsed).catch((reason: unknown) =>
@@ -75,6 +97,7 @@ export function AppShell({
   const startResize = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (sidebarCollapsed) return
     event.preventDefault()
+    resizeCleanup.current?.()
     const move = (pointer: PointerEvent) => {
       setSidebarWidth(Math.round(Math.max(172, Math.min(pointer.clientX, window.innerWidth / 3))))
     }
@@ -82,8 +105,12 @@ export function AppShell({
       const width = Math.round(Math.max(172, Math.min(pointer.clientX, window.innerWidth / 3)))
       setSidebarWidth(width)
       saveSidebar(width, false)
+      resizeCleanup.current?.()
+    }
+    resizeCleanup.current = () => {
       window.removeEventListener('pointermove', move)
       window.removeEventListener('pointerup', stop)
+      resizeCleanup.current = null
     }
     window.addEventListener('pointermove', move)
     window.addEventListener('pointerup', stop)
@@ -95,22 +122,24 @@ export function AppShell({
   const setZoomClamped = (value: number) => setZoom(Math.max(50, Math.min(150, value)))
   const startListResize = (event: ReactPointerEvent<HTMLDivElement>) => {
     event.preventDefault()
+    resizeCleanup.current?.()
     const move = (pointer: PointerEvent) =>
       setListWidth(
         Math.round(
           Math.max(
-            190,
-            Math.min(
-              420,
-              pointer.clientX - (sidebarCollapsed ? 0 : (sidebarWidth ?? window.innerWidth * 0.25)),
-            ),
+            220,
+            Math.min(maxListWidth, pointer.clientX - (sidebarCollapsed ? 0 : visibleSidebarWidth)),
           ),
         ),
       )
     const stop = (pointer: PointerEvent) => {
       move(pointer)
+      resizeCleanup.current?.()
+    }
+    resizeCleanup.current = () => {
       window.removeEventListener('pointermove', move)
       window.removeEventListener('pointerup', stop)
+      resizeCleanup.current = null
     }
     window.addEventListener('pointermove', move)
     window.addEventListener('pointerup', stop)
@@ -125,9 +154,11 @@ export function AppShell({
         data-detail-expanded={detailExpanded && showZoom}
         style={
           {
-            '--sidebar-expanded-width': sidebarWidth ? `${sidebarWidth}px` : '25vw',
-            '--list-width': `${listWidth}px`,
-            '--editor-zoom': `${zoom}%`,
+            '--sidebar-expanded-width': `${visibleSidebarWidth}px`,
+            '--sidebar-layout-width':
+              sidebarCollapsed || (detailExpanded && showZoom) ? '0px' : `${visibleSidebarWidth}px`,
+            '--list-width': `${visibleListWidth}px`,
+            '--editor-font-size': `${(16 * zoom) / 100}px`,
           } as CSSProperties
         }
       >
@@ -212,7 +243,7 @@ export function AppShell({
               role="separator"
               aria-label="调整侧栏宽度"
               aria-orientation="vertical"
-              aria-valuenow={sidebarWidth ?? Math.round(window.innerWidth * 0.25)}
+              aria-valuenow={visibleSidebarWidth}
               tabIndex={0}
               onPointerDown={startResize}
               onKeyDown={(event) => {
@@ -260,7 +291,7 @@ export function AppShell({
             <div className="workspace-actions">
               {root && (
                 <span className="workspace-root" title={root}>
-                  {root}
+                  {root.split(/[\\/]/).filter(Boolean).at(-1) ?? root}
                 </span>
               )}
             </div>
@@ -304,14 +335,20 @@ export function AppShell({
                   role="separator"
                   aria-label="调整列表宽度"
                   aria-orientation="vertical"
-                  aria-valuenow={listWidth}
+                  aria-valuenow={visibleListWidth}
                   tabIndex={0}
                   onPointerDown={startListResize}
                   onKeyDown={(event) => {
                     if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
                     event.preventDefault()
-                    setListWidth((width) =>
-                      Math.max(190, Math.min(420, width + (event.key === 'ArrowRight' ? 16 : -16))),
+                    setListWidth(
+                      Math.max(
+                        220,
+                        Math.min(
+                          maxListWidth,
+                          visibleListWidth + (event.key === 'ArrowRight' ? 16 : -16),
+                        ),
+                      ),
                     )
                   }}
                 />

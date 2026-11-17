@@ -42,7 +42,7 @@ it('imports a selected file, inserts its link into Crepe and saves it with the d
   const open = vi.fn(async () => {})
   const attachments: AttachmentGateway = {
     import: async () => ({ fileName, relativePath, isImage: false }),
-    preview: async () => ({ bytes: [], mimeType: 'image/png' }),
+    preview: async () => ({ bytes: new Uint8Array(), mimeType: 'image/png' }),
     open,
   }
   const app = createApp(repo, undefined, attachments)

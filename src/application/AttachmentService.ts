@@ -7,7 +7,7 @@ export interface ImportedAttachment {
 }
 
 export interface AttachmentPreview {
-  readonly bytes: readonly number[]
+  readonly bytes: Uint8Array
   readonly mimeType: string
 }
 

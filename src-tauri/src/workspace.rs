@@ -29,6 +29,18 @@ fn default_theme() -> String {
     "light".to_owned()
 }
 
+fn normalized_width(width: Option<u16>) -> Option<u16> {
+    width.filter(|value| (172..=500).contains(value))
+}
+
+#[cfg(test)]
+#[test]
+fn invalid_saved_sidebar_width_is_ignored() {
+    assert_eq!(normalized_width(Some(0)), None);
+    assert_eq!(normalized_width(Some(999)), None);
+    assert_eq!(normalized_width(Some(240)), Some(240));
+}
+
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WorkspaceStatus {
@@ -56,7 +68,10 @@ impl WorkspaceState {
             Ok(bytes) => match serde_json::from_slice::<Settings>(&bytes) {
                 Ok(settings) => (
                     Some(PathBuf::from(settings.diary_root)),
-                    (settings.sidebar_width, settings.sidebar_collapsed),
+                    (
+                        normalized_width(settings.sidebar_width),
+                        settings.sidebar_collapsed,
+                    ),
                     settings.theme,
                     None,
                 ),

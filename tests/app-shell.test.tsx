@@ -64,6 +64,30 @@ it('keeps zoom and panel controls scoped to an open diary and opens settings at 
   expect(screen.queryByRole('slider', { name: '正文缩放' })).not.toBeInTheDocument()
 })
 
+it('shows only the workspace folder name and changes font size without CSS zoom', async () => {
+  const user = userEvent.setup()
+  const date = DiaryDate.parse('2024-02-29')
+  const entry = { date, markdown: '# 2024-02-29 Saved', revision: 'r1' }
+  const app = createApp({
+    list: async () => ({ entries: [entry], failures: [] }),
+    read: async () => entry,
+    save: async () => entry,
+  })
+  const { container } = render(
+    <AppShell
+      registry={app.registry}
+      session={app.services.session}
+      root="/some/parent/DiaryNotes"
+    />,
+  )
+  expect(screen.getByTitle('/some/parent/DiaryNotes')).toHaveTextContent('DiaryNotes')
+  await user.click(await screen.findByRole('button', { name: '2024-02-29' }))
+  await user.click(screen.getByRole('button', { name: '放大正文' }))
+  const shell = container.querySelector('.app-shell') as HTMLElement
+  expect(shell.style.getPropertyValue('--editor-font-size')).toBe('17.6px')
+  expect(shell.style.getPropertyValue('--editor-zoom')).toBe('')
+})
+
 it('keeps the selected diary mounted when visiting tags', async () => {
   const user = userEvent.setup()
   const date = DiaryDate.parse('2024-02-29')

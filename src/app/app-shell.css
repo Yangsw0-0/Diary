@@ -6,45 +6,43 @@
 .app-shell {
   position: relative;
   display: grid;
-  grid-template-columns: clamp(172px, var(--sidebar-expanded-width), 33vw) minmax(0, 1fr);
+  grid-template-columns: var(--sidebar-layout-width) minmax(0, 1fr);
   min-width: 760px;
   height: 100vh;
   overflow: hidden;
   background: var(--background);
+  transition: grid-template-columns 240ms ease;
 }
 
 .feature-sidebar {
-  position: relative;
-  grid-column: 1;
-  grid-row: 1;
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  min-height: 0;
-  overflow-y: auto;
-  padding: 26px 14px 18px;
-  border-right: 1px solid var(--border);
-  background: var(--sidebar);
-}
-
-.app-shell[data-sidebar-collapsed='true'] {
-  grid-template-columns: 0 minmax(0, 1fr);
-}
-
-.app-shell[data-sidebar-collapsed='true'] .feature-sidebar {
   position: absolute;
   top: 0;
   bottom: 0;
   left: 0;
   z-index: 30;
+  display: flex;
+  flex-direction: column;
   width: clamp(172px, var(--sidebar-expanded-width), 33vw);
-  visibility: hidden;
-  pointer-events: none;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 26px 14px 18px;
+  border-right: 1px solid var(--border);
+  background: var(--sidebar);
+  transition:
+    transform 240ms ease,
+    opacity 240ms ease;
   box-shadow: 12px 0 24px rgb(0 0 0 / 0.08);
 }
 
+.app-shell[data-sidebar-collapsed='true'] .feature-sidebar {
+  transform: translateX(-100%);
+  opacity: 0;
+  pointer-events: none;
+}
+
 .app-shell[data-sidebar-peek='true'] .feature-sidebar {
-  visibility: visible;
+  transform: translateX(0);
+  opacity: 1;
   pointer-events: auto;
 }
 
@@ -270,6 +268,7 @@
   min-height: 0;
   overflow: hidden;
   position: relative;
+  transition: grid-template-columns 240ms ease;
 }
 
 .workspace-panels[hidden] {
@@ -288,6 +287,9 @@
 .module-list {
   background: var(--diary-list);
   overflow-wrap: anywhere;
+  transition:
+    transform 240ms ease,
+    opacity 240ms ease;
 }
 
 .list-splitter {
@@ -303,20 +305,27 @@
 .list-collapse {
   position: absolute;
   z-index: 6;
-  top: 67px;
-  left: calc(var(--list-width) - 25px);
-  width: 24px;
-  height: 24px;
+  bottom: 12px;
+  left: calc(var(--list-width) - 34px);
+  width: 26px;
+  height: 26px;
   color: var(--muted-foreground);
+  background: var(--diary-list);
+  transition:
+    left 240ms ease,
+    background-color 240ms ease;
 }
 .workspace-panels[data-list-collapsed='true'] {
   grid-template-columns: 0 8px minmax(0, 1fr);
 }
 .workspace-panels[data-list-collapsed='true'] .module-list {
-  visibility: hidden;
+  transform: translateX(-24px);
+  opacity: 0;
+  pointer-events: none;
 }
 .workspace-panels[data-list-collapsed='true'] .list-collapse {
-  left: 9px;
+  left: 12px;
+  background: var(--card);
 }
 .module-content {
   grid-column: 3;
@@ -325,11 +334,17 @@
 
 .panel-heading {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
   min-height: 94px;
   padding: 24px 22px 16px;
+}
+.panel-heading > div:first-child,
+.diary-list-actions {
+  flex: none;
+  white-space: nowrap;
 }
 
 .eyebrow {
@@ -577,13 +592,19 @@
 }
 .diary-crepe-container {
   flex: 1;
-  padding: 20px 28px 60px;
+  padding: 20px 0 60px;
 }
 .diary-crepe-root {
-  max-width: 860px;
+  width: 80%;
+  min-width: 0;
   min-height: 500px;
   margin: 0 auto;
-  zoom: var(--editor-zoom, 100%);
+}
+.diary-crepe-root .milkdown {
+  --crepe-base-font-size: var(--editor-font-size, 16px);
+}
+.diary-crepe-root .milkdown .ProseMirror {
+  padding: 48px 0 80px;
 }
 
 .editor-view-controls {
