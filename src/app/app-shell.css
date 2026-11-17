@@ -632,10 +632,10 @@
 }
 .diary-crepe-root .milkdown {
   --crepe-base-font-size: var(--detail-font-size, 16px);
+  --crepe-color-background: var(--background);
+  --crepe-color-on-background: var(--foreground);
 }
 .dark .diary-crepe-root .milkdown {
-  --crepe-color-background: #1a1a1a;
-  --crepe-color-on-background: #e6e6e6;
   --crepe-color-surface: #121212;
   --crepe-color-surface-low: #1c1c1c;
   --crepe-color-on-surface: #d1d1d1;
