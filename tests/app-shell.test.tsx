@@ -83,9 +83,39 @@ it('shows only the workspace folder name and changes font size without CSS zoom'
   expect(screen.getByTitle('/some/parent/DiaryNotes')).toHaveTextContent('DiaryNotes')
   await user.click(await screen.findByRole('button', { name: '2024-02-29' }))
   await user.click(screen.getByRole('button', { name: '放大正文' }))
+  const panels = container.querySelector('.workspace-panels:not([hidden])') as HTMLElement
+  expect(panels.style.getPropertyValue('--detail-font-size')).toBe('17.6px')
   const shell = container.querySelector('.app-shell') as HTMLElement
-  expect(shell.style.getPropertyValue('--editor-font-size')).toBe('17.6px')
   expect(shell.style.getPropertyValue('--editor-zoom')).toBe('')
+})
+
+it('resizes the list immediately down to its content-safe minimum', async () => {
+  const app = createApp(repository)
+  const { container } = render(<AppShell registry={app.registry} session={app.services.session} />)
+  const splitter = screen.getByRole('separator', { name: '调整列表宽度' })
+  const panels = container.querySelector('.workspace-panels:not([hidden])') as HTMLElement
+  fireEvent.pointerDown(splitter, { clientX: 500 })
+  expect(panels).toHaveAttribute('data-list-resizing', 'true')
+  fireEvent.pointerMove(window, { clientX: 300 })
+  expect(splitter).toHaveAttribute('aria-valuenow', '168')
+  expect(panels.style.getPropertyValue('--detail-font-size')).toBe('16px')
+  fireEvent.pointerUp(window, { clientX: 300 })
+  expect(panels).toHaveAttribute('data-list-resizing', 'false')
+})
+
+it('provides independent corner controls for tag details', async () => {
+  const user = userEvent.setup()
+  const app = createApp(repository)
+  const { container } = render(<AppShell registry={app.registry} session={app.services.session} />)
+  await user.click(screen.getByRole('button', { name: '标签' }))
+  const panels = container.querySelector('.workspace-panels:not([hidden])') as HTMLElement
+  expect(panels.querySelector('.view-control-zone')).toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: '放大正文' }))
+  expect(panels.style.getPropertyValue('--detail-font-size')).toBe('17.6px')
+  await user.click(screen.getByRole('button', { name: '展开正文' }))
+  expect(screen.getByRole('button', { name: '退出展开正文' })).toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: '日记' }))
+  expect(screen.queryByRole('slider', { name: '正文缩放' })).not.toBeInTheDocument()
 })
 
 it('keeps the selected diary mounted when visiting tags', async () => {

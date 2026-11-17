@@ -7,17 +7,7 @@ import {
   type CSSProperties,
   type PointerEvent as ReactPointerEvent,
 } from 'react'
-import {
-  ArrowLeft,
-  ArrowRight,
-  Maximize2,
-  Minimize2,
-  Minus,
-  PanelLeftClose,
-  PanelLeftOpen,
-  Plus,
-  Settings2,
-} from 'lucide-react'
+import { ArrowLeft, ArrowRight, PanelLeftClose, PanelLeftOpen, Settings2 } from 'lucide-react'
 import type { DiarySession } from '@/application/DiarySession'
 import { NavigationContext } from './NavigationContext'
 import { useAppNavigation } from './useAppNavigation'
@@ -25,6 +15,11 @@ import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import type { ModuleCatalog } from './moduleRegistry'
 import { SettingsPanel } from '@/features/settings/SettingsPanel'
+import { ViewControls } from './ViewControls'
+
+const MIN_LIST_WIDTH = 168
+const MAX_LIST_WIDTH = 420
+const MIN_DETAIL_WIDTH = 300
 
 interface AppShellProps {
   readonly registry: ModuleCatalog
@@ -63,9 +58,13 @@ export function AppShell({
   const [sidebarError, setSidebarError] = useState<string | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [listWidth, setListWidth] = useState(250)
+  const [resizingList, setResizingList] = useState(false)
   const [listCollapsed, setListCollapsed] = useState(false)
   const [detailExpanded, setDetailExpanded] = useState(false)
-  const [zoom, setZoom] = useState(100)
+  const [zoomByModule, setZoomByModule] = useState<Record<string, number>>({
+    diary: 100,
+    tags: 100,
+  })
   const [viewportWidth, setViewportWidth] = useState(() => window.innerWidth)
   const resizeCleanup = useRef<(() => void) | null>(null)
   useEffect(() => () => resizeCleanup.current?.(), [])
@@ -78,8 +77,11 @@ export function AppShell({
     Math.max(172, Math.min(sidebarWidth ?? viewportWidth * 0.25, viewportWidth / 3)),
   )
   const maxListWidth = Math.min(
-    420,
-    Math.max(220, viewportWidth - (sidebarCollapsed ? 0 : visibleSidebarWidth) - 300),
+    MAX_LIST_WIDTH,
+    Math.max(
+      MIN_LIST_WIDTH,
+      viewportWidth - (sidebarCollapsed ? 0 : visibleSidebarWidth) - MIN_DETAIL_WIDTH,
+    ),
   )
   const visibleListWidth = Math.min(listWidth, maxListWidth)
   const sessionSnapshot = useSyncExternalStore(session.subscribe, session.getSnapshot)
@@ -95,9 +97,10 @@ export function AppShell({
     saveSidebar(sidebarWidth, collapsed)
   }
   const startResize = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (sidebarCollapsed) return
+    if (sidebarCollapsed || event.button !== 0) return
     event.preventDefault()
     resizeCleanup.current?.()
+    setResizingList(false)
     const move = (pointer: PointerEvent) => {
       setSidebarWidth(Math.round(Math.max(172, Math.min(pointer.clientX, window.innerWidth / 3))))
     }
@@ -107,42 +110,63 @@ export function AppShell({
       saveSidebar(width, false)
       resizeCleanup.current?.()
     }
+    const cancel = () => resizeCleanup.current?.()
     resizeCleanup.current = () => {
       window.removeEventListener('pointermove', move)
       window.removeEventListener('pointerup', stop)
+      window.removeEventListener('pointercancel', cancel)
+      window.removeEventListener('blur', cancel)
       resizeCleanup.current = null
     }
     window.addEventListener('pointermove', move)
     window.addEventListener('pointerup', stop)
+    window.addEventListener('pointercancel', cancel)
+    window.addEventListener('blur', cancel)
   }
   const { navigation, navigating, registerContent, updateScroll } = useAppNavigation(session)
   const activeId = navigation.view.moduleId
   const activeModule = registry.require(activeId)
-  const showZoom = activeId === 'diary' && !!sessionSnapshot.selected && !settingsOpen
-  const setZoomClamped = (value: number) => setZoom(Math.max(50, Math.min(150, value)))
+  const showViewControls =
+    !settingsOpen && (activeId === 'tags' || (activeId === 'diary' && !!sessionSnapshot.selected))
+  const setZoomClamped = (moduleId: string, value: number) =>
+    setZoomByModule((current) => ({
+      ...current,
+      [moduleId]: Math.max(50, Math.min(150, value)),
+    }))
   const startListResize = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (event.button !== 0) return
     event.preventDefault()
     resizeCleanup.current?.()
+    setResizingList(true)
     const move = (pointer: PointerEvent) =>
       setListWidth(
         Math.round(
           Math.max(
-            220,
+            MIN_LIST_WIDTH,
             Math.min(maxListWidth, pointer.clientX - (sidebarCollapsed ? 0 : visibleSidebarWidth)),
           ),
         ),
       )
     const stop = (pointer: PointerEvent) => {
       move(pointer)
+      setResizingList(false)
+      resizeCleanup.current?.()
+    }
+    const cancel = () => {
+      setResizingList(false)
       resizeCleanup.current?.()
     }
     resizeCleanup.current = () => {
       window.removeEventListener('pointermove', move)
       window.removeEventListener('pointerup', stop)
+      window.removeEventListener('pointercancel', cancel)
+      window.removeEventListener('blur', cancel)
       resizeCleanup.current = null
     }
     window.addEventListener('pointermove', move)
     window.addEventListener('pointerup', stop)
+    window.addEventListener('pointercancel', cancel)
+    window.addEventListener('blur', cancel)
   }
 
   return (
@@ -151,14 +175,15 @@ export function AppShell({
         className="app-shell"
         data-sidebar-collapsed={sidebarCollapsed}
         data-sidebar-peek={sidebarPeek}
-        data-detail-expanded={detailExpanded && showZoom}
+        data-detail-expanded={detailExpanded && showViewControls}
         style={
           {
             '--sidebar-expanded-width': `${visibleSidebarWidth}px`,
             '--sidebar-layout-width':
-              sidebarCollapsed || (detailExpanded && showZoom) ? '0px' : `${visibleSidebarWidth}px`,
+              sidebarCollapsed || (detailExpanded && showViewControls)
+                ? '0px'
+                : `${visibleSidebarWidth}px`,
             '--list-width': `${visibleListWidth}px`,
-            '--editor-font-size': `${(16 * zoom) / 100}px`,
           } as CSSProperties
         }
       >
@@ -321,11 +346,18 @@ export function AppShell({
             const List = module.List
             const Detail = module.Detail
             const Provider = module.Provider
+            const moduleZoom = zoomByModule[module.id] ?? 100
             const panels = (
               <div
                 className="workspace-panels"
                 hidden={settingsOpen || activeId !== module.id}
                 data-list-collapsed={listCollapsed}
+                data-list-resizing={resizingList}
+                style={
+                  {
+                    '--detail-font-size': `${(16 * moduleZoom) / 100}px`,
+                  } as CSSProperties
+                }
               >
                 <section className="module-list" aria-label={module.listLabel}>
                   <List />
@@ -343,7 +375,7 @@ export function AppShell({
                     event.preventDefault()
                     setListWidth(
                       Math.max(
-                        220,
+                        MIN_LIST_WIDTH,
                         Math.min(
                           maxListWidth,
                           visibleListWidth + (event.key === 'ArrowRight' ? 16 : -16),
@@ -373,6 +405,14 @@ export function AppShell({
                 >
                   <Detail />
                 </section>
+                {showViewControls && activeId === module.id && (
+                  <ViewControls
+                    zoom={moduleZoom}
+                    expanded={detailExpanded}
+                    onZoomChange={(value) => setZoomClamped(module.id, value)}
+                    onToggleExpanded={() => setDetailExpanded((value) => !value)}
+                  />
+                )}
               </div>
             )
             return Provider ? (
@@ -381,38 +421,6 @@ export function AppShell({
               <Fragment key={module.id}>{panels}</Fragment>
             )
           })}
-          {showZoom && (
-            <div className="editor-view-controls" aria-label="正文视图控制">
-              <button type="button" onClick={() => setZoomClamped(zoom - 10)} aria-label="缩小正文">
-                <Minus aria-hidden="true" />
-              </button>
-              <output>{zoom}%</output>
-              <input
-                type="range"
-                min="50"
-                max="150"
-                step="5"
-                value={zoom}
-                aria-label="正文缩放"
-                onChange={(event) => setZoomClamped(Number(event.target.value))}
-              />
-              <button type="button" onClick={() => setZoomClamped(zoom + 10)} aria-label="放大正文">
-                <Plus aria-hidden="true" />
-              </button>
-              <button
-                type="button"
-                className="view-expand"
-                onClick={() => setDetailExpanded(!detailExpanded)}
-                aria-label={detailExpanded ? '退出展开正文' : '展开正文'}
-              >
-                {detailExpanded ? (
-                  <Minimize2 aria-hidden="true" />
-                ) : (
-                  <Maximize2 aria-hidden="true" />
-                )}
-              </button>
-            </div>
-          )}
         </main>
       </div>
     </NavigationContext.Provider>
