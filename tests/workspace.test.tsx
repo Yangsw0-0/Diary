@@ -1,3 +1,6 @@
+vi.mock('@/features/diary/CrepeEditor', () => ({
+  CrepeEditor: ({ markdown }: { markdown: string }) => <pre>{markdown}</pre>,
+}))
 import { afterEach, expect, it, vi } from 'vitest'
 import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -92,4 +95,30 @@ it('shows an actionable onboarding state when reading settings fails', async () 
   expect(await screen.findByRole('alert')).toHaveTextContent('设置读取失败')
   await userEvent.setup().click(screen.getByRole('button', { name: '选择文件夹' }))
   expect(await screen.findByRole('button', { name: '更换文件夹' })).toBeInTheDocument()
+})
+
+it('keeps a failed new diary draft and does not switch folders', async () => {
+  const user = userEvent.setup()
+  const chooseRoot = vi
+    .fn()
+    .mockResolvedValue({ root: '/other', configuredRoot: '/other', issue: null })
+  const gateway: WorkspaceGateway = {
+    getStatus: async () => ({ root: '/chosen', configuredRoot: '/chosen', issue: null }),
+    chooseRoot,
+  }
+  const failing: DiaryRepository = {
+    list: async () => ({ entries: [], failures: [] }),
+    read: async () => {
+      throw new Error('unused')
+    },
+    save: async () => {
+      throw new Error('磁盘不可写')
+    },
+  }
+  render(<AppRoot {...createApp(failing, gateway)} />)
+  await user.click(await screen.findByRole('button', { name: '新建今日日记' }))
+  await user.click(screen.getByRole('button', { name: '更换文件夹' }))
+  expect(await screen.findByText(/保存失败：磁盘不可写/)).toBeInTheDocument()
+  expect(chooseRoot).not.toHaveBeenCalled()
+  expect(screen.getByTitle('/chosen')).toBeInTheDocument()
 })

@@ -2,112 +2,41 @@ import {
   createContext,
   useContext,
   useEffect,
-  useRef,
-  useState,
+  useSyncExternalStore,
   type PropsWithChildren,
 } from 'react'
-import { BookOpenText, CalendarDays, RefreshCw } from 'lucide-react'
+import { BookOpenText, CalendarDays, Plus, RefreshCw, Save } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import type { DiaryService } from '@/application/DiaryService'
+import { DiarySession, type DiarySessionSnapshot } from '@/application/DiarySession'
 import type { DiaryDate } from '@/domain/DiaryDate'
-import { DiaryError } from '@/domain/DiaryError'
-import type { DiaryEntry } from '@/domain/DiaryEntry'
-import type { DiaryFileFailure } from '@/domain/DiaryRepository'
+import { CrepeEditor } from './CrepeEditor'
 
-interface DiaryPanelState {
-  readonly entries: readonly DiaryEntry[]
-  readonly failures: readonly DiaryFileFailure[]
-  readonly selected: DiaryEntry | null
-  readonly loading: boolean
-  readonly error: DiaryError | null
-  readonly select: (date: DiaryDate) => void
-  readonly refresh: () => void
+const DiaryContext = createContext<DiarySession | null>(null)
+
+function useDiary(): [DiarySession, DiarySessionSnapshot] {
+  const session = useContext(DiaryContext)
+  if (!session) throw new Error('Diary panels require a provider')
+  return [session, useSyncExternalStore(session.subscribe, session.getSnapshot)]
 }
 
-const DiaryContext = createContext<DiaryPanelState | null>(null)
-
-function asDiaryError(reason: unknown, fallback: string): DiaryError {
-  if (reason instanceof DiaryError) return reason
-  return new DiaryError('unexpected', reason instanceof Error ? reason.message : fallback, {
-    cause: reason,
-  })
-}
-
-function useDiaryPanels(): DiaryPanelState {
-  const state = useContext(DiaryContext)
-  if (!state) throw new Error('Diary panels require a provider')
-  return state
-}
-
-export function createDiaryPanels(service: DiaryService) {
+export function createDiaryPanels(session: DiarySession) {
   function Provider({ children }: PropsWithChildren) {
-    const [entries, setEntries] = useState<readonly DiaryEntry[]>([])
-    const [failures, setFailures] = useState<readonly DiaryFileFailure[]>([])
-    const [selected, setSelected] = useState<DiaryEntry | null>(null)
-    const [loading, setLoading] = useState(true)
-    const [error, setError] = useState<DiaryError | null>(null)
-    const [refreshKey, setRefreshKey] = useState(0)
-    const readSequence = useRef(0)
-
     useEffect(() => {
-      let current = true
-      service
-        .list()
-        .then(
-          (scan) => {
-            if (!current) return
-            setEntries(scan.entries)
-            setFailures(scan.failures)
-            setError(null)
-            setSelected(null)
-          },
-          (reason: unknown) => {
-            if (current) setError(asDiaryError(reason, '读取日记列表失败'))
-          },
-        )
-        .finally(() => {
-          if (current) setLoading(false)
-        })
-      return () => {
-        current = false
-      }
-    }, [refreshKey])
-
-    function select(date: DiaryDate) {
-      const sequence = ++readSequence.current
-      setError(null)
-      setSelected(null)
-      service.read(date).then(
-        (entry) => {
-          if (sequence === readSequence.current) setSelected(entry)
-        },
-        (reason: unknown) => {
-          if (sequence === readSequence.current) setError(asDiaryError(reason, '读取日记失败'))
-        },
-      )
-    }
-
-    function refresh() {
-      ++readSequence.current
-      setLoading(true)
-      setSelected(null)
-      setRefreshKey((value) => value + 1)
-    }
-
-    return (
-      <DiaryContext.Provider
-        value={{ entries, failures, selected, loading, error, select, refresh }}
-      >
-        {children}
-      </DiaryContext.Provider>
-    )
+      void session.load()
+    }, [])
+    return <DiaryContext.Provider value={session}>{children}</DiaryContext.Provider>
   }
-
   return { Provider, List: DiaryList, Detail: DiaryDetail }
 }
 
+export function diaryTitle(markdown: string, date: DiaryDate): string {
+  const first = markdown.split(/\r?\n/, 1)[0] ?? ''
+  return first.replace(new RegExp(`^# ${date.toString()}(?:\\s+)?`), '').trim() || '未命名日记'
+}
+
 export function DiaryList() {
-  const { entries, failures, selected, loading, error, select, refresh } = useDiaryPanels()
+  const [session, { entries, failures, selected, loading, error }] = useDiary()
+  let year = ''
   return (
     <>
       <div className="panel-heading">
@@ -115,15 +44,26 @@ export function DiaryList() {
           <p className="eyebrow">JOURNAL</p>
           <h2>日记</h2>
         </div>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={refresh}
-          disabled={loading}
-          aria-label="刷新日记列表"
-        >
-          <RefreshCw aria-hidden="true" />
-        </Button>
+        <div className="diary-list-actions">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => void session.refresh()}
+            disabled={loading}
+            aria-label="刷新日记列表"
+          >
+            <RefreshCw aria-hidden="true" />
+          </Button>
+          <Button
+            size="sm"
+            onClick={() => void session.create()}
+            disabled={loading}
+            aria-label="新建今日日记"
+          >
+            <Plus aria-hidden="true" />
+            新建
+          </Button>
+        </div>
       </div>
       {loading && <p className="panel-message">正在读取日记…</p>}
       {error && (
@@ -131,29 +71,36 @@ export function DiaryList() {
           {error.message}
         </p>
       )}
-      {!loading && entries.length === 0 && (
+      {!loading && entries.length === 0 && !selected && (
         <div className="panel-placeholder">
           <CalendarDays aria-hidden="true" />
-          <p>还没有可显示的日期</p>
-          <span>这里会列出所选文件夹中的日记。新建功能将在编辑阶段开放。</span>
+          <p>还没有日记</p>
+          <span>点击“新建”开始写今天的日记。</span>
         </div>
       )}
       {entries.length > 0 && (
         <ul className="diary-date-list">
-          {entries.map((entry) => (
-            <li key={entry.date.toString()}>
-              <Button
-                variant="ghost"
-                className="diary-date-button"
-                aria-current={
-                  selected?.date.toString() === entry.date.toString() ? 'true' : undefined
-                }
-                onClick={() => select(entry.date)}
-              >
-                {entry.date.toString()}
-              </Button>
-            </li>
-          ))}
+          {entries.map((entry) => {
+            const showYear = year !== entry.date.year
+            year = entry.date.year
+            return (
+              <li key={entry.date.toString()}>
+                {showYear && <h3 className="diary-year">{entry.date.year}</h3>}
+                <Button
+                  variant="ghost"
+                  className="diary-date-button"
+                  aria-label={entry.date.toString()}
+                  aria-current={selected?.date.equals(entry.date) ? 'true' : undefined}
+                  onClick={() => void session.open(entry.date)}
+                >
+                  <span className="diary-list-date">{entry.date.toString()}</span>
+                  <span className="diary-list-title" title={diaryTitle(entry.markdown, entry.date)}>
+                    {diaryTitle(entry.markdown, entry.date)}
+                  </span>
+                </Button>
+              </li>
+            )
+          })}
         </ul>
       )}
       {failures.length > 0 && (
@@ -173,22 +120,60 @@ export function DiaryList() {
 }
 
 export function DiaryDetail() {
-  const { selected } = useDiaryPanels()
-  if (selected)
+  const [session, { selected }] = useDiary()
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 's') {
+        event.preventDefault()
+        void session.flush()
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [session])
+  if (!selected)
     return (
-      <article className="diary-preview">
-        <p className="eyebrow">{selected.date.toString()} · 只读预览</p>
-        <pre>{selected.markdown}</pre>
-      </article>
-    )
-  return (
-    <div className="empty-state">
-      <div className="empty-state-icon">
-        <BookOpenText aria-hidden="true" />
+      <div className="empty-state">
+        <div className="empty-state-icon">
+          <BookOpenText aria-hidden="true" />
+        </div>
+        <p className="eyebrow">YOUR SPACE TO WRITE</p>
+        <h2>选择一天，开始写作</h2>
+        <p>点击左侧日期打开日记，或新建今日日记。</p>
       </div>
-      <p className="eyebrow">YOUR SPACE TO WRITE</p>
-      <h2>选择一天，查看日记</h2>
-      <p>当前是只读文件预览；原位编辑将在下一阶段开放。</p>
-    </div>
+    )
+  const status = selected.error
+    ? `保存失败：${selected.error.message}。草稿仍在此页，请重试。`
+    : selected.saving
+      ? '正在保存…'
+      : selected.version !== selected.savedVersion
+        ? '尚未保存'
+        : '已保存'
+  return (
+    <article className="diary-editor-layout">
+      <div className="diary-editor-toolbar">
+        <span>{selected.date.toString()}</span>
+        <div className="diary-save-actions">
+          <span role="status" className={selected.error ? 'workspace-error' : 'workspace-status'}>
+            {status}
+          </span>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => void session.flush()}
+            aria-label="保存日记"
+          >
+            <Save aria-hidden="true" />
+            保存
+          </Button>
+        </div>
+      </div>
+      <CrepeEditor
+        key={selected.date.toString()}
+        markdown={selected.markdown}
+        onChange={(markdown) => session.edit(markdown)}
+        onComposing={(value) => session.setComposing(value)}
+      />
+    </article>
   )
 }

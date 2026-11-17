@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
+import { isTauri } from '@tauri-apps/api/core'
+import { getCurrentWindow } from '@tauri-apps/api/window'
 import { FolderOpen } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { WorkspaceStatus } from '@/application/WorkspaceService'
@@ -37,18 +39,62 @@ export function AppRoot({ registry, services }: AppRootProps) {
     }
   }, [services.workspace])
 
+  useEffect(() => {
+    const beforeUnload = (event: BeforeUnloadEvent) => {
+      if (services.session.isDirty()) {
+        event.preventDefault()
+        event.returnValue = ''
+      }
+    }
+    window.addEventListener('beforeunload', beforeUnload)
+    let disposed = false
+    let unlisten: (() => void) | undefined
+    if (isTauri()) {
+      void getCurrentWindow()
+        .onCloseRequested((event) => {
+          if (!services.session.isDirty()) return
+          event.preventDefault()
+          void services.session.flush().then((saved) => {
+            if (saved && !disposed) void getCurrentWindow().destroy()
+            else if (!saved)
+              setError(
+                services.session.getSnapshot().selected?.error?.message ?? '请先完成输入并保存日记',
+              )
+          })
+        })
+        .then((stop) => {
+          if (disposed) stop()
+          else unlisten = stop
+        })
+    }
+    return () => {
+      disposed = true
+      window.removeEventListener('beforeunload', beforeUnload)
+      unlisten?.()
+    }
+  }, [services.session])
+
   const chooseRoot = useCallback(async () => {
     setChoosing(true)
     setError(null)
     try {
+      if (!(await services.session.flush())) {
+        setError(
+          services.session.getSnapshot().selected?.error?.message ?? '请先完成当前输入并保存日记',
+        )
+        return
+      }
       const next = await services.workspace.chooseRoot()
-      if (next) setStatus(next)
+      if (next && next.root !== status?.root) {
+        services.session.reset()
+        setStatus(next)
+      }
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : '选择文件夹失败')
     } finally {
       setChoosing(false)
     }
-  }, [services.workspace])
+  }, [services.workspace, services.session, status?.root])
 
   if (loading) return <main className="workspace-onboarding">正在检查日记文件夹…</main>
 

@@ -9,7 +9,7 @@ import type { WorkspaceGateway } from '@/application/WorkspaceService'
 /** Composition root. Stateful services are created once, outside React rendering. */
 export function createApp(repository?: DiaryRepository, workspaceGateway?: WorkspaceGateway) {
   const services = createServices(repository, workspaceGateway)
-  const diaryPanels = createDiaryPanels(services.diary)
+  const diaryPanels = createDiaryPanels(services.session)
   const registry = new ModuleRegistry('diary')
   registry.register({
     id: 'diary',
