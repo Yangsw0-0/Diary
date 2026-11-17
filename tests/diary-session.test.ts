@@ -32,9 +32,47 @@ function repository(initial: DiaryEntry[] = []) {
       return entry
     },
     save,
+    rename: async (oldDate, markdown, expectedRevision) => {
+      const previous = files.get(oldDate.toString())
+      const target = DiaryDate.parse(/^# (\d{4}-\d{2}-\d{2})/.exec(markdown)![1]!)
+      if (previous?.revision !== expectedRevision || files.has(target.toString()))
+        throw new DiaryError('conflict', '目标日期已存在或原日记已修改')
+      files.delete(oldDate.toString())
+      const entry = { date: target, markdown, revision: `r${++revision}` }
+      files.set(target.toString(), entry)
+      return entry
+    },
+    trash: async (day, expectedRevision) => {
+      if (files.get(day.toString())?.revision !== expectedRevision)
+        throw new DiaryError('conflict', '日记已被外部修改')
+      files.delete(day.toString())
+    },
   }
   return { repo, files, save }
 }
+
+it('renames a diary from its heading, rejects collisions, and removes a selected diary', async () => {
+  const { repo, files } = repository([
+    { date, markdown: '# 2024-02-29 original', revision: 'r0' },
+    { date: nextDate, markdown: '# 2024-03-01 occupied', revision: 'r1' },
+  ])
+  const session = new DiarySession(new DiaryService(repo), 60_000)
+  await session.load()
+  await session.open(date)
+  session.edit('# 2024-03-01 collision')
+  expect(await session.flush()).toBe(false)
+  expect(files.get(date.toString())?.markdown).toContain('original')
+  expect(files.get(nextDate.toString())?.markdown).toContain('occupied')
+  expect(session.getSnapshot().selected?.markdown).toContain('collision')
+  session.edit('# 2024-03-02 moved')
+  expect(await session.flush()).toBe(true)
+  expect(files.has(date.toString())).toBe(false)
+  expect(session.getSnapshot().selected?.date.toString()).toBe('2024-03-02')
+  const moved = DiaryDate.parse('2024-03-02')
+  expect(await session.trash(moved)).toBe(true)
+  expect(files.has(moved.toString())).toBe(false)
+  expect(session.getSnapshot().selected).toBeNull()
+})
 
 it('creates today only once and persists Markdown that can be reopened', async () => {
   const { repo, files, save } = repository()

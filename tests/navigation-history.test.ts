@@ -34,3 +34,16 @@ it('keeps at most 200 previous views in one session', () => {
   expect(steps).toBe(200)
   expect(history.current).toMatchObject({ moduleId: 'tags', key: '49' })
 })
+
+it('rewrites a renamed date and removes a trashed date from navigation history', () => {
+  const history = new NavigationHistory()
+  const oldDate = DiaryDate.parse('2024-12-31')
+  const newDate = DiaryDate.parse('2025-01-01')
+  history.push({ moduleId: 'diary', date: oldDate, section: null, scrollTop: 40 })
+  history.push({ moduleId: 'tags', key: '工作', scrollTop: 100 })
+  history.rewriteDate(oldDate, newDate)
+  expect(history.back()).toMatchObject({ moduleId: 'diary', date: newDate, scrollTop: 40 })
+  history.dropDate(newDate)
+  expect(history.current).toMatchObject({ moduleId: 'diary', date: null })
+  expect(history.getSnapshot().canGoForward).toBe(true)
+})

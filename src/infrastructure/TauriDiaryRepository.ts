@@ -50,4 +50,30 @@ export class TauriDiaryRepository implements DiaryRepository {
       throw mapIpcError(error)
     }
   }
+
+  async rename(
+    oldDate: DiaryDate,
+    markdown: string,
+    expectedRevision: string,
+  ): Promise<DiaryEntry> {
+    try {
+      return decodeEntry(
+        await this.invokeCommand(diaryCommands.rename, {
+          oldDate: oldDate.toString(),
+          markdown,
+          expectedRevision,
+        }),
+      )
+    } catch (error) {
+      throw mapIpcError(error)
+    }
+  }
+
+  async trash(date: DiaryDate, expectedRevision: string): Promise<void> {
+    try {
+      await this.invokeCommand(diaryCommands.trash, { date: date.toString(), expectedRevision })
+    } catch (error) {
+      throw mapIpcError(error)
+    }
+  }
 }

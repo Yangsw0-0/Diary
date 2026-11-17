@@ -57,8 +57,19 @@ export function createDiaryPanels(
 }
 
 export function DiaryList() {
-  const [session, { entries, failures, selected, loading, opening, error }] = useDiary()
+  const [session, { entries, failures, selected, loading, opening }] = useDiary()
   const navigation = useNavigation()
+  const [menu, setMenu] = useState<{ date: DiaryDate; x: number; y: number } | null>(null)
+  useEffect(() => {
+    if (!menu) return
+    const close = () => setMenu(null)
+    window.addEventListener('pointerdown', close)
+    window.addEventListener('keydown', close)
+    return () => {
+      window.removeEventListener('pointerdown', close)
+      window.removeEventListener('keydown', close)
+    }
+  }, [menu])
   return (
     <>
       <div className="panel-heading">
@@ -88,11 +99,6 @@ export function DiaryList() {
         </div>
       </div>
       {loading && <p className="panel-message">正在读取日记…</p>}
-      {error && (
-        <p role="alert" className="panel-message workspace-error">
-          {error.message}
-        </p>
-      )}
       {!loading && entries.length === 0 && !selected && (
         <div className="panel-placeholder">
           <CalendarDays aria-hidden="true" />
@@ -124,6 +130,10 @@ export function DiaryList() {
                   aria-label={entry.date.toString()}
                   aria-current={selected?.date.equals(entry.date) ? 'true' : undefined}
                   onClick={() => void navigation.openDiary(entry.date)}
+                  onContextMenu={(event) => {
+                    event.preventDefault()
+                    setMenu({ date: entry.date, x: event.clientX, y: event.clientY })
+                  }}
                   disabled={opening}
                 >
                   <span className="diary-list-date">
@@ -150,6 +160,27 @@ export function DiaryList() {
               </li>
             ))}
           </ul>
+        </div>
+      )}
+      {menu && (
+        <div
+          className="diary-context-menu"
+          role="menu"
+          style={{ left: menu.x, top: menu.y }}
+          onPointerDown={(event) => event.stopPropagation()}
+        >
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              const date = menu.date
+              setMenu(null)
+              if (window.confirm(`将 ${date.toString()} 的日记移入回收文件夹？附件不会删除。`))
+                void session.trash(date)
+            }}
+          >
+            删除日记…
+          </button>
         </div>
       )}
     </>

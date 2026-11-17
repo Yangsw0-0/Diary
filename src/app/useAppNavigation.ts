@@ -14,6 +14,10 @@ const extractor = new MarkdownSectionExtractor()
 export function useAppNavigation(session: DiarySession) {
   const [history] = useState(() => new NavigationHistory())
   const snapshot = useSyncExternalStore(history.subscribe, history.getSnapshot)
+  const renamed = useSyncExternalStore(session.subscribe, () => session.getSnapshot().renamed)
+  const trashed = useSyncExternalStore(session.subscribe, () => session.getSnapshot().trashed)
+  const lastRename = useRef(0)
+  const lastTrash = useRef(0)
   const [focusRequest, setFocusRequest] = useState<NavigationContextValue['focusRequest']>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [navigating, setNavigating] = useState(false)
@@ -63,6 +67,29 @@ export function useAppNavigation(session: DiarySession) {
   useLayoutEffect(() => {
     if (!focusRequest) restoreScroll()
   }, [snapshot.current, focusRequest, restoreScroll])
+
+  useLayoutEffect(() => {
+    if (!renamed || renamed.sequence === lastRename.current) return
+    lastRename.current = renamed.sequence
+    history.rewriteDate(renamed.from, renamed.to)
+    if (lastDiary.current?.moduleId === 'diary' && lastDiary.current.date?.equals(renamed.from)) {
+      lastDiary.current = {
+        ...lastDiary.current,
+        date: renamed.to,
+        section: lastDiary.current.section
+          ? { ...lastDiary.current.section, date: renamed.to }
+          : null,
+      }
+    }
+  }, [history, renamed])
+
+  useLayoutEffect(() => {
+    if (!trashed || trashed.sequence === lastTrash.current) return
+    lastTrash.current = trashed.sequence
+    history.dropDate(trashed.date)
+    if (lastDiary.current?.moduleId === 'diary' && lastDiary.current.date?.equals(trashed.date))
+      lastDiary.current = null
+  }, [history, trashed])
 
   const run = useCallback(async (operation: () => Promise<boolean>): Promise<boolean> => {
     if (busy.current) return false

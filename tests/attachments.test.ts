@@ -14,9 +14,10 @@ const relativePath = `../assets/2026/2026-11-17/${fileName}`
 it('copies before returning a relative Markdown link and limits readable paths', async () => {
   const importFile = vi.fn(async () => ({ fileName, relativePath, isImage: true }))
   const open = vi.fn(async () => {})
+  const preview = vi.fn(async () => ({ bytes: [137, 80, 78, 71], mimeType: 'image/png' }))
   const gateway: AttachmentGateway = {
     import: importFile,
-    preview: async () => ({ bytes: [137, 80, 78, 71], mimeType: 'image/png' }),
+    preview,
     open,
   }
   const service = new AttachmentService(gateway)
@@ -28,6 +29,11 @@ it('copies before returning a relative Markdown link and limits readable paths',
   expect(attachmentFileName(day, '../assets/2026/2026-11-17/../../secret')).toBeNull()
   expect(await service.openUrl(day, relativePath)).toBe(true)
   expect(open).toHaveBeenCalledWith(day, fileName)
+  const renamedDiary = DiaryDate.parse('2026-11-18')
+  expect(await service.openUrl(renamedDiary, relativePath)).toBe(true)
+  expect(open).toHaveBeenLastCalledWith(day, fileName)
+  await service.previewUrl(renamedDiary, relativePath)
+  expect(preview).toHaveBeenCalledWith(day, fileName)
 })
 
 it('does not produce a link when copying fails', async () => {

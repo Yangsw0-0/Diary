@@ -4,6 +4,7 @@ export interface WorkspaceStatus {
   readonly issue: string | null
   readonly sidebarWidth?: number | null
   readonly sidebarCollapsed?: boolean
+  readonly theme?: 'light' | 'dark'
 }
 
 export interface WorkspaceGateway {
@@ -11,6 +12,7 @@ export interface WorkspaceGateway {
   /** A cancelled native dialog returns null without changing the previous selection. */
   chooseRoot(): Promise<WorkspaceStatus | null>
   savePreferences?(width: number | null, collapsed: boolean): Promise<void>
+  saveTheme?(theme: 'light' | 'dark'): Promise<void>
 }
 
 export class WorkspaceService {
@@ -30,5 +32,9 @@ export class WorkspaceService {
 
   savePreferences(width: number | null, collapsed: boolean): Promise<void> {
     return this.gateway.savePreferences?.(width, collapsed) ?? Promise.resolve()
+  }
+
+  saveTheme(theme: 'light' | 'dark'): Promise<void> {
+    return this.gateway.saveTheme?.(theme) ?? Promise.resolve()
   }
 }

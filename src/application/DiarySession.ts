@@ -22,6 +22,9 @@ export interface DiarySessionSnapshot {
   readonly loading: boolean
   readonly opening: boolean
   readonly error: DiaryError | null
+  readonly renamed?:
+    { readonly from: DiaryDate; readonly to: DiaryDate; readonly sequence: number } | undefined
+  readonly trashed?: { readonly date: DiaryDate; readonly sequence: number } | undefined
 }
 
 function diaryError(reason: unknown, fallback: string): DiaryError {
@@ -55,6 +58,8 @@ export class DiarySession {
   private generation = 0
   private navigationSequence = 0
   private externalCheckSequence = 0
+  private renameSequence = 0
+  private trashSequence = 0
 
   private readonly service: DiaryService
   private readonly debounceMs: number
@@ -110,6 +115,8 @@ export class DiarySession {
       loading: true,
       opening: false,
       error: null,
+      renamed: undefined,
+      trashed: undefined,
     })
   }
 
@@ -359,6 +366,29 @@ export class DiarySession {
     }
   }
 
+  async trash(date: DiaryDate): Promise<boolean> {
+    const selected = this.snapshot.selected
+    if (selected?.date.equals(date) && !(await this.flush())) return false
+    const entry = this.snapshot.entries.find((item) => item.date.equals(date))
+    const revision = this.snapshot.selected?.date.equals(date)
+      ? this.snapshot.selected.revision
+      : entry?.revision
+    if (!revision) return false
+    try {
+      await this.service.trash(date, revision)
+      this.set({
+        entries: this.snapshot.entries.filter((item) => !item.date.equals(date)),
+        selected: this.snapshot.selected?.date.equals(date) ? null : this.snapshot.selected,
+        error: null,
+        trashed: { date, sequence: ++this.trashSequence },
+      })
+      return true
+    } catch (reason) {
+      this.set({ error: diaryError(reason, '删除日记失败') })
+      return false
+    }
+  }
+
   private async overwriteLoop(sequence: number): Promise<boolean> {
     const draft = this.snapshot.selected
     if (!draft) return false
@@ -432,21 +462,43 @@ export class DiarySession {
       this.snapshot.selected.version !== this.snapshot.selected.savedVersion
     ) {
       const draft = this.snapshot.selected
+      const headingDate = /^# (\d{4}-\d{2}-\d{2})(?:\s|$)/.exec(draft.markdown)?.[1]
+      let renamedDate: DiaryDate | null = null
+      if (headingDate) {
+        try {
+          renamedDate = DiaryDate.parse(headingDate)
+        } catch {
+          /* Storage reports invalid headings. */
+        }
+      }
+      const isRename = !!renamedDate && !renamedDate.equals(draft.date)
       const expectation =
         draft.revision === null
           ? { kind: 'new' as const }
           : { kind: 'match' as const, revision: draft.revision }
       this.updateDraft({ saving: true, error: null })
       try {
-        const saved = await this.service.save(draft.date, draft.markdown, expectation)
+        const saved = isRename
+          ? draft.revision
+            ? await this.service.rename(draft.date, draft.markdown, draft.revision)
+            : await this.service.save(renamedDate!, draft.markdown, { kind: 'new' })
+          : await this.service.save(draft.date, draft.markdown, expectation)
         const current = this.snapshot.selected
         if (!current || !current.date.equals(draft.date)) return false
         this.updateDraft({
+          date: saved.date,
           revision: saved.revision,
           savedVersion: draft.version,
           saving: false,
           error: null,
+          editorEpoch: isRename ? current.editorEpoch + 1 : current.editorEpoch,
         })
+        if (isRename) {
+          this.set({
+            entries: this.snapshot.entries.filter((item) => !item.date.equals(draft.date)),
+            renamed: { from: draft.date, to: saved.date, sequence: ++this.renameSequence },
+          })
+        }
         this.replaceEntry(saved)
       } catch (reason) {
         this.updateDraft({ saving: false, error: diaryError(reason, '保存日记失败') })

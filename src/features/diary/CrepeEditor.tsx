@@ -73,7 +73,6 @@ export function CrepeEditor({
   // a disk reload replaces markdown, creating a fresh editor and undo history.
   useEffect(() => {
     const adapter = createAdapter()
-    adapterRef.current = adapter
     let disposed = false
     if (root.current) {
       void adapter
@@ -84,6 +83,7 @@ export function CrepeEditor({
           () => {
             if (disposed) void adapter.destroy()
             else {
+              adapterRef.current = adapter
               adapter.setReadonly(readOnlyRef.current)
               insertIfNeeded(adapter)
               const request = focusRef.current

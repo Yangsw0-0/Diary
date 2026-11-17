@@ -7,6 +7,8 @@ export const diaryCommands = {
   list: 'list_diaries',
   read: 'read_diary',
   save: 'save_diary',
+  rename: 'rename_diary',
+  trash: 'trash_diary',
 } as const
 
 function record(value: unknown): Record<string, unknown> {

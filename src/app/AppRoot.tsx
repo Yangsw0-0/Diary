@@ -19,6 +19,11 @@ export function AppRoot({ registry, services }: AppRootProps) {
   const [choosing, setChoosing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [closePrompt, setClosePrompt] = useState(false)
+  const theme = status?.theme ?? 'light'
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', theme === 'dark')
+  }, [theme])
 
   useEffect(() => {
     let current = true
@@ -150,6 +155,11 @@ export function AppRoot({ registry, services }: AppRootProps) {
         onSavePreferences={(width, collapsed) =>
           services.workspace.savePreferences(width, collapsed)
         }
+        theme={theme}
+        onSaveTheme={async (next) => {
+          await services.workspace.saveTheme(next)
+          setStatus((current) => (current ? { ...current, theme: next } : current))
+        }}
       />
       {closePrompt && (
         <div className="diary-close-overlay">

@@ -21,4 +21,6 @@ export interface DiaryRepository {
   list(): Promise<DiaryScan>
   read(date: DiaryDate): Promise<DiaryEntry>
   save(date: DiaryDate, markdown: string, expectation: RevisionExpectation): Promise<DiaryEntry>
+  rename?(oldDate: DiaryDate, markdown: string, expectedRevision: string): Promise<DiaryEntry>
+  trash?(date: DiaryDate, expectedRevision: string): Promise<void>
 }

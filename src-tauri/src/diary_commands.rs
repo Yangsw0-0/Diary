@@ -43,3 +43,36 @@ pub async fn save_diary(
     .await
     .map_err(|error| AppError::new("unexpected", error.to_string()))?
 }
+
+#[tauri::command]
+pub async fn rename_diary(
+    state: State<'_, WorkspaceState>,
+    old_date: String,
+    markdown: String,
+    expected_revision: String,
+) -> Result<DiaryEntry, AppError> {
+    let old_date = DiaryDate::parse(&old_date)?;
+    let workspace = state.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        workspace.with_write_root(|root| {
+            diary_storage::rename(root, &old_date, &markdown, &expected_revision)
+        })
+    })
+    .await
+    .map_err(|error| AppError::new("unexpected", error.to_string()))?
+}
+
+#[tauri::command]
+pub async fn trash_diary(
+    state: State<'_, WorkspaceState>,
+    date: String,
+    expected_revision: String,
+) -> Result<(), AppError> {
+    let date = DiaryDate::parse(&date)?;
+    let workspace = state.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        workspace.with_write_root(|root| diary_storage::trash(root, &date, &expected_revision))
+    })
+    .await
+    .map_err(|error| AppError::new("unexpected", error.to_string()))?
+}

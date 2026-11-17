@@ -23,12 +23,16 @@ function decodeStatus(value: unknown): WorkspaceStatus {
   if (data.sidebarCollapsed != null && typeof data.sidebarCollapsed !== 'boolean') {
     throw new DiaryError('invalid_response', '侧栏状态格式错误')
   }
+  if (data.theme != null && data.theme !== 'light' && data.theme !== 'dark') {
+    throw new DiaryError('invalid_response', '主题设置格式错误')
+  }
   return {
     root: nullableString(data.root),
     configuredRoot: nullableString(data.configuredRoot),
     issue: nullableString(data.issue),
     sidebarWidth: width == null ? null : (width as number),
     sidebarCollapsed: data.sidebarCollapsed === true,
+    theme: data.theme === 'dark' ? 'dark' : 'light',
   }
 }
 
@@ -36,6 +40,7 @@ export const workspaceCommands = {
   status: 'get_workspace_status',
   choose: 'choose_diary_root',
   preferences: 'save_ui_preferences',
+  theme: 'save_theme',
 } as const
 
 export class TauriWorkspaceGateway implements WorkspaceGateway {
@@ -70,6 +75,14 @@ export class TauriWorkspaceGateway implements WorkspaceGateway {
   async savePreferences(width: number | null, collapsed: boolean): Promise<void> {
     try {
       await this.invokeCommand(workspaceCommands.preferences, { width, collapsed })
+    } catch (error) {
+      throw mapIpcError(error)
+    }
+  }
+
+  async saveTheme(theme: 'light' | 'dark'): Promise<void> {
+    try {
+      await this.invokeCommand(workspaceCommands.theme, { theme })
     } catch (error) {
       throw mapIpcError(error)
     }

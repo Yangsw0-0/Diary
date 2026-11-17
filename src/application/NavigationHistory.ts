@@ -60,6 +60,27 @@ export class NavigationHistory {
     this.currentView = { ...this.currentView, scrollTop: Math.max(0, scrollTop) }
   }
 
+  rewriteDate(from: DiaryDate, to: DiaryDate): void {
+    const rewrite = (view: NavigationView): NavigationView =>
+      view.moduleId === 'diary' && view.date?.equals(from)
+        ? { ...view, date: to, section: view.section ? { ...view.section, date: to } : null }
+        : view
+    this.past = this.past.map(rewrite)
+    this.currentView = rewrite(this.currentView)
+    this.future = this.future.map(rewrite)
+    this.publish()
+  }
+
+  dropDate(date: DiaryDate): void {
+    const keep = (view: NavigationView) => view.moduleId !== 'diary' || !view.date?.equals(date)
+    this.past = this.past.filter(keep)
+    this.future = this.future.filter(keep)
+    if (!keep(this.currentView)) {
+      this.currentView = { moduleId: 'diary', date: null, section: null, scrollTop: 0 }
+    }
+    this.publish()
+  }
+
   push(next: NavigationView): void {
     this.past.push(this.currentView)
     if (this.past.length > NavigationHistory.maxEntries) this.past.shift()

@@ -1,4 +1,4 @@
-import type { DiaryDate } from '@/domain/DiaryDate'
+import { DiaryDate } from '@/domain/DiaryDate'
 
 export interface ImportedAttachment {
   readonly fileName: string
@@ -19,18 +19,29 @@ export interface AttachmentGateway {
 
 export const MAX_ATTACHMENT_BYTES = 20 * 1024 * 1024
 
-/** Accepts only links generated under the selected day's attachment directory. */
-export function attachmentFileName(date: DiaryDate, url: string): string | null {
+/** Parses only controlled links inside this workspace's assets tree. */
+export function attachmentReference(url: string): { date: DiaryDate; fileName: string } | null {
   let decoded: string
   try {
     decoded = decodeURIComponent(url)
   } catch {
     return null
   }
-  const prefix = `../assets/${date.year}/${date.toString()}/`
-  if (!decoded.startsWith(prefix)) return null
-  const fileName = decoded.slice(prefix.length)
-  return /^att-[0-9a-f]{32}\.[a-zA-Z0-9]{1,12}$/.test(fileName) ? fileName : null
+  const match =
+    /^\.\.\/assets\/(\d{4})\/(\d{4}-\d{2}-\d{2})\/(att-[0-9a-f]{32}\.[a-zA-Z0-9]{1,12})$/.exec(
+      decoded,
+    )
+  if (!match) return null
+  try {
+    const date = DiaryDate.parse(match[2]!)
+    return date.year === match[1] ? { date, fileName: match[3]! } : null
+  } catch {
+    return null
+  }
+}
+
+export function attachmentFileName(_date: DiaryDate, url: string): string | null {
+  return attachmentReference(url)?.fileName ?? null
 }
 
 function escapeLabel(value: string): string {
@@ -78,19 +89,19 @@ export class AttachmentService {
     return { attachment, markdown }
   }
 
-  async previewUrl(date: DiaryDate, url: string): Promise<string> {
-    const fileName = attachmentFileName(date, url)
-    if (!fileName) return url
-    const preview = await this.gateway.preview(date, fileName)
+  async previewUrl(_date: DiaryDate, url: string): Promise<string> {
+    const reference = attachmentReference(url)
+    if (!reference) return url
+    const preview = await this.gateway.preview(reference.date, reference.fileName)
     return URL.createObjectURL(
       new Blob([new Uint8Array(preview.bytes)], { type: preview.mimeType }),
     )
   }
 
-  async openUrl(date: DiaryDate, url: string): Promise<boolean> {
-    const fileName = attachmentFileName(date, url)
-    if (!fileName) return false
-    await this.gateway.open(date, fileName)
+  async openUrl(_date: DiaryDate, url: string): Promise<boolean> {
+    const reference = attachmentReference(url)
+    if (!reference) return false
+    await this.gateway.open(reference.date, reference.fileName)
     return true
   }
 }

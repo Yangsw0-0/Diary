@@ -41,6 +41,29 @@ it('switches between diary and tags without showing fake diary data', async () =
   expect(screen.getByRole('button', { name: '标签' })).toHaveAttribute('aria-current', 'page')
 })
 
+it('keeps zoom and panel controls scoped to an open diary and opens settings at the left footer', async () => {
+  const user = userEvent.setup()
+  const date = DiaryDate.parse('2024-02-29')
+  const entry = { date, markdown: '# 2024-02-29 Saved', revision: 'r1' }
+  renderShell({
+    list: async () => ({ entries: [entry], failures: [] }),
+    read: async () => entry,
+    save: async () => entry,
+  })
+  expect(screen.queryByRole('slider', { name: '正文缩放' })).not.toBeInTheDocument()
+  await user.click(await screen.findByRole('button', { name: '2024-02-29' }))
+  await user.click(screen.getByRole('button', { name: '缩小正文' }))
+  expect(screen.getByRole('slider', { name: '正文缩放' })).toHaveValue('90')
+  await user.click(screen.getByRole('button', { name: '展开正文' }))
+  expect(screen.getByRole('button', { name: '退出展开正文' })).toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: '退出展开正文' }))
+  await user.click(screen.getByRole('button', { name: '收起列表' }))
+  expect(screen.getByRole('button', { name: '展开列表' })).toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: '设置' }))
+  expect(screen.getByRole('region', { name: '设置' })).toBeInTheDocument()
+  expect(screen.queryByRole('slider', { name: '正文缩放' })).not.toBeInTheDocument()
+})
+
 it('keeps the selected diary mounted when visiting tags', async () => {
   const user = userEvent.setup()
   const date = DiaryDate.parse('2024-02-29')

@@ -140,6 +140,14 @@ fn read_from_year(year_dir: &Path, date: &DiaryDate) -> Result<DiaryEntry, AppEr
 }
 
 fn validate_document_date(markdown: &str, date: &DiaryDate) -> Result<(), &'static str> {
+    let heading_date = document_date(markdown)?;
+    if heading_date != *date {
+        return Err("正文日期与文件名不一致");
+    }
+    Ok(())
+}
+
+fn document_date(markdown: &str) -> Result<DiaryDate, &'static str> {
     let first_line = markdown
         .trim_start_matches('\u{feff}')
         .lines()
@@ -152,11 +160,7 @@ fn validate_document_date(markdown: &str, date: &DiaryDate) -> Result<(), &'stat
         .split_whitespace()
         .next()
         .ok_or("日记首行缺少日期")?;
-    let heading_date = DiaryDate::parse(date_text).map_err(|_| "日记首行日期无效")?;
-    if heading_date != *date {
-        return Err("正文日期与文件名不一致");
-    }
-    Ok(())
+    DiaryDate::parse(date_text).map_err(|_| "日记首行日期无效")
 }
 
 pub fn read(root: &Path, date: &DiaryDate) -> Result<DiaryEntry, AppError> {
@@ -373,6 +377,107 @@ pub fn save(
     })
 }
 
+pub fn rename(
+    root: &Path,
+    old_date: &DiaryDate,
+    markdown: &str,
+    expected_revision: &str,
+) -> Result<DiaryEntry, AppError> {
+    let normalized = markdown.replace("\r\n", "\n").replace('\r', "\n");
+    let new_date =
+        document_date(&normalized).map_err(|message| AppError::new("invalid_date", message))?;
+    if new_date == *old_date {
+        return save(
+            root,
+            old_date,
+            &normalized,
+            RevisionExpectation::Match {
+                revision: expected_revision.to_owned(),
+            },
+        );
+    }
+    let old_dir = checked_year_dir(root, old_date, false)?;
+    check_expectation(
+        &old_dir,
+        old_date,
+        &RevisionExpectation::Match {
+            revision: expected_revision.to_owned(),
+        },
+    )?;
+    let new_dir = checked_year_dir(root, &new_date, true)?;
+    let target = new_dir.join(new_date.file_name());
+    let source = old_dir.join(old_date.file_name());
+    atomic_write_checked(
+        &target,
+        normalized.as_bytes(),
+        || {
+            check_expectation(
+                &old_dir,
+                old_date,
+                &RevisionExpectation::Match {
+                    revision: expected_revision.to_owned(),
+                },
+            )?;
+            check_expectation(&new_dir, &new_date, &RevisionExpectation::New)
+        },
+        true,
+    )?;
+    if let Err(error) = fs::remove_file(&source) {
+        let _ = fs::remove_file(&target);
+        return Err(AppError::from_io(error));
+    }
+    Ok(DiaryEntry {
+        date: new_date.as_str().to_owned(),
+        markdown: normalized.clone(),
+        revision: revision(normalized.as_bytes()),
+    })
+}
+
+pub fn trash(root: &Path, date: &DiaryDate, expected_revision: &str) -> Result<(), AppError> {
+    let year_dir = checked_year_dir(root, date, false)?;
+    let expectation = RevisionExpectation::Match {
+        revision: expected_revision.to_owned(),
+    };
+    check_expectation(&year_dir, date, &expectation)?;
+    let trash_dir = root.join("Trash");
+    match fs::create_dir(&trash_dir) {
+        Ok(()) => (),
+        Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => (),
+        Err(error) => return Err(AppError::from_io(error)),
+    }
+    let metadata = fs::symlink_metadata(&trash_dir).map_err(AppError::from_io)?;
+    if !metadata.is_dir() || metadata.file_type().is_symlink() {
+        return Err(AppError::new("permission_denied", "回收目录必须是真实目录"));
+    }
+    for _ in 0..16 {
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map_err(|error| AppError::new("unexpected", error.to_string()))?
+            .as_nanos();
+        let sequence = TEMP_SEQUENCE.fetch_add(1, Ordering::Relaxed);
+        let destination = trash_dir.join(format!("{}-{nonce}-{sequence}.md", date.as_str()));
+        match fs::symlink_metadata(&destination) {
+            Ok(_) => continue,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => (),
+            Err(error) => return Err(AppError::from_io(error)),
+        }
+        check_expectation(&year_dir, date, &expectation)?;
+        let source = year_dir.join(date.file_name());
+        match fs::hard_link(&source, &destination) {
+            Ok(()) => {
+                if let Err(error) = fs::remove_file(&source) {
+                    let _ = fs::remove_file(&destination);
+                    return Err(AppError::from_io(error));
+                }
+                return Ok(());
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => continue,
+            Err(error) => return Err(AppError::from_io(error)),
+        }
+    }
+    Err(AppError::new("unexpected", "无法生成回收文件名"))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -484,6 +589,53 @@ mod tests {
                 .to_string_lossy()
                 .ends_with(".tmp")
         }));
+    }
+
+    #[test]
+    fn rename_moves_date_without_overwriting_and_trash_keeps_recovery_copy() {
+        let root = TestRoot::new();
+        let old = DiaryDate::parse("2024-12-31").unwrap();
+        let target = DiaryDate::parse("2025-01-01").unwrap();
+        let original = save(
+            &root.0,
+            &old,
+            "# 2024-12-31 original",
+            RevisionExpectation::New,
+        )
+        .unwrap();
+        let occupied = save(
+            &root.0,
+            &target,
+            "# 2025-01-01 occupied",
+            RevisionExpectation::New,
+        )
+        .unwrap();
+        assert_eq!(
+            rename(&root.0, &old, "# 2025-01-01 changed", &original.revision)
+                .unwrap_err()
+                .code,
+            "conflict"
+        );
+        assert_eq!(read(&root.0, &old).unwrap().revision, original.revision);
+        assert_eq!(read(&root.0, &target).unwrap().revision, occupied.revision);
+        trash(&root.0, &target, &occupied.revision).unwrap();
+        let renamed = rename(&root.0, &old, "# 2025-01-01 changed", &original.revision).unwrap();
+        assert_eq!(renamed.date, "2025-01-01");
+        assert!(read(&root.0, &old).is_err());
+        assert_eq!(
+            read(&root.0, &target).unwrap().markdown,
+            "# 2025-01-01 changed"
+        );
+        assert_eq!(fs::read_dir(root.0.join("Trash")).unwrap().count(), 1);
+        assert_eq!(
+            trash(&root.0, &target, &original.revision)
+                .unwrap_err()
+                .code,
+            "conflict"
+        );
+        trash(&root.0, &target, &renamed.revision).unwrap();
+        assert!(list(&root.0).unwrap().entries.is_empty());
+        assert_eq!(fs::read_dir(root.0.join("Trash")).unwrap().count(), 2);
     }
 
     #[test]

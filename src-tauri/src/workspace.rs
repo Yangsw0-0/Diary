@@ -21,6 +21,12 @@ struct Settings {
     sidebar_width: Option<u16>,
     #[serde(default)]
     sidebar_collapsed: bool,
+    #[serde(default = "default_theme")]
+    theme: String,
+}
+
+fn default_theme() -> String {
+    "light".to_owned()
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -31,6 +37,7 @@ pub struct WorkspaceStatus {
     pub issue: Option<String>,
     pub sidebar_width: Option<u16>,
     pub sidebar_collapsed: bool,
+    pub theme: String,
 }
 
 #[derive(Clone)]
@@ -40,29 +47,33 @@ pub struct WorkspaceState {
     startup_issue: Arc<Mutex<Option<String>>>,
     save_gate: Arc<Mutex<()>>,
     preferences: Arc<RwLock<(Option<u16>, bool)>>,
+    theme: Arc<RwLock<String>>,
 }
 
 impl WorkspaceState {
     pub fn new(settings_path: PathBuf) -> Self {
-        let (selected, preferences, issue) = match fs::read(&settings_path) {
+        let (selected, preferences, theme, issue) = match fs::read(&settings_path) {
             Ok(bytes) => match serde_json::from_slice::<Settings>(&bytes) {
                 Ok(settings) => (
                     Some(PathBuf::from(settings.diary_root)),
                     (settings.sidebar_width, settings.sidebar_collapsed),
+                    settings.theme,
                     None,
                 ),
                 Err(error) => (
                     None,
                     (None, false),
+                    default_theme(),
                     Some(format!("设置文件无法读取：{error}")),
                 ),
             },
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-                (None, (None, false), None)
+                (None, (None, false), default_theme(), None)
             }
             Err(error) => (
                 None,
                 (None, false),
+                default_theme(),
                 Some(format!("设置文件无法读取：{error}")),
             ),
         };
@@ -72,10 +83,16 @@ impl WorkspaceState {
             startup_issue: Arc::new(Mutex::new(issue)),
             save_gate: Arc::new(Mutex::new(())),
             preferences: Arc::new(RwLock::new(preferences)),
+            theme: Arc::new(RwLock::new(theme)),
         }
     }
 
     pub fn status(&self) -> WorkspaceStatus {
+        let theme = self
+            .theme
+            .read()
+            .unwrap_or_else(|poison| poison.into_inner())
+            .clone();
         let preferences = *self
             .preferences
             .read()
@@ -95,6 +112,7 @@ impl WorkspaceState {
                     issue: None,
                     sidebar_width: preferences.0,
                     sidebar_collapsed: preferences.1,
+                    theme: theme.clone(),
                 },
                 Err(error) => WorkspaceStatus {
                     root: None,
@@ -102,6 +120,7 @@ impl WorkspaceState {
                     issue: Some(error.message),
                     sidebar_width: preferences.0,
                     sidebar_collapsed: preferences.1,
+                    theme: theme.clone(),
                 },
             },
             None => WorkspaceStatus {
@@ -114,6 +133,7 @@ impl WorkspaceState {
                     .clone(),
                 sidebar_width: preferences.0,
                 sidebar_collapsed: preferences.1,
+                theme,
             },
         }
     }
@@ -141,6 +161,11 @@ impl WorkspaceState {
             diary_root: root.to_string_lossy().into_owned(),
             sidebar_width: preferences.0,
             sidebar_collapsed: preferences.1,
+            theme: self
+                .theme
+                .read()
+                .unwrap_or_else(|poison| poison.into_inner())
+                .clone(),
         })
         .map_err(|error| AppError::new("unexpected", error.to_string()))?;
         atomic_write(&self.settings_path, &bytes)?;
@@ -155,6 +180,11 @@ impl WorkspaceState {
             issue: None,
             sidebar_width: preferences.0,
             sidebar_collapsed: preferences.1,
+            theme: self
+                .theme
+                .read()
+                .unwrap_or_else(|poison| poison.into_inner())
+                .clone(),
         })
     }
 
@@ -177,6 +207,11 @@ impl WorkspaceState {
             diary_root: root.to_string_lossy().into_owned(),
             sidebar_width: width,
             sidebar_collapsed: collapsed,
+            theme: self
+                .theme
+                .read()
+                .unwrap_or_else(|poison| poison.into_inner())
+                .clone(),
         })
         .map_err(|error| AppError::new("unexpected", error.to_string()))?;
         atomic_write(&self.settings_path, &bytes)?;
@@ -184,6 +219,40 @@ impl WorkspaceState {
             .preferences
             .write()
             .unwrap_or_else(|poison| poison.into_inner()) = (width, collapsed);
+        Ok(())
+    }
+
+    pub fn set_theme(&self, theme: &str) -> Result<(), AppError> {
+        if theme != "light" && theme != "dark" {
+            return Err(AppError::new("invalid_response", "主题无效"));
+        }
+        let _save_guard = self
+            .save_gate
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner());
+        let selected = self
+            .selected
+            .read()
+            .unwrap_or_else(|poison| poison.into_inner());
+        let root = selected
+            .as_ref()
+            .ok_or_else(|| AppError::new("not_found", "请先选择日记文件夹"))?;
+        let preferences = *self
+            .preferences
+            .read()
+            .unwrap_or_else(|poison| poison.into_inner());
+        let bytes = serde_json::to_vec(&Settings {
+            diary_root: root.to_string_lossy().into_owned(),
+            sidebar_width: preferences.0,
+            sidebar_collapsed: preferences.1,
+            theme: theme.to_owned(),
+        })
+        .map_err(|error| AppError::new("unexpected", error.to_string()))?;
+        atomic_write(&self.settings_path, &bytes)?;
+        *self
+            .theme
+            .write()
+            .unwrap_or_else(|poison| poison.into_inner()) = theme.to_owned();
         Ok(())
     }
 
@@ -284,6 +353,14 @@ pub async fn save_ui_preferences(
 ) -> Result<(), AppError> {
     let workspace = state.inner().clone();
     tauri::async_runtime::spawn_blocking(move || workspace.set_ui_preferences(width, collapsed))
+        .await
+        .map_err(|error| AppError::new("unexpected", error.to_string()))?
+}
+
+#[tauri::command]
+pub async fn save_theme(state: State<'_, WorkspaceState>, theme: String) -> Result<(), AppError> {
+    let workspace = state.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || workspace.set_theme(&theme))
         .await
         .map_err(|error| AppError::new("unexpected", error.to_string()))?
 }
@@ -428,9 +505,12 @@ mod tests {
         let state = WorkspaceState::new(settings.clone());
         state.set_root(&root).unwrap();
         state.set_ui_preferences(Some(240), true).unwrap();
+        state.set_theme("dark").unwrap();
         let restored = WorkspaceState::new(settings);
         assert_eq!(restored.status().sidebar_width, Some(240));
         assert!(restored.status().sidebar_collapsed);
+        assert_eq!(restored.status().theme, "dark");
+        assert!(restored.set_theme("other").is_err());
         assert!(restored.set_ui_preferences(Some(100), false).is_err());
         fs::remove_dir_all(base).unwrap();
     }
