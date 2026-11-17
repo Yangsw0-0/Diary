@@ -40,3 +40,16 @@ npm run tauri:build # 打包桌面应用
 只预览前端界面时可运行 `npm run dev`，打开 `http://localhost:1420`。此时不会有 Tauri 文件系统能力。Rust 端单独检查可运行 `cargo check --locked --manifest-path src-tauri/Cargo.toml`。
 
 目前「新建」按钮故意不可用：选择日记文件夹、读写日记会在 M2 实现；编辑器与自动保存会在 M3 实现。前端的 `DiaryRepository` 和 `TauriDiaryRepository` 已建立接口，但对应 Rust 命令尚未注册，界面不会提前调用它们。
+
+## Python 虚拟环境与写入范围
+
+项目如需 Python 辅助脚本，使用仓库内的 `.venv/`，不要安装到系统 Python。当前虚拟环境由本机已有的 Python 3.9.6 创建，尚未安装项目专用 Python 依赖。需要重建时运行 `bash scripts/setup-python-env.sh`，脚本将虚拟环境、pip 缓存和临时目录都放在 Diary 内。日常使用：
+
+```sh
+source .venv/bin/activate
+python --version
+python -m pip --version
+deactivate
+```
+
+本项目后续只在当前 Diary 目录及其子目录写文件；其他本地文件仅可读。确需改动项目目录以外的路径时，先向用户说明并请求许可。具体约束见 [AGENTS.md](./AGENTS.md)。`.venv/` 与本地缓存均被 Git 忽略。
