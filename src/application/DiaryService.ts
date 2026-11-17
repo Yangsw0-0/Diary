@@ -1,5 +1,5 @@
 import type { DiaryRepository } from '@/domain/DiaryRepository'
-import type { DiarySummary } from '@/domain/DiaryEntry'
+import type { DiaryScan } from '@/domain/DiaryRepository'
 
 /** Coordinates diary use cases; storage rules are added in M2 and save ordering in M3. */
 export class DiaryService {
@@ -9,7 +9,7 @@ export class DiaryService {
     this.repository = repository
   }
 
-  list(): Promise<DiarySummary[]> {
+  list(): Promise<DiaryScan> {
     return this.repository.list()
   }
 }

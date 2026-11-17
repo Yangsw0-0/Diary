@@ -35,8 +35,8 @@
   height: 34px;
   flex: none;
   border-radius: 11px;
-  background: #27352e;
-  color: #f6f8ef;
+  background: var(--diary-brand);
+  color: var(--diary-brand-foreground);
   font-family: Georgia, serif;
   font-size: 22px;
   font-style: italic;
@@ -77,13 +77,13 @@
 }
 
 .feature-nav-button[aria-current='page'] {
-  background: #e8eee8;
-  color: #263a2d;
+  background: var(--diary-active);
+  color: var(--diary-active-foreground);
   font-weight: 600;
 }
 
 .feature-nav-button[aria-current='page']:hover {
-  background: #e1eae1;
+  background: var(--diary-active-hover);
 }
 
 .sidebar-footer {
@@ -132,7 +132,7 @@
 
 .module-list {
   border-right: 1px solid var(--border);
-  background: #fdfdfa;
+  background: var(--diary-list);
 }
 
 .panel-heading {
@@ -145,7 +145,7 @@
 }
 
 .eyebrow {
-  color: #8e9a8e;
+  color: var(--diary-subtle);
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.15em;
@@ -164,16 +164,16 @@
   align-items: flex-start;
   margin: 18px 22px;
   padding: 20px 16px;
-  border: 1px dashed #e3e8df;
+  border: 1px dashed var(--diary-placeholder-border);
   border-radius: 14px;
-  background: #f7f9f5;
+  background: var(--diary-placeholder);
 }
 
 .panel-placeholder svg {
   width: 21px;
   height: 21px;
   margin-bottom: 18px;
-  color: #8a9b8b;
+  color: var(--diary-placeholder-icon);
 }
 
 .panel-placeholder p {
@@ -206,8 +206,8 @@
   height: 64px;
   margin: 0 auto 24px;
   border-radius: 20px;
-  background: #eff3ea;
-  color: #6c816e;
+  background: var(--diary-empty-icon);
+  color: var(--diary-empty-icon-foreground);
 }
 
 .empty-state-icon svg {
@@ -218,7 +218,7 @@
 
 .empty-state h2 {
   margin-top: 9px;
-  color: #28362c;
+  color: var(--diary-heading);
   font-size: clamp(18px, 2vw, 25px);
   font-weight: 600;
   letter-spacing: -0.04em;

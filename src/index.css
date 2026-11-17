@@ -49,6 +49,19 @@
 }
 
 :root {
+  --diary-brand: #27352e;
+  --diary-brand-foreground: #f6f8ef;
+  --diary-active: #e8eee8;
+  --diary-active-hover: #e1eae1;
+  --diary-active-foreground: #263a2d;
+  --diary-list: #fdfdfa;
+  --diary-subtle: #8e9a8e;
+  --diary-placeholder: #f7f9f5;
+  --diary-placeholder-border: #e3e8df;
+  --diary-placeholder-icon: #8a9b8b;
+  --diary-empty-icon: #eff3ea;
+  --diary-empty-icon-foreground: #6c816e;
+  --diary-heading: #28362c;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
@@ -84,6 +97,19 @@
 }
 
 .dark {
+  --diary-brand: #d4e6d5;
+  --diary-brand-foreground: #1d2b21;
+  --diary-active: #304437;
+  --diary-active-hover: #3a5041;
+  --diary-active-foreground: #e5f2e5;
+  --diary-list: #1c2420;
+  --diary-subtle: #a8b9aa;
+  --diary-placeholder: #253029;
+  --diary-placeholder-border: #445348;
+  --diary-placeholder-icon: #a2b5a5;
+  --diary-empty-icon: #2b3b30;
+  --diary-empty-icon-foreground: #aec4b0;
+  --diary-heading: #e8f0e9;
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.205 0 0);

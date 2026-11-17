@@ -1,21 +1,13 @@
-import { useMemo, useState } from 'react'
-import { BookOpenText, Tags } from 'lucide-react'
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
-import { DiaryModule } from '@/features/diary/DiaryModule'
-import { TagsModule } from '@/features/tags/TagsModule'
-import { ModuleRegistry } from './moduleRegistry'
-import { createServices } from './services'
+import type { ModuleRegistry } from './moduleRegistry'
 
-const registry = new ModuleRegistry()
-registry.register({ id: 'diary', label: '日记', Icon: BookOpenText, View: DiaryModule })
-registry.register({ id: 'tags', label: '标签', Icon: Tags, View: TagsModule })
-
-export function AppShell() {
-  const [activeId, setActiveId] = useState('diary')
-  const services = useMemo(() => createServices(), [])
-  const activeModule = registry.get(activeId) ?? registry.list()[0]
-  const ActiveView = activeModule.View
+export function AppShell({ registry }: { registry: ModuleRegistry }) {
+  const [activeId, setActiveId] = useState(registry.defaultId)
+  const activeModule = registry.require(activeId)
+  const ActiveList = activeModule.List
+  const ActiveDetail = activeModule.Detail
 
   return (
     <div className="app-shell">
@@ -55,7 +47,12 @@ export function AppShell() {
           <span className="workspace-status">离线使用 · 文件保存在本地</span>
         </header>
         <div className="workspace-panels">
-          <ActiveView services={services} />
+          <section className="module-list" aria-label={activeModule.listLabel}>
+            <ActiveList />
+          </section>
+          <section className="module-content" aria-label={activeModule.detailLabel}>
+            <ActiveDetail />
+          </section>
         </div>
       </main>
     </div>

@@ -1,29 +1,46 @@
 import type { ComponentType } from 'react'
 import type { LucideIcon } from 'lucide-react'
-import type { AppServices } from './services'
 
 export interface FeatureModule {
-  id: string
-  label: string
-  Icon: LucideIcon
-  View: ComponentType<{ services: AppServices }>
+  readonly id: string
+  readonly label: string
+  readonly Icon: LucideIcon
+  readonly listLabel: string
+  readonly detailLabel: string
+  readonly List: ComponentType
+  readonly Detail: ComponentType
 }
 
 export class ModuleRegistry {
   private readonly modules = new Map<string, FeatureModule>()
+  readonly defaultId: string
+
+  constructor(defaultId: string) {
+    this.defaultId = defaultId
+  }
 
   register(module: FeatureModule): void {
     if (this.modules.has(module.id)) {
       throw new Error(`Feature module already registered: ${module.id}`)
     }
-    this.modules.set(module.id, module)
+    this.modules.set(module.id, Object.freeze({ ...module }))
   }
 
   get(id: string): FeatureModule | undefined {
     return this.modules.get(id)
   }
 
-  list(): FeatureModule[] {
-    return [...this.modules.values()]
+  require(id: string): FeatureModule {
+    const module = this.get(id)
+    if (!module) throw new Error(`Unknown feature module: ${id}`)
+    return module
+  }
+
+  validate(): void {
+    this.require(this.defaultId)
+  }
+
+  list(): readonly FeatureModule[] {
+    return Object.freeze([...this.modules.values()])
   }
 }

@@ -2,12 +2,13 @@ import { afterEach, expect, it } from 'vitest'
 import { cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { AppShell } from '@/app/AppShell'
+import { createApp } from '@/app/bootstrap'
 
 afterEach(cleanup)
 
 it('switches between diary and tags without showing fake diary data', async () => {
   const user = userEvent.setup()
-  render(<AppShell />)
+  render(<AppShell registry={createApp().registry} />)
 
   expect(screen.getByRole('region', { name: '日记列表' })).toBeInTheDocument()
   expect(screen.getByRole('button', { name: '日记' })).toHaveAttribute('aria-current', 'page')

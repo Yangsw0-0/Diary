@@ -76,7 +76,7 @@ Diary 是一个本地 Markdown 日记应用。日记页用于写作和按日期�
 | `DiaryEntry`（实体） | `date`、`markdown`、`revision`；正文仅由仓储读写。 |
 | `DiarySummary` | `date`、`title`；供日期列表展示。 |
 | `TagOccurrence`（值对象） | `date`、`key`、`displayTitle`、`ordinal`、`revision`、`headingOffset`、`contentStartOffset`、`endOffset`；表示一次主题出现。偏移只对应其 `revision` 标识的 Markdown 版本。 |
-| `DiaryRepository`（接口） | `list()`、`read(date)`、`save(date, markdown, expectedRevision)`；`TauriDiaryRepository` 调用 Rust 命令。 |
+| `DiaryRepository`（接口） | `list()` 返回有效条目和逐文件诊断；`read(date)` 缺失时报 `not_found`；`save(date, markdown, expectation)` 明确区分新建与匹配指定 revision。`TauriDiaryRepository` 调用 Rust 命令。 |
 | `MarkdownSectionExtractor` | `parse(markdown, date, revision)` 返回摘要和小节记录，不访问文件。 |
 | `TagIndex` | 维护日期与标签双向索引，提供 `replaceDay`、`removeDay`、`listGroups`、`getOccurrences`。 |
 | `DiaryService` | 协调读取、保存、摘要更新及保存成功后的索引替换。 |
@@ -84,9 +84,9 @@ Diary 是一个本地 Markdown 日记应用。日记页用于写作和按日期�
 | `AttachmentService` | 将导入的图片/附件复制到 `assets/`，生成唯一文件名与相对 Markdown 链接。 |
 | `NavigationHistory` | 管理当前视图、后退栈和前进栈；每条记录包含页面、所选日期或标签、目标小节及滚动位置。 |
 | `EditorAdapter`（接口） | `load`、`getMarkdown`、`onChange`、`focusSection`；`CrepeEditorAdapter` 封装 Milkdown。 |
-| `FeatureModule`（接口） | 提供 `id`、`label`、`View`；`AppShell` 注册 `DiaryModule` 和 `TagsModule`，负责导航与布局。 |
+| `FeatureModule`（接口） | 提供导航元数据及 `List`、`Detail` 两个内容插槽；`bootstrap.ts` 注册模块，`AppShell` 负责导航与两栏容器。 |
 
-`TagsModule` 通过 `openDiarySection(ref)` 请求日记页打开并定位，不直接操作日记页内部状态。`revision` 可采用文件内容哈希：Rust 保存前检查磁盘版本是否仍与读取时一致，外部修改冲突时保留编辑器草稿并提示处理。
+标签功能通过 `openDiarySection(ref)` 请求日记页打开并定位，不直接操作日记页内部状态。`revision` 可采用文件内容哈希：Rust 保存前检查磁盘版本是否仍与读取时一致，外部修改冲突时保留编辑器草稿并提示处理。
 
 导航历史仅在当前应用进程的内存中，关闭应用后清空。普通导航先记录当前视图状态并清空前进栈；后退将当前状态压入前进栈，再恢复上一状态；前进反向操作。视图状态包括功能页、选中的标签/日期、标签详情滚动容器的位置，以及日记编辑器当前小节和滚动位置。恢复滚动应在目标视图渲染完成后进行；当标签内容因编辑而变短时，将滚动位置限制在新的有效范围。用户在日记中修改后点击后退，须先等待自动保存完成；保存失败则保留草稿，并且不能因视图切换丢失。历史不写进 `settings.json`。
 
@@ -121,6 +121,10 @@ class TagIndex {
 
 Rust 暴露 `choose_diary_root`、`list_diaries`、`read_diary`、`save_diary`、`import_attachment` 等受控命令。只有文件夹选择命令接收操作系统选择器返回的根路径；读写日记和附件时，前端仅传经过校验的日期或待导入文件引用，不传任意目标绝对路径。Rust 统一组合并约束目标路径必须位于所选根目录内。每个日期最多一个文件。若正文一级标题日期与文件名不符，提示修正，不暗中移动文件。无效文件名或无法读取的文件需要显示错误，其余日记继续加载。
 
+IPC 契约：`DiaryDate` 在 TypeScript 边界转为 `YYYY-MM-DD` 字符串；Rust 必须独立验证日期和路径。`list_diaries` 返回 `{ entries: [{ date, markdown, revision }], failures: [{ fileName, reason }] }`，有效条目按日期倒序排列。Rust 只读文件和报告错误，一级标题提取由 TypeScript `MarkdownSectionExtractor` 统一完成。`read_diary`、`save_diary` 返回相同的 `{ date, markdown, revision }`；存储错误使用 `{ code, message }`，其中 `code` 为 `conflict`、`not_found`、`corrupt_file` 或 `permission_denied`。前端在 IPC 边界校验返回数据并将未知错误归一为 `unexpected`。`save_diary` 接收 `expectation: { kind: 'new' } | { kind: 'match', revision: string }`；Rust 命令参数名使用 `camelCase` JSON 字段，并通过跨语言 fixture 测试核对。M2 实现 Rust 命令时同步实现并运行契约测试；当前 M1 只有前端契约和模拟 IPC 测试。
+
+附件的 Markdown 链接继续保留相对路径，以便整体迁移。预览时不能直接把该路径交给 webview；M6 由 Rust 在已选根目录下安全解析并读取附件，再提供受控的预览 URL 或二进制数据。不得仅凭 CSP 的 `asset:` 声明认为本地附件可访问，也不得对任意系统路径开放资源 scope。
+
 1. 编辑器变化后标记未保存；停顿约 700–1000 毫秒自动保存，`⌘S` 立即保存。中文输入法组合输入期间不提交保存。
 2. `DiaryService` 对同一天的保存请求串行处理，并记录草稿版本号。旧请求完成时若已有新修改，继续提交最新草稿，避免旧内容覆盖新内容。
 3. Rust 在目标文件同目录写临时文件、刷新数据后替换目标文件；成功后返回新 revision。macOS 和 Windows 的替换行为分别验证；失败时不能先删除原文件。
@@ -135,12 +139,15 @@ Rust 暴露 `choose_diary_root`、`list_diaries`、`read_diary`、`save_diary`�
 src/
 ├── app/
 │   ├── AppShell.tsx                # 三栏外壳和功能导航
+│   ├── AppErrorBoundary.tsx        # 渲染错误兜底
+│   ├── bootstrap.ts                # 组合根和模块注册
 │   ├── moduleRegistry.ts           # FeatureModule 注册
 │   ├── NavigationHistory.ts        # 内存前进/后退栈与视图快照
 │   └── services.ts                 # 创建并注入服务实例
 ├── domain/
 │   ├── DiaryDate.ts                # 日期值对象
 │   ├── DiaryEntry.ts               # 日记、摘要类型
+│   ├── DiaryError.ts               # 仓储错误代码
 │   ├── TagOccurrence.ts            # 标签出现记录
 │   └── DiaryRepository.ts          # 仓储接口
 ├── application/
@@ -151,21 +158,21 @@ src/
 │   └── TagIndex.ts                 # 双向索引与聚合查询
 ├── infrastructure/
 │   ├── TauriDiaryRepository.ts     # Tauri 命令适配
+│   ├── diaryIpc.ts                 # IPC 名称与返回值校验
 │   ├── TauriWorkspaceGateway.ts    # 目录选择与设置适配
 │   ├── TauriAttachmentGateway.ts   # 附件复制命令适配
 │   └── CrepeEditorAdapter.ts       # 编辑器适配
 ├── features/
 │   ├── diary/
-│   │   ├── DiaryModule.tsx          # 日记模块入口
+│   │   ├── DiaryPanels.tsx          # 日记列表与正文内容
 │   │   ├── DiaryList.tsx            # 日期列表
 │   │   └── DiaryEditor.tsx          # 编辑器与保存状态
 │   └── tags/
-│       ├── TagsModule.tsx           # 标签模块入口
+│       ├── TagsPanels.tsx           # 标签列表与详情内容
 │       ├── TagList.tsx              # 主题列表与单次分组
 │       └── TagDetail.tsx            # 只读小节堆叠及跳转
-└── shared/
-    ├── components/                # 通用 UI 组件
-    └── hooks/                     # 布局宽度等复用逻辑
+├── components/ui/                  # shadcn 通用 UI 组件
+└── lib/                            # 通用工具函数
 
 src-tauri/src/
 ├── lib.rs                          # 注册 Tauri 命令
