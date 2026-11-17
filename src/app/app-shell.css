@@ -117,6 +117,72 @@
   font-weight: 400;
 }
 
+.workspace-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.workspace-root {
+  max-width: 34vw;
+  overflow: hidden;
+  color: var(--muted-foreground);
+  font-size: 11px;
+  font-weight: 400;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workspace-error {
+  color: var(--destructive);
+}
+
+.workspace > .workspace-error {
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.workspace-onboarding {
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+  padding: 24px;
+  background: var(--background);
+}
+
+.onboarding-card {
+  display: grid;
+  justify-items: start;
+  gap: 16px;
+  width: min(100%, 520px);
+  padding: 36px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: var(--card);
+}
+
+.onboarding-card > svg {
+  width: 32px;
+  height: 32px;
+  color: var(--diary-empty-icon-foreground);
+}
+
+.onboarding-card h1 {
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.onboarding-card > p:not(.eyebrow) {
+  color: var(--muted-foreground);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.onboarding-card .onboarding-path {
+  overflow-wrap: anywhere;
+}
+
 .workspace-panels {
   display: grid;
   grid-template-columns: clamp(205px, 25vw, 270px) minmax(0, 1fr);
@@ -188,10 +254,67 @@
   line-height: 1.6;
 }
 
+.panel-message {
+  padding: 0 22px 18px;
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+
+.diary-date-list {
+  display: grid;
+  gap: 3px;
+  padding: 0 12px 16px;
+}
+
+.diary-date-button {
+  justify-content: flex-start;
+  width: 100%;
+  font-variant-numeric: tabular-nums;
+}
+
+.diary-date-button[aria-current='true'] {
+  background: var(--diary-active);
+  color: var(--diary-active-foreground);
+}
+
+.diary-failures {
+  margin: 12px 22px;
+  padding: 12px;
+  border: 1px solid var(--diary-placeholder-border);
+  border-radius: 10px;
+  color: var(--destructive);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
+.diary-failures ul {
+  margin-top: 6px;
+  padding-left: 18px;
+  list-style: disc;
+}
+
 .module-content {
   display: grid;
   place-items: center;
   padding: 32px;
+}
+
+.diary-preview {
+  align-self: stretch;
+  justify-self: stretch;
+  min-width: 0;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.diary-preview pre {
+  margin-top: 18px;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font:
+    13px/1.8 ui-monospace,
+    monospace;
 }
 
 .empty-state {

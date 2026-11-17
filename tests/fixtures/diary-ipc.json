@@ -1,0 +1,18 @@
+{
+  "entry": {
+    "date": "2024-02-29",
+    "markdown": "# 2024-02-29 Leap day\n",
+    "revision": "abc123"
+  },
+  "scan": {
+    "entries": [
+      {
+        "date": "2024-02-29",
+        "markdown": "# 2024-02-29 Leap day\n",
+        "revision": "abc123"
+      }
+    ],
+    "failures": [{ "fileName": "2023/2023-02-29.md", "reason": "invalid date" }]
+  },
+  "matchExpectation": { "kind": "match", "revision": "abc123" }
+}

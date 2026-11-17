@@ -121,13 +121,13 @@ class TagIndex {
 
 Rust 暴露 `choose_diary_root`、`list_diaries`、`read_diary`、`save_diary`、`import_attachment` 等受控命令。只有文件夹选择命令接收操作系统选择器返回的根路径；读写日记和附件时，前端仅传经过校验的日期或待导入文件引用，不传任意目标绝对路径。Rust 统一组合并约束目标路径必须位于所选根目录内。每个日期最多一个文件。若正文一级标题日期与文件名不符，提示修正，不暗中移动文件。无效文件名或无法读取的文件需要显示错误，其余日记继续加载。
 
-IPC 契约：`DiaryDate` 在 TypeScript 边界转为 `YYYY-MM-DD` 字符串；Rust 必须独立验证日期和路径。`list_diaries` 返回 `{ entries: [{ date, markdown, revision }], failures: [{ fileName, reason }] }`，有效条目按日期倒序排列。Rust 只读文件和报告错误，一级标题提取由 TypeScript `MarkdownSectionExtractor` 统一完成。`read_diary`、`save_diary` 返回相同的 `{ date, markdown, revision }`；存储错误使用 `{ code, message }`，其中 `code` 为 `conflict`、`not_found`、`corrupt_file` 或 `permission_denied`。前端在 IPC 边界校验返回数据并将未知错误归一为 `unexpected`。`save_diary` 接收 `expectation: { kind: 'new' } | { kind: 'match', revision: string }`；Rust 命令参数名使用 `camelCase` JSON 字段，并通过跨语言 fixture 测试核对。M2 实现 Rust 命令时同步实现并运行契约测试；当前 M1 只有前端契约和模拟 IPC 测试。
+IPC 契约：`DiaryDate` 在 TypeScript 边界转为 `YYYY-MM-DD` 字符串；Rust 独立验证日期和路径。`list_diaries` 返回 `{ entries: [{ date, markdown, revision }], failures: [{ fileName, reason }] }`，有效条目按日期倒序排列。Rust 只读文件和报告错误，一级标题提取由 TypeScript `MarkdownSectionExtractor` 统一完成。`read_diary`、`save_diary` 返回相同的 `{ date, markdown, revision }`；存储错误使用 `{ code, message }`，`code` 包括 `conflict`、`not_found`、`corrupt_file`、`permission_denied`、`invalid_date`。前端在 IPC 边界校验返回数据并将未知错误归一为 `unexpected`。`save_diary` 接收 `expectation: { kind: 'new' } | { kind: 'match', revision: string }`；Rust 命令参数名使用 `camelCase` JSON 字段，两侧测试共用 `tests/fixtures/diary-ipc.json`。
 
 附件的 Markdown 链接继续保留相对路径，以便整体迁移。预览时不能直接把该路径交给 webview；M6 由 Rust 在已选根目录下安全解析并读取附件，再提供受控的预览 URL 或二进制数据。不得仅凭 CSP 的 `asset:` 声明认为本地附件可访问，也不得对任意系统路径开放资源 scope。
 
 1. 编辑器变化后标记未保存；停顿约 700–1000 毫秒自动保存，`⌘S` 立即保存。中文输入法组合输入期间不提交保存。
 2. `DiaryService` 对同一天的保存请求串行处理，并记录草稿版本号。旧请求完成时若已有新修改，继续提交最新草稿，避免旧内容覆盖新内容。
-3. Rust 在目标文件同目录写临时文件、刷新数据后替换目标文件；成功后返回新 revision。macOS 和 Windows 的替换行为分别验证；失败时不能先删除原文件。
+3. Rust 在目标文件同目录写临时文件并刷新数据；新建通过硬链接提交，避免并发出现同名文件时被覆盖；更新再次核对 revision 后用同目录重命名替换。成功后返回新 revision；失败时不能先删除原文件。外部程序若恰好在最后一次版本核对与替换之间写入，仍存在极短竞争窗口；Windows 替换语义在 M8 验证。
 4. 保存成功后更新日期摘要、仅重新解析该天，并调用 `TagIndex.replaceDay`。保存失败或 revision 冲突时保留草稿和未保存状态，不更新标签索引。
 5. 标签页展示最后一次成功保存的数据；有草稿时提示“保存后更新标签”。目前不把外部程序同时编辑作为主要流程，但应用重新获得焦点时仍检查文件变化：无草稿则重读并重建对应日期，有草稿则提示冲突。残留临时文件不自动覆盖正式文件。
 
@@ -139,6 +139,7 @@ IPC 契约：`DiaryDate` 在 TypeScript 边界转为 `YYYY-MM-DD` 字符串；Ru
 src/
 ├── app/
 │   ├── AppShell.tsx                # 三栏外壳和功能导航
+│   ├── AppRoot.tsx                 # 首次选目录与工作区状态
 │   ├── AppErrorBoundary.tsx        # 渲染错误兜底
 │   ├── bootstrap.ts                # 组合根和模块注册
 │   ├── moduleRegistry.ts           # FeatureModule 注册
@@ -178,6 +179,7 @@ src-tauri/src/
 ├── lib.rs                          # 注册 Tauri 命令
 ├── diary_commands.rs               # 命令参数校验与响应
 ├── diary_storage.rs                # 路径、枚举与原子读写
+├── error.rs                        # IPC 错误契约
 ├── workspace.rs                    # 用户所选根目录与配置
 └── attachment_storage.rs           # 附件路径与安全复制
 ```

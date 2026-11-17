@@ -4,6 +4,7 @@ import { DiaryError } from '@/domain/DiaryError'
 import { TauriDiaryRepository } from '@/infrastructure/TauriDiaryRepository'
 import { ModuleRegistry } from '@/app/moduleRegistry'
 import { BookOpenText } from 'lucide-react'
+import fixture from './fixtures/diary-ipc.json'
 
 describe('DiaryDate', () => {
   it('accepts leap days and rejects impossible dates or path fragments', () => {
@@ -74,6 +75,11 @@ describe('TauriDiaryRepository IPC boundary', () => {
     expect(scan.entries[0]?.date.toString()).toBe('2024-02-29')
     expect(scan.failures).toEqual([{ fileName: 'bad.md', reason: 'invalid date' }])
     await expect(repository.list()).rejects.toMatchObject({ code: 'invalid_response' })
+  })
+
+  it('decodes the shared Rust and TypeScript contract fixture', async () => {
+    const repository = new TauriDiaryRepository(vi.fn().mockResolvedValue(fixture.scan))
+    expect((await repository.list()).entries[0]?.date.toString()).toBe(fixture.entry.date)
   })
 
   it('maps structured storage errors', async () => {

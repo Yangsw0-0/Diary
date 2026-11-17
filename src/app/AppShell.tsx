@@ -3,11 +3,36 @@ import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import type { ModuleRegistry } from './moduleRegistry'
 
-export function AppShell({ registry }: { registry: ModuleRegistry }) {
+interface AppShellProps {
+  readonly registry: ModuleRegistry
+  readonly root?: string
+  readonly onChooseRoot?: () => void
+  readonly choosingRoot?: boolean
+  readonly workspaceIssue?: string | null
+}
+
+export function AppShell({
+  registry,
+  root,
+  onChooseRoot,
+  choosingRoot,
+  workspaceIssue,
+}: AppShellProps) {
   const [activeId, setActiveId] = useState(registry.defaultId)
   const activeModule = registry.require(activeId)
   const ActiveList = activeModule.List
   const ActiveDetail = activeModule.Detail
+  const ActiveProvider = activeModule.Provider
+  const panels = (
+    <div className="workspace-panels">
+      <section className="module-list" aria-label={activeModule.listLabel}>
+        <ActiveList />
+      </section>
+      <section className="module-content" aria-label={activeModule.detailLabel}>
+        <ActiveDetail />
+      </section>
+    </div>
+  )
 
   return (
     <div className="app-shell">
@@ -44,16 +69,25 @@ export function AppShell({ registry }: { registry: ModuleRegistry }) {
       <main className="workspace">
         <header className="workspace-header">
           <span>{activeModule.label}</span>
-          <span className="workspace-status">离线使用 · 文件保存在本地</span>
+          <div className="workspace-actions">
+            {root && (
+              <span className="workspace-root" title={root}>
+                {root}
+              </span>
+            )}
+            {onChooseRoot && (
+              <Button variant="outline" size="sm" onClick={onChooseRoot} disabled={choosingRoot}>
+                更换文件夹
+              </Button>
+            )}
+          </div>
         </header>
-        <div className="workspace-panels">
-          <section className="module-list" aria-label={activeModule.listLabel}>
-            <ActiveList />
-          </section>
-          <section className="module-content" aria-label={activeModule.detailLabel}>
-            <ActiveDetail />
-          </section>
-        </div>
+        {workspaceIssue && (
+          <p role="alert" className="workspace-error">
+            {workspaceIssue}
+          </p>
+        )}
+        {ActiveProvider ? <ActiveProvider>{panels}</ActiveProvider> : panels}
       </main>
     </div>
   )

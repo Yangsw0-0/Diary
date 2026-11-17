@@ -1,4 +1,4 @@
-import type { ComponentType } from 'react'
+import type { ComponentType, PropsWithChildren } from 'react'
 import type { LucideIcon } from 'lucide-react'
 
 export interface FeatureModule {
@@ -9,6 +9,7 @@ export interface FeatureModule {
   readonly detailLabel: string
   readonly List: ComponentType
   readonly Detail: ComponentType
+  readonly Provider?: ComponentType<PropsWithChildren>
 }
 
 export class ModuleRegistry {

@@ -1,7 +1,18 @@
+mod diary_commands;
+mod diary_storage;
+mod error;
+mod workspace;
+
+use tauri::Manager;
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
+            let settings_path = workspace::settings_path(app.handle())
+                .map_err(|error| std::io::Error::other(error.message))?;
+            app.manage(workspace::WorkspaceState::new(settings_path));
             if cfg!(debug_assertions) {
                 app.handle().plugin(
                     tauri_plugin_log::Builder::default()
@@ -11,6 +22,13 @@ pub fn run() {
             }
             Ok(())
         })
+        .invoke_handler(tauri::generate_handler![
+            workspace::get_workspace_status,
+            workspace::choose_diary_root,
+            diary_commands::list_diaries,
+            diary_commands::read_diary,
+            diary_commands::save_diary,
+        ])
         .run(tauri::generate_context!())
         .expect("error while building tauri application");
 }

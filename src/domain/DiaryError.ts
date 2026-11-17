@@ -4,6 +4,7 @@ export type DiaryErrorCode =
   | 'corrupt_file'
   | 'permission_denied'
   | 'invalid_response'
+  | 'invalid_date'
   | 'unexpected'
 
 export class DiaryError extends Error {

@@ -2,7 +2,7 @@
 
 一个本地 Markdown 日记应用。首版面向 macOS，使用 Tauri 2、React、TypeScript 和 Rust；Windows 支持列入后续阶段。
 
-M1 工程骨架已建立，日记文件读写等核心功能尚未实现：[项目规划](./docs/Diary-Project-Plan.md) · [进度与任务](./docs/Diary-Project-Progress.md)。
+M2 目录选择与文件仓储已建立：[项目规划](./docs/Diary-Project-Plan.md) · [进度与任务](./docs/Diary-Project-Progress.md)。
 
 日记根文件夹由用户首次启动时自行选择。日记正文与附件属于用户数据，不应提交到本代码仓库。
 
@@ -11,13 +11,13 @@ M1 工程骨架已建立，日记文件读写等核心功能尚未实现：[项�
 | 目录         | 用途                                      |
 | ------------ | ----------------------------------------- |
 | `docs/`      | 产品规划、架构说明和项目进度。            |
-| `src/`       | 后续 React、TypeScript 前端与业务代码。   |
-| `src-tauri/` | 后续 Tauri、Rust 桌面端和文件系统代码。   |
+| `src/`       | React、TypeScript 前端与业务代码。        |
+| `src-tauri/` | Tauri、Rust 桌面端和文件系统代码。        |
 | `tests/`     | 测试代码与人工编写的示例数据。            |
 | `scripts/`   | 开发、检查与打包辅助脚本。                |
 | `notes/`     | 本地无关笔记；被 Git 忽略，不随项目推送。 |
 
-仓库根目录保留 README、`.gitignore`、`package.json`、Vite 和 TypeScript 配置。`src/` 已包含可切换「日记」「标签」的界面骨架，`src-tauri/` 已包含可启动的 macOS 桌面壳。
+仓库根目录保留 README、`.gitignore`、`package.json`、Vite 和 TypeScript 配置。应用首次启动会要求选择已有日记文件夹；取消后仍停留在引导页。选定后可按日期查看 Markdown 原文并更换文件夹。
 
 ## 本地开发
 
@@ -37,9 +37,11 @@ npm run check       # 格式、lint、Vitest、类型检查、前端生产构建
 npm run tauri:build # 打包桌面应用
 ```
 
-只预览前端界面时可运行 `npm run dev`，打开 `http://localhost:1420`。此时不会有 Tauri 文件系统能力。Rust 端单独检查可运行 `cargo check --locked --manifest-path src-tauri/Cargo.toml`。
+只预览前端界面时可运行 `npm run dev`，打开 `http://localhost:1420`。此时没有 Tauri 文件系统能力，工作区状态会提示连接失败。Rust 端单独检查可运行 `cargo check --locked --manifest-path src-tauri/Cargo.toml`。
 
-目前「新建」按钮故意不可用：选择日记文件夹、读写日记会在 M2 实现；编辑器与自动保存会在 M3 实现。前端的 `DiaryRepository` 和 `TauriDiaryRepository` 已建立接口，但对应 Rust 命令尚未注册，界面不会提前调用它们。
+M2 已实现 `choose_diary_root`、`get_workspace_status`、`list_diaries`、`read_diary` 和 `save_diary`。界面目前只读预览文件；新建、原位 Markdown 编辑和自动保存安排在 M3。用户选择的根目录记录在应用配置目录的 `settings.json`，日记正文仍只存在于用户选定的文件夹。存储测试使用临时目录，不使用真实日记。
+
+本机如需将 Rust 工具链和缓存完全限制在项目内，可将 `CARGO_HOME`、`RUSTUP_HOME`、`CARGO_TARGET_DIR` 和 `TMPDIR` 分别指向 `Diary/.cache/cargo`、`Diary/.cache/rustup`、`Diary/.cache/tauri-target` 和 `Diary/.cache/tmp`。这些路径已被 Git 忽略。本机本次 M2 开发使用此方式，没有修改系统 Rust 环境。
 
 ## Python 虚拟环境与写入范围
 
