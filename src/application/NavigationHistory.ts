@@ -23,6 +23,7 @@ export interface NavigationSnapshot {
 
 /** Process-local browser-style history. Scroll updates do not add entries. */
 export class NavigationHistory {
+  private static readonly maxEntries = 200
   private past: NavigationView[] = []
   private future: NavigationView[] = []
   private currentView: NavigationView = {
@@ -61,6 +62,7 @@ export class NavigationHistory {
 
   push(next: NavigationView): void {
     this.past.push(this.currentView)
+    if (this.past.length > NavigationHistory.maxEntries) this.past.shift()
     this.currentView = next
     this.future = []
     this.publish()
@@ -70,6 +72,7 @@ export class NavigationHistory {
     const previous = this.past.pop()
     if (!previous) return null
     this.future.push(this.currentView)
+    if (this.future.length > NavigationHistory.maxEntries) this.future.shift()
     this.currentView = previous
     this.publish()
     return previous
@@ -79,6 +82,7 @@ export class NavigationHistory {
     const next = this.future.pop()
     if (!next) return null
     this.past.push(this.currentView)
+    if (this.past.length > NavigationHistory.maxEntries) this.past.shift()
     this.currentView = next
     this.publish()
     return next

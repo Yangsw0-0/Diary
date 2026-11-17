@@ -231,7 +231,12 @@ export function DiaryDetail() {
         onComposing={(value) => session.setComposing(value)}
         readOnly={opening}
         createAdapter={createAdapter}
-        focusRequest={navigation.view.moduleId === 'diary' ? navigation.focusRequest : null}
+        focusRequest={
+          navigation.view.moduleId === 'diary' &&
+          navigation.focusRequest?.date.equals(selected.date)
+            ? navigation.focusRequest
+            : null
+        }
         onMissingSection={navigation.reportMissingSection}
         onReady={navigation.restoreScroll}
       />

@@ -23,6 +23,7 @@ export interface TagDetailResult {
 
 /** Verifies on-disk revisions before exposing source-offset slices to the UI. */
 export class TagService {
+  private static readonly readConcurrency = 6
   private readonly diary: DiaryService
   private readonly index: TagIndex
   private readonly extractor: MarkdownSectionExtractor
@@ -34,6 +35,19 @@ export class TagService {
   }
 
   async getSections(key: string, signal?: AbortSignal): Promise<TagDetailResult> {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const result = await this.readSections(key, signal)
+      if (result) return result
+    }
+    const date = this.index.getOccurrences(key)[0]?.date
+    return {
+      sections: [],
+      failures: date ? [{ date, message: '标签内容正在更新，请重试。' }] : [],
+    }
+  }
+
+  private async readSections(key: string, signal?: AbortSignal): Promise<TagDetailResult | null> {
+    const indexVersion = this.index.getVersion()
     const expected = this.index.getOccurrences(key)
     const dates = new Map<string, DiaryDate>()
     const revisions = new Map<string, string>()
@@ -41,18 +55,30 @@ export class TagService {
       dates.set(occurrence.date.toString(), occurrence.date)
       revisions.set(occurrence.date.toString(), occurrence.revision)
     }
-    const results = await Promise.all(
-      [...dates].map(async ([day, date]) => {
-        try {
-          if (signal?.aborted) return { day, date, canceled: true } as const
-          const entry = await this.diary.read(date)
-          return { day, date, entry } as const
-        } catch (reason) {
-          return { day, date, reason } as const
+    const days = [...dates]
+    const readDay = async ([day, date]: [string, DiaryDate]) => {
+      try {
+        if (signal?.aborted) return { day, date, canceled: true } as const
+        const entry = await this.diary.read(date)
+        return { day, date, entry } as const
+      } catch (reason) {
+        return { day, date, reason } as const
+      }
+    }
+    const results: Awaited<ReturnType<typeof readDay>>[] = new Array(days.length)
+    let next = 0
+    await Promise.all(
+      Array.from({ length: Math.min(TagService.readConcurrency, days.length) }, async () => {
+        while (next < days.length && !signal?.aborted) {
+          const position = next++
+          results[position] = await readDay(days[position]!)
         }
       }),
     )
     if (signal?.aborted) return { sections: [], failures: [] }
+    // A save or list rebuild completed while reads were in flight. Never pair old
+    // file contents with occurrences from that newer index snapshot.
+    if (this.index.getVersion() !== indexVersion) return null
 
     const entries = new Map<string, DiaryEntry>()
     const failures: TagReadFailure[] = []

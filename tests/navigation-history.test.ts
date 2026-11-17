@@ -23,3 +23,14 @@ it('tracks browser-style back and forward history with scroll positions', () => 
   expect(history.getSnapshot().canGoForward).toBe(false)
   expect(history.forward()).toBeNull()
 })
+
+it('keeps at most 200 previous views in one session', () => {
+  const history = new NavigationHistory()
+  for (let index = 0; index < 250; index++) {
+    history.push({ moduleId: 'tags', key: String(index), scrollTop: 0 })
+  }
+  let steps = 0
+  while (history.back()) steps++
+  expect(steps).toBe(200)
+  expect(history.current).toMatchObject({ moduleId: 'tags', key: '49' })
+})

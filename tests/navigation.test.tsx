@@ -72,6 +72,7 @@ it('returns to the tag reading position and then forwards to the diary position'
   await waitFor(() => expect(tagContent.scrollTop).toBe(420))
   await user.click(screen.getByRole('button', { name: '返回下一页面' }))
   expect(screen.getByRole('button', { name: '日记' })).toHaveAttribute('aria-current', 'page')
+  expect(screen.getByTestId('editor')).toHaveAttribute('data-focus', '工作:1')
   await waitFor(() => expect(diaryContent.scrollTop).toBe(300))
   Object.defineProperty(tagContent, 'scrollHeight', { configurable: true, value: 250 })
   await user.click(screen.getByRole('button', { name: '返回上一页面' }))
@@ -79,6 +80,37 @@ it('returns to the tag reading position and then forwards to the diary position'
   await user.click(within(tagContent).getByRole('button', { name: '2025-01-01' }))
   expect(screen.getByTestId('editor')).toHaveTextContent('新年')
   expect(screen.getByTestId('editor')).toHaveAttribute('data-focus', '工作:0')
+})
+
+it('restores the last diary section when reopening its module', async () => {
+  const user = userEvent.setup()
+  const repo: DiaryRepository = {
+    list: async () => ({ entries: [first], failures: [] }),
+    read: async () => first,
+    save: async () => first,
+  }
+  renderApp(repo)
+  await user.click(screen.getByRole('button', { name: '标签' }))
+  await user.click(screen.getByText('仅出现一次（1）'))
+  await user.click(await screen.findByRole('button', { name: /工作.*1 天/ }))
+  await user.click(await screen.findByRole('button', { name: /2024-12-31.*第 2 次/ }))
+  await user.click(screen.getByRole('button', { name: '标签' }))
+  await user.click(screen.getByRole('button', { name: '日记' }))
+  expect(screen.getByTestId('editor')).toHaveAttribute('data-focus', '工作:1')
+})
+
+it('does not add another history entry when opening the current date', async () => {
+  const user = userEvent.setup()
+  const repo: DiaryRepository = {
+    list: async () => ({ entries: [first], failures: [] }),
+    read: async () => first,
+    save: async () => first,
+  }
+  renderApp(repo)
+  await user.click(await screen.findByRole('button', { name: '2024-12-31' }))
+  await user.click(screen.getByRole('button', { name: '2024-12-31' }))
+  await user.click(screen.getByRole('button', { name: '返回上一页面' }))
+  expect(screen.getByRole('button', { name: '返回上一页面' })).toBeDisabled()
 })
 
 it('keeps a dirty diary and history in place when saving before back fails', async () => {

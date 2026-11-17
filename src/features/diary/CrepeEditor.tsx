@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { EditorAdapter } from '@/application/EditorAdapter'
+import type { DiaryDate } from '@/domain/DiaryDate'
 
 interface Props {
   readonly markdown: string
@@ -8,9 +9,11 @@ interface Props {
   readonly readOnly: boolean
   readonly createAdapter: () => EditorAdapter
   readonly focusRequest: {
+    readonly date: DiaryDate
     readonly key: string
     readonly ordinal: number
     readonly id: number
+    readonly restoreScroll?: boolean
   } | null
   readonly onMissingSection: () => void
   readonly onReady: () => void
@@ -43,6 +46,8 @@ export function CrepeEditor({
   missingRef.current = onMissingSection
   readyRef.current = onReady
 
+  // This editor is intentionally uncontrolled. DiaryDetail changes its key when
+  // a disk reload replaces markdown, creating a fresh editor and undo history.
   useEffect(() => {
     const adapter = createAdapter()
     adapterRef.current = adapter
@@ -61,6 +66,7 @@ export function CrepeEditor({
               if (request) {
                 lastFocusId.current = request.id
                 if (!adapter.focusSection(request.key, request.ordinal)) missingRef.current()
+                else if (request.restoreScroll) readyRef.current()
               } else readyRef.current()
             }
           },
@@ -85,7 +91,8 @@ export function CrepeEditor({
     if (!adapter || !focusRequest || lastFocusId.current === focusRequest.id) return
     lastFocusId.current = focusRequest.id
     if (!adapter.focusSection(focusRequest.key, focusRequest.ordinal)) onMissingSection()
-  }, [focusRequest, onMissingSection])
+    else if (focusRequest.restoreScroll) onReady()
+  }, [focusRequest, onMissingSection, onReady])
 
   return (
     <div

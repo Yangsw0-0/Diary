@@ -19,6 +19,7 @@ export function useAppNavigation(session: DiarySession) {
   const [navigating, setNavigating] = useState(false)
   const busy = useRef(false)
   const focusId = useRef(0)
+  const scrollEpoch = useRef(0)
   const content = useRef(new Map<string, HTMLElement>())
   const lastDiary = useRef<NavigationView | null>(null)
   const lastTags = useRef<NavigationView | null>(null)
@@ -33,8 +34,9 @@ export function useAppNavigation(session: DiarySession) {
 
   const restoreScroll = useCallback(() => {
     const target = history.getSnapshot().current
+    const epoch = scrollEpoch.current
     const restore = () => {
-      if (history.getSnapshot().current !== target) return
+      if (history.getSnapshot().current !== target || scrollEpoch.current !== epoch) return
       const element = content.current.get(target.moduleId)
       if (!element) return
       const maximum = Math.max(0, element.scrollHeight - element.clientHeight)
@@ -43,6 +45,20 @@ export function useAppNavigation(session: DiarySession) {
     if (typeof window.requestAnimationFrame === 'function') window.requestAnimationFrame(restore)
     else setTimeout(restore, 0)
   }, [history])
+
+  const focusFor = useCallback(
+    (view: NavigationView, restoreScroll = false): NavigationContextValue['focusRequest'] =>
+      view.moduleId === 'diary' && view.section
+        ? {
+            date: view.section.date,
+            key: view.section.key,
+            ordinal: view.section.ordinal,
+            id: ++focusId.current,
+            restoreScroll,
+          }
+        : null,
+    [],
+  )
 
   useLayoutEffect(() => {
     if (!focusRequest) restoreScroll()
@@ -95,15 +111,25 @@ export function useAppNavigation(session: DiarySession) {
         }
         capture()
         history.push(next)
-        setFocusRequest(focus)
+        setFocusRequest(focus ?? focusFor(next, true))
         return true
       }),
-    [activate, capture, history, run, session],
+    [activate, capture, focusFor, history, run, session],
   )
 
   const openDiary = useCallback(
-    (date: DiaryDate) => navigate({ moduleId: 'diary', date, section: null, scrollTop: 0 }),
-    [navigate],
+    async (date: DiaryDate) => {
+      if (
+        history.current.moduleId === 'diary' &&
+        history.current.date?.equals(date) &&
+        session.getSnapshot().selected?.date.equals(date)
+      ) {
+        await session.checkExternalChange()
+        return !session.getSnapshot().selected?.error
+      }
+      return navigate({ moduleId: 'diary', date, section: null, scrollTop: 0 })
+    },
+    [history, navigate, session],
   )
 
   const createDiary = useCallback(
@@ -122,6 +148,7 @@ export function useAppNavigation(session: DiarySession) {
         }
         const date = session.getSnapshot().selected?.date
         if (!date) return false
+        if (history.current.moduleId === 'diary' && history.current.date?.equals(date)) return true
         capture()
         history.push({ moduleId: 'diary', date, section: null, scrollTop: 0 })
         setFocusRequest(null)
@@ -156,12 +183,14 @@ export function useAppNavigation(session: DiarySession) {
           scrollTop: 0,
         })
         setFocusRequest(
-          exists ? { key: ref.key, ordinal: ref.ordinal, id: ++focusId.current } : null,
+          exists
+            ? focusFor({ moduleId: 'diary', date: ref.date, section: ref, scrollTop: 0 })
+            : null,
         )
         if (!exists) setNotice('小节已变化，已打开该日记。')
         return true
       }),
-    [activate, capture, history, run, session],
+    [activate, capture, focusFor, history, run, session],
   )
 
   const openTag = useCallback(
@@ -230,10 +259,10 @@ export function useAppNavigation(session: DiarySession) {
         capture()
         if (direction === 'back') history.back()
         else history.forward()
-        setFocusRequest(null)
+        setFocusRequest(focusFor(target, true))
         return true
       }),
-    [activate, capture, history, run, session],
+    [activate, capture, focusFor, history, run, session],
   )
 
   const navigation: NavigationContextValue = {
@@ -261,7 +290,10 @@ export function useAppNavigation(session: DiarySession) {
       else content.current.delete(id)
     },
     updateScroll: (id: string, scrollTop: number) => {
-      if (history.current.moduleId === id) history.updateScroll(scrollTop)
+      if (history.current.moduleId === id) {
+        scrollEpoch.current++
+        history.updateScroll(scrollTop)
+      }
     },
   }
 }

@@ -71,6 +71,11 @@ export class DiarySession {
 
   getSnapshot = (): DiarySessionSnapshot => this.snapshot
 
+  getUnsavedSnapshot = (): boolean => {
+    const selected = this.snapshot.selected
+    return !!selected && selected.version !== selected.savedVersion
+  }
+
   getSummary(date: DiaryDate): string | undefined {
     return this.service.getSummary(date)?.title
   }
@@ -336,13 +341,13 @@ export class DiarySession {
   async overwriteSelected(): Promise<boolean> {
     const selected = this.snapshot.selected
     if (!selected) return false
-    ++this.navigationSequence
+    const sequence = ++this.navigationSequence
     this.clearTimer()
     this.set({ opening: true, error: null })
     try {
       if (this.savePromise) await this.savePromise
       if (!this.isDirty()) return true
-      const run = this.overwriteLoop()
+      const run = this.overwriteLoop(sequence)
       this.savePromise = run
       try {
         return await run
@@ -350,11 +355,11 @@ export class DiarySession {
         if (this.savePromise === run) this.savePromise = null
       }
     } finally {
-      this.set({ opening: false })
+      if (sequence === this.navigationSequence) this.set({ opening: false })
     }
   }
 
-  private async overwriteLoop(): Promise<boolean> {
+  private async overwriteLoop(sequence: number): Promise<boolean> {
     const draft = this.snapshot.selected
     if (!draft) return false
     try {
@@ -367,9 +372,12 @@ export class DiarySession {
         expectation = { kind: 'new' }
       }
       const current = this.snapshot.selected
-      if (!current || !current.date.equals(draft.date)) return false
+      if (sequence !== this.navigationSequence || !current || !current.date.equals(draft.date))
+        return false
       this.updateDraft({ saving: true, error: null })
       const saved = await this.service.save(current.date, current.markdown, expectation)
+      const after = this.snapshot.selected
+      if (!after || !after.date.equals(saved.date)) return false
       this.updateDraft({
         revision: saved.revision,
         savedVersion: current.version,
@@ -379,7 +387,8 @@ export class DiarySession {
       this.replaceEntry(saved)
       return await this.saveLoop()
     } catch (reason) {
-      this.updateDraft({ saving: false, error: diaryError(reason, '覆盖保存失败') })
+      if (sequence === this.navigationSequence && this.snapshot.selected?.date.equals(draft.date))
+        this.updateDraft({ saving: false, error: diaryError(reason, '覆盖保存失败') })
       return false
     }
   }

@@ -28,9 +28,9 @@ function useTags() {
   if (!context) throw new Error('Tag panels require a provider')
   const navigation = useNavigation()
   const version = useSyncExternalStore(context.index.subscribe, context.index.getVersion)
-  const diary = useSyncExternalStore(context.session.subscribe, context.session.getSnapshot)
+  const dirty = useSyncExternalStore(context.session.subscribe, context.session.getUnsavedSnapshot)
   const selectedKey = navigation.view.moduleId === 'tags' ? navigation.view.key : null
-  return { ...context, version, diary, navigation, selectedKey }
+  return { ...context, version, dirty, navigation, selectedKey }
 }
 
 export function createTagsPanels(index: TagIndex, service: TagService, session: DiarySession) {
@@ -43,9 +43,8 @@ export function createTagsPanels(index: TagIndex, service: TagService, session: 
 }
 
 export function TagsList() {
-  const { index, selectedKey, navigation, diary } = useTags()
+  const { index, selectedKey, navigation, dirty } = useTags()
   const { frequent, singleDay } = index.listGroups()
-  const dirty = !!diary.selected && diary.selected.version !== diary.selected.savedVersion
   const groupButton = (group: (typeof frequent)[number]) => (
     <li key={group.key}>
       <Button
@@ -96,7 +95,7 @@ export function TagsList() {
 }
 
 export function TagsDetail() {
-  const { index, service, selectedKey, version, diary, navigation } = useTags()
+  const { index, service, selectedKey, version, dirty, navigation } = useTags()
   const [loadedKey, setLoadedKey] = useState<string | null>(null)
   const [sections, setSections] = useState<readonly TagSection[]>([])
   const [failures, setFailures] = useState<readonly TagReadFailure[]>([])
@@ -146,9 +145,8 @@ export function TagsDetail() {
         <p>选择左侧标签，阅读各日期的相关内容。</p>
       </div>
     )
-  const group = [...index.listGroups().frequent, ...index.listGroups().singleDay].find(
-    (item) => item.key === selectedKey,
-  )
+  const groups = index.listGroups()
+  const group = [...groups.frequent, ...groups.singleDay].find((item) => item.key === selectedKey)
   return (
     <article className="tag-detail">
       <header>
@@ -156,7 +154,7 @@ export function TagsDetail() {
         <h2>{group?.displayTitle ?? selectedKey}</h2>
         <p className="workspace-status">{group?.dayCount ?? 0} 天</p>
       </header>
-      {!!diary.selected && diary.selected.version !== diary.selected.savedVersion && (
+      {dirty && (
         <p className="tag-draft-notice">当前日记的修改尚未保存；这里显示最后一次成功保存的内容。</p>
       )}
       {(loading || loadedKey !== selectedKey) && <p className="panel-message">正在核对原日记…</p>}

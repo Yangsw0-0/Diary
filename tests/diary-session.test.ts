@@ -205,6 +205,37 @@ it('offers reload, explicit overwrite and discard after a conflict', async () =>
   expect(session.getSnapshot().selected).toBeNull()
 })
 
+it('finishes an in-flight overwrite before opening another day', async () => {
+  const first = { date, markdown: '# 2024-02-29 Old', revision: 'r0' }
+  const second = { date: nextDate, markdown: '# 2024-03-01 Next', revision: 'r0' }
+  const { repo, files } = repository([first, second])
+  const session = new DiarySession(new DiaryService(repo), 60_000)
+  await session.load()
+  await session.open(date)
+  session.edit('# 2024-02-29 My draft')
+  files.set(date.toString(), { ...first, revision: 'external' })
+  expect(await session.flush()).toBe(false)
+  let release!: () => void
+  const pending = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  const originalSave = repo.save
+  let saving = false
+  repo.save = async (...args) => {
+    saving = true
+    await pending
+    return originalSave(...args)
+  }
+  const overwriting = session.overwriteSelected()
+  await vi.waitFor(() => expect(saving).toBe(true))
+  const opening = session.open(nextDate)
+  release()
+  expect(await overwriting).toBe(true)
+  expect(await opening).toBe(true)
+  expect(files.get(date.toString())?.markdown).toBe('# 2024-02-29 My draft')
+  expect(session.getSnapshot().selected?.date.equals(nextDate)).toBe(true)
+})
+
 it('refreshes a clean same-day editor after an external change and warns on dirty conflicts', async () => {
   const first = { date, markdown: '# 2024-02-29 Old', revision: 'r0' }
   const { repo, files } = repository([first])

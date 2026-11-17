@@ -220,3 +220,62 @@ it('does not repair the index after a canceled tag read', async () => {
   expect(index.getOccurrences('工作')).toHaveLength(1)
   expect(index.getOccurrences('新标签')).toEqual([])
 })
+
+it('retries when a save changes the index during a tag read', async () => {
+  const index = new TagIndex()
+  const old = entry(day, '# 2024-12-31\n## 工作\n旧内容')
+  const saved = entry(day, '# 2024-12-31\n## 工作\n新内容', 'r2')
+  index.rebuild([old])
+  let release!: () => void
+  const pending = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  let readCount = 0
+  const repo: DiaryRepository = {
+    list: async () => ({ entries: [old], failures: [] }),
+    read: async () => {
+      if (++readCount === 1) {
+        await pending
+        return old
+      }
+      return saved
+    },
+    save: async () => saved,
+  }
+  const diary = new DiaryService(repo, index)
+  const reading = new TagService(diary, index).getSections('工作')
+  await diary.save(day, saved.markdown, { kind: 'match', revision: 'r1' })
+  release()
+  const result = await reading
+  expect(result.sections.map((section) => section.markdown)).toEqual([
+    expect.stringContaining('新内容'),
+  ])
+  expect(index.getOccurrences('工作')[0]?.revision).toBe('r2')
+  expect(readCount).toBe(2)
+})
+
+it('limits concurrent reads for a tag spanning many days', async () => {
+  const index = new TagIndex()
+  const entries = Array.from({ length: 15 }, (_, offset) => {
+    const date = DiaryDate.parse(`2025-01-${String(offset + 1).padStart(2, '0')}`)
+    return entry(date, `# ${date.toString()}\n## 工作\n内容`)
+  })
+  index.rebuild(entries)
+  let active = 0
+  let maximum = 0
+  const repo: DiaryRepository = {
+    list: async () => ({ entries, failures: [] }),
+    read: async (date) => {
+      active++
+      maximum = Math.max(maximum, active)
+      await new Promise((resolve) => setTimeout(resolve, 1))
+      active--
+      return entries.find((item) => item.date.equals(date))!
+    },
+    save: async () => entries[0]!,
+  }
+  const result = await new TagService(new DiaryService(repo, index), index).getSections('工作')
+  expect(result.sections).toHaveLength(15)
+  expect(maximum).toBeLessThanOrEqual(6)
+  expect(maximum).toBeGreaterThan(1)
+})

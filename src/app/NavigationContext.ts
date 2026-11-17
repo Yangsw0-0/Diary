@@ -7,9 +7,11 @@ export interface NavigationContextValue {
   readonly canGoBack: boolean
   readonly canGoForward: boolean
   readonly focusRequest: {
+    readonly date: DiaryDate
     readonly key: string
     readonly ordinal: number
     readonly id: number
+    readonly restoreScroll?: boolean
   } | null
   readonly notice: string | null
   openModule(moduleId: 'diary' | 'tags'): Promise<boolean>
