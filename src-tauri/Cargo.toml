@@ -1,6 +1,6 @@
 [package]
 name = "diary"
-version = "1.0.2"
+version = "1.0.3"
 description = "A local Markdown diary app"
 authors = ["Yangsw0-0"]
 license = ""
