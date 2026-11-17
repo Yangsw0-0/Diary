@@ -1,7 +1,7 @@
 import { BookOpenText, Tags } from 'lucide-react'
 import type { DiaryRepository } from '@/domain/DiaryRepository'
 import { createDiaryPanels } from '@/features/diary/DiaryPanels'
-import { TagsList, TagsDetail } from '@/features/tags/TagsPanels'
+import { createTagsPanels } from '@/features/tags/TagsPanels'
 import { ModuleRegistry } from './moduleRegistry'
 import { createServices } from './services'
 import type { WorkspaceGateway } from '@/application/WorkspaceService'
@@ -10,6 +10,7 @@ import type { WorkspaceGateway } from '@/application/WorkspaceService'
 export function createApp(repository?: DiaryRepository, workspaceGateway?: WorkspaceGateway) {
   const services = createServices(repository, workspaceGateway)
   const diaryPanels = createDiaryPanels(services.session)
+  const tagPanels = createTagsPanels(services.tagIndex, services.tags, services.session)
   const registry = new ModuleRegistry('diary')
   registry.register({
     id: 'diary',
@@ -27,8 +28,9 @@ export function createApp(repository?: DiaryRepository, workspaceGateway?: Works
     Icon: Tags,
     listLabel: '标签列表',
     detailLabel: '标签内容',
-    List: TagsList,
-    Detail: TagsDetail,
+    List: tagPanels.List,
+    Detail: tagPanels.Detail,
+    Provider: tagPanels.Provider,
   })
   registry.validate()
   return { services, registry }

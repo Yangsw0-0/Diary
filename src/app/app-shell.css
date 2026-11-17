@@ -440,3 +440,102 @@
 .diary-crepe-root .milkdown {
   min-height: 500px;
 }
+
+.tag-group-list {
+  display: grid;
+  gap: 3px;
+  padding: 4px 12px 16px;
+}
+.tag-group-button {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+}
+.tag-group-button span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tag-group-button small {
+  flex: none;
+  color: var(--muted-foreground);
+  font-size: 11px;
+}
+.tag-group-button[aria-current='true'] {
+  background: var(--diary-active);
+  color: var(--diary-active-foreground);
+}
+.tag-single-day {
+  margin-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.tag-single-day summary {
+  padding: 15px 22px;
+  color: var(--muted-foreground);
+  font-size: 12px;
+  cursor: pointer;
+}
+.module-content:has(.tag-detail) {
+  display: block;
+  overflow: auto;
+  padding: 0;
+}
+.tag-detail {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 32px 42px 80px;
+}
+.tag-detail > header h2 {
+  margin: 5px 0;
+  font-size: 25px;
+  font-weight: 600;
+}
+.tag-draft-notice {
+  margin-top: 18px;
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+.tag-section {
+  margin-top: 30px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+}
+.tag-section h3 {
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.tag-section-content {
+  margin-top: 12px;
+  line-height: 1.8;
+  overflow-wrap: anywhere;
+}
+.tag-section-content > * + * {
+  margin-top: 0.8em;
+}
+.tag-section-content h1,
+.tag-section-content h2,
+.tag-section-content h3 {
+  font-weight: 600;
+}
+.tag-section-content ul {
+  padding-left: 22px;
+  list-style: disc;
+}
+.tag-section-content ol {
+  padding-left: 22px;
+  list-style: decimal;
+}
+.tag-section-content blockquote {
+  padding-left: 14px;
+  border-left: 3px solid var(--border);
+  color: var(--muted-foreground);
+}
+.tag-section-content pre {
+  overflow: auto;
+  padding: 12px;
+  border-radius: 8px;
+  background: var(--muted);
+}

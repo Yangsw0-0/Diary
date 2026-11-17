@@ -80,6 +80,7 @@ export class DiarySession {
     this.generation++
     this.navigationSequence++
     this.composing = false
+    this.service.clearIndex()
     this.set({ entries: [], failures: [], selected: null, loading: true, error: null })
   }
 

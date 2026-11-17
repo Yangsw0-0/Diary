@@ -108,3 +108,30 @@ it('groups dates by year and displays long titles without changing the date labe
   expect(screen.getByText('2025')).toBeInTheDocument()
   expect(screen.getByText('2024')).toBeInTheDocument()
 })
+
+it('shows frequent tags by day, keeps single-day tags collapsed and renders read-only sections', async () => {
+  const user = userEvent.setup()
+  const first = {
+    date: DiaryDate.parse('2024-12-31'),
+    markdown: '# 2024-12-31\n## 工作\n**第一天**\n## 工作\n第二次\n## 独有\n只在这一天',
+    revision: 'r1',
+  }
+  const second = {
+    date: DiaryDate.parse('2025-01-01'),
+    markdown: '# 2025-01-01\n## 工作\n第二天',
+    revision: 'r2',
+  }
+  const diary: DiaryRepository = {
+    list: async () => ({ entries: [second, first], failures: [] }),
+    read: async (day) => (day.equals(first.date) ? first : second),
+    save: async () => second,
+  }
+  render(<AppShell registry={createApp(diary).registry} />)
+  await user.click(screen.getByRole('button', { name: '标签' }))
+  expect(await screen.findByRole('button', { name: /工作.*2 天/ })).toBeInTheDocument()
+  expect(screen.getByText('仅出现一次（1）')).toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: /工作.*2 天/ }))
+  expect(await screen.findByText('第二天')).toBeInTheDocument()
+  expect(screen.getByText('第一天').tagName).toBe('STRONG')
+  expect(screen.getByText('第二次')).toBeInTheDocument()
+})
