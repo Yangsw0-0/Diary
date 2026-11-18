@@ -95,17 +95,11 @@
 }
 
 .brand-mark {
-  display: grid;
-  place-items: center;
   width: 34px;
   height: 34px;
   flex: none;
   border-radius: 11px;
-  background: var(--diary-brand);
-  color: var(--diary-brand-foreground);
-  font-family: Georgia, serif;
-  font-size: 22px;
-  font-style: italic;
+  object-fit: cover;
 }
 
 .brand strong,

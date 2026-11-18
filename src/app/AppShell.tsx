@@ -264,9 +264,7 @@ export function AppShell({
           }}
         >
           <div className="brand">
-            <span className="brand-mark" aria-hidden="true">
-              D
-            </span>
+            <img className="brand-mark" src="/diary-logo.png" alt="" aria-hidden="true" />
             <div>
               <strong>Diary</strong>
               <span>写给自己的时间</span>
