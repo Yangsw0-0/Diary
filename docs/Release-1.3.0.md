@@ -16,7 +16,7 @@
 - Windows 打包差异单独放在 `src-tauri/tauri.windows.conf.json`（NSIS、当前用户安装、WebView2 bootstrapper），macOS 配置不受影响。
 - CI 新增 Windows 任务，运行 Rust 格式检查、clippy、单元测试并构建 NSIS 安装包。
 
-平台矩阵、行为差异和新增平台步骤见 [平台支持与源码分区](./Platform-Support.md)。
+平台矩阵、行为差异和新增平台步骤见 [平台支持与源码分区](https://github.com/Yangsw0-0/Diary/blob/main/docs/Platform-Support.md)。
 
 ## 验证
 
