@@ -135,11 +135,11 @@ M5 验证：导航历史类测试覆盖后退、前进和新导航清空前进�
 | M7-03 | 已完成 | 实现 Windows 文件写入可靠性        | 覆盖写入在杀毒/索引器短暂占用时重试；新建文件优先硬链接，失败回退到 `create_new` 复制。                         |
 | M7-04 | 已完成 | 增加 Windows 打包配置              | `tauri.windows.conf.json` 设置 NSIS、当前用户安装和 WebView2 `downloadBootstrapper`，不影响 macOS 配置。        |
 | M7-05 | 已完成 | 增加 Windows CI 任务               | `check.yml` 在 `windows-latest` 运行 Rust 测试并构建 NSIS，上传可安装构件。                                     |
-| M7-06 | 待验证 | 验证 Windows 自动检查与安装包      | CI 的 Windows 测试、clippy 和 NSIS 构建全部通过；下载构件后可安装、启动并升级覆盖。                            |
+| M7-06 | 已完成 | 验证 Windows 自动检查与安装包      | CI 的 Windows 格式检查、clippy、单元测试和 NSIS 构建全部通过；构件为 `Diary_1.3.0_x64-setup.exe`。               |
 | M7-07 | 待验证 | Windows 真机窗口验收               | 首次选目录、中文输入、自动保存与失败恢复、标签、导航、附件打开、改日期、删除日记和小窗口布局通过。              |
 | M7-08 | 进行中 | 更新文档并发布 `1.3.0`             | README、用户指南、平台文档、进度和发布记录与实现一致；版本统一为 `1.3.0`，发布 macOS ZIP 与 Windows 安装程序。 |
 
-Windows 1.3.0 使用未签名安装包，SmartScreen 可能提示未知发布者；在完成 M7-06、M7-07 前，README 和发布记录应继续注明真机验收状态，不宣称 Windows 正式版验收完成。
+Windows 1.3.0 使用未签名安装包，SmartScreen 可能提示未知发布者；在完成 M7-07 前，README 和发布记录应继续注明真机验收状态，不宣称 Windows 正式版验收完成。
 
 ## 正式版后的额外工作：旧单文件日记导入
 

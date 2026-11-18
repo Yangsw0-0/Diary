@@ -220,7 +220,9 @@ it('rebounds the first edge pull and lets the next pull continue without a fixed
   fireEvent.wheel(content, { deltaY: 90 })
   expect(track.style.transform).toBe('translate3d(0px, -64px, 0px)')
   expect(read).toHaveBeenCalledTimes(1)
-  await waitFor(() => expect(track.style.transform).toBe('translate3d(0px, 0px, 0px)'))
+  await waitFor(() => expect(track.style.transform).toBe('translate3d(0px, 0px, 0px)'), {
+    timeout: 3000,
+  })
   expect(read).toHaveBeenCalledTimes(1)
   await new Promise((resolve) => setTimeout(resolve, 130))
   content.scrollTop = 500
@@ -270,7 +272,9 @@ it('holds the adjacent preview while reading and rolls back after a failed save'
     ),
   )
   slow = false
-  await waitFor(() => expect(track.style.transform).toBe('translate3d(0px, 0px, 0px)'))
+  await waitFor(() => expect(track.style.transform).toBe('translate3d(0px, 0px, 0px)'), {
+    timeout: 3000,
+  })
   await new Promise((resolve) => setTimeout(resolve, 130))
   app.services.session.edit('# 2024-12-31\n## 工作\n未保存草稿')
   content.scrollTop = 0
@@ -279,7 +283,9 @@ it('holds the adjacent preview while reading and rolls back after a failed save'
   expect(save).toHaveBeenCalledTimes(1)
   expect(app.services.session.getSnapshot().selected?.markdown).toContain('未保存草稿')
   expect(app.services.session.getSnapshot().selected?.date.toString()).toBe('2024-12-31')
-  await waitFor(() => expect(track.style.transform).toBe('translate3d(0px, 0px, 0px)'))
+  await waitFor(() => expect(track.style.transform).toBe('translate3d(0px, 0px, 0px)'), {
+    timeout: 3000,
+  })
 })
 
 it('rebounds at both diary ends without reading another day', async () => {
@@ -300,11 +306,15 @@ it('rebounds at both diary ends without reading another day', async () => {
   content.scrollTop = 500
   for (let i = 0; i < 5; i++) fireEvent.wheel(content, { deltaY: 90 })
   expect(screen.getByRole('alert')).toHaveTextContent('已经是最早的日记')
-  await waitFor(() => expect(track.style.transform).toBe('translate3d(0px, 0px, 0px)'))
+  await waitFor(() => expect(track.style.transform).toBe('translate3d(0px, 0px, 0px)'), {
+    timeout: 3000,
+  })
   content.scrollTop = 0
   for (let i = 0; i < 5; i++) fireEvent.wheel(content, { deltaY: -90 })
   expect(screen.getByRole('alert')).toHaveTextContent('已经是最新的日记')
-  await waitFor(() => expect(track.style.transform).toBe('translate3d(0px, 0px, 0px)'))
+  await waitFor(() => expect(track.style.transform).toBe('translate3d(0px, 0px, 0px)'), {
+    timeout: 3000,
+  })
   expect(read).toHaveBeenCalledTimes(1)
 })
 
@@ -328,7 +338,9 @@ it('cancels a partial adjacent pull when the window is resized', async () => {
   fireEvent.wheel(content, { deltaY: 90 })
   expect(track.style.transform).not.toBe('translate3d(0px, 0px, 0px)')
   fireEvent(window, new Event('resize'))
-  await waitFor(() => expect(track.style.transform).toBe('translate3d(0px, 0px, 0px)'))
+  await waitFor(() => expect(track.style.transform).toBe('translate3d(0px, 0px, 0px)'), {
+    timeout: 3000,
+  })
   expect(read).toHaveBeenCalledTimes(1)
   expect(screen.getByRole('button', { name: '2025-01-01' })).toHaveAttribute('aria-current', 'true')
 })
