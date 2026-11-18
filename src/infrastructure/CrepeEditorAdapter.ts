@@ -105,6 +105,16 @@ export class CrepeEditorAdapter implements EditorAdapter {
     return true
   }
 
+  focusEdge(edge: 'start' | 'end'): void {
+    this.editor?.editor.action((ctx) => {
+      const view = ctx.get(editorViewCtx)
+      const selection =
+        edge === 'end' ? Selection.atEnd(view.state.doc) : Selection.atStart(view.state.doc)
+      view.dispatch(view.state.tr.setSelection(selection))
+      view.dom.focus({ preventScroll: true })
+    })
+  }
+
   getMarkdown(): string {
     if (!this.editor) throw new Error('编辑器尚未启动')
     return this.editor.getMarkdown()

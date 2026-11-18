@@ -154,6 +154,27 @@ it('shows only the workspace folder name and changes font size without CSS zoom'
   expect(shell.style.getPropertyValue('--editor-zoom')).toBe('')
 })
 
+it('shows only parent tag names in the diary list', async () => {
+  const date = DiaryDate.parse('2024-02-29')
+  renderShell({
+    list: async () => ({
+      entries: [{ date, markdown: '# 2024-02-29\n## 探索自我 - 恋爱\n## 写作', revision: 'r1' }],
+      failures: [],
+    }),
+    read: async () => ({
+      date,
+      markdown: '# 2024-02-29\n## 探索自我 - 恋爱\n## 写作',
+      revision: 'r1',
+    }),
+    save: async () => {
+      throw new Error('unused')
+    },
+  })
+  const button = await screen.findByRole('button', { name: '2024-02-29' })
+  await waitFor(() => expect(button).toHaveTextContent('探索自我·写作'))
+  expect(button).not.toHaveTextContent('恋爱')
+})
+
 it('resizes the list immediately down to its content-safe minimum', async () => {
   const app = createApp(repository)
   const { container } = render(<AppShell registry={app.registry} session={app.services.session} />)

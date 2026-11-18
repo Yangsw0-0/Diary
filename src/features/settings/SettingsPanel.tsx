@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { BookOpenText, FolderOpen, Moon, Sun } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ThemePalette } from '@/application/ThemePalette'
+import { AppearancePreferences, type AppearanceValues } from '@/application/AppearancePreferences'
 import { HelpDialog } from '@/features/help/HelpDialog'
 
 interface SettingsPanelProps {
@@ -13,6 +14,8 @@ interface SettingsPanelProps {
   onError: (message: string) => void
   accentColor?: string | undefined
   onSaveAccentColor?: ((value: string) => void) | undefined
+  appearance?: AppearanceValues | undefined
+  onSaveAppearance?: ((value: Partial<AppearanceValues>) => void) | undefined
 }
 
 export function SettingsPanel({
@@ -24,6 +27,8 @@ export function SettingsPanel({
   onError,
   accentColor = ThemePalette.presets.green,
   onSaveAccentColor,
+  appearance = AppearancePreferences.defaults,
+  onSaveAppearance,
 }: SettingsPanelProps) {
   const [helpOpen, setHelpOpen] = useState(false)
   return (
@@ -96,6 +101,75 @@ export function SettingsPanel({
               {value === 'light' ? '浅色' : '深色'}
             </Button>
           ))}
+        </div>
+      </div>
+      <div className="settings-card">
+        <div>
+          <h2>列表栏色调</h2>
+          <p>单独调整中间日记与标签列表的底色；深色模式会自动降低亮度。</p>
+        </div>
+        <div className="settings-colors" role="group" aria-label="列表栏色调">
+          {Object.entries(ThemePalette.presets).map(([name, color]) => (
+            <button
+              key={name}
+              type="button"
+              className="settings-color-swatch"
+              style={{ backgroundColor: color }}
+              aria-label={{ green: '绿色列表', pink: '粉色列表', blue: '蓝色列表' }[name]}
+              aria-pressed={appearance.listColor === color}
+              onClick={() => onSaveAppearance?.({ listColor: color })}
+            />
+          ))}
+          <label className="settings-color-custom">
+            自选{' '}
+            <input
+              type="color"
+              aria-label="自选列表栏色调"
+              value={appearance.listColor}
+              onChange={(event) => onSaveAppearance?.({ listColor: event.target.value })}
+            />
+          </label>
+        </div>
+      </div>
+      <div className="settings-card">
+        <div>
+          <h2>正文排版</h2>
+          <p>调整日记正文的行间距和字间距，编辑与相邻日记预览保持一致。</p>
+        </div>
+        <div className="settings-typography">
+          <label>
+            行间距{' '}
+            <input
+              type="range"
+              min="1.2"
+              max="2.4"
+              step="0.1"
+              value={appearance.lineHeight}
+              onChange={(event) => onSaveAppearance?.({ lineHeight: Number(event.target.value) })}
+            />
+            <output>{appearance.lineHeight.toFixed(1)}</output>
+          </label>
+          <label>
+            字间距{' '}
+            <input
+              type="range"
+              min="-0.5"
+              max="3"
+              step="0.1"
+              value={appearance.letterSpacing}
+              onChange={(event) =>
+                onSaveAppearance?.({ letterSpacing: Number(event.target.value) })
+              }
+            />
+            <output>{appearance.letterSpacing.toFixed(1)}px</output>
+          </label>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onSaveAppearance?.({ lineHeight: 1.7, letterSpacing: 0 })}
+          >
+            重置排版
+          </Button>
         </div>
       </div>
       <div className="settings-card">

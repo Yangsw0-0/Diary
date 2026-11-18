@@ -1,7 +1,7 @@
 # Diary 项目进度与任务规划
 
 > 更新：2026-11-18 · 依据：[项目规划](./Diary-Project-Plan.md)
-> 总体状态：M1–M6 已完成；macOS `1.0.0` 已通过功能、原生窗口与安装包验收。`1.3.0` 已发布：macOS 与 Windows x64 安装包通过 [GitHub Release](https://github.com/Yangsw0-0/Diary/releases/tag/v1.3.0) 提供下载，Windows 真机安装与窗口验收待完成。
+> 总体状态：M1–M6 已完成；macOS `1.3.1` 修复主题与翻页体验，Windows x64 安装包仍为 `1.3.0`。Windows 真机安装与窗口验收待完成。
 
 ## 使用规则
 
@@ -165,6 +165,8 @@ Windows 适配已作为 M7 与 macOS 平行推进；后续新增平台按 [平�
 - Windows 使用 `\` 作为路径分隔符，日记内的附件链接仍固定为 `/`；测试同时覆盖两种平台的路径校验。Windows 安装包未签名，发布说明需保留 SmartScreen 提示。
 
 ## 最近完成
+
+- **2026-11-18**：发布 macOS `1.3.1`。深色正文选区、独立列表底色与正文间距设置、日记列表主标签显示、触控板原生松手判断和翻页落点已实现。前端 88 项、Rust 19 项测试通过；macOS ZIP 已签名和校验。触控板实际手感仍需窗口级复核。Windows 安装包仍为 `1.3.0`。
 
 - **2026-11-18**：发布 `1.3.0`，加入与 macOS 平行的 Windows x64 版本。macOS ZIP 与 Windows NSIS 安装程序已上传到 [v1.3.0](https://github.com/Yangsw0-0/Diary/releases/tag/v1.3.0)，SHA-256 记录在[发布记录](./Release-1.3.0.md)。CI 的 frontend、macOS rust 与 Windows 三个任务全部通过；Windows 真机安装与窗口验收仍待完成。
 

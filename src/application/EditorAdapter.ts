@@ -4,6 +4,7 @@ export interface EditorAdapter {
   getMarkdown(): string
   setReadonly(value: boolean): void
   focusSection(key: string, ordinal: number): boolean
+  focusEdge?(edge: 'start' | 'end'): void
   placeCursorAt(x: number, y: number): boolean
   insertMarkdown(markdown: string): void
   destroy(): Promise<void>

@@ -16,6 +16,7 @@ interface Props {
     readonly id: number
     readonly restoreScroll?: boolean
   } | null
+  readonly cursorEdgeRequest?: { readonly edge: 'start' | 'end'; readonly id: number } | null
   readonly onMissingSection: () => void
   readonly onReady: () => void
   readonly insertRequest?: { readonly id: number; readonly markdown: string } | null
@@ -33,6 +34,7 @@ export function CrepeEditor({
   readOnly,
   createAdapter,
   focusRequest,
+  cursorEdgeRequest,
   onMissingSection,
   onReady,
   insertRequest,
@@ -48,6 +50,8 @@ export function CrepeEditor({
   const adapterRef = useRef<EditorAdapter | null>(null)
   const readOnlyRef = useRef(readOnly)
   const focusRef = useRef(focusRequest)
+  const cursorEdgeRef = useRef(cursorEdgeRequest)
+  const lastEdgeId = useRef<number | null>(null)
   const missingRef = useRef(onMissingSection)
   const readyRef = useRef(onReady)
   const lastFocusId = useRef<number | null>(null)
@@ -71,6 +75,7 @@ export function CrepeEditor({
   onComposingRef.current = onComposing
   readOnlyRef.current = readOnly
   focusRef.current = focusRequest
+  cursorEdgeRef.current = cursorEdgeRequest
   missingRef.current = onMissingSection
   readyRef.current = onReady
   insertRef.current = insertRequest
@@ -114,6 +119,11 @@ export function CrepeEditor({
               adapter.setReadonly(readOnlyRef.current)
               insertIfNeeded(adapter)
               const request = focusRef.current
+              const edgeRequest = cursorEdgeRef.current
+              if (edgeRequest && lastEdgeId.current !== edgeRequest.id) {
+                lastEdgeId.current = edgeRequest.id
+                adapter.focusEdge?.(edgeRequest.edge)
+              }
               if (request) {
                 lastFocusId.current = request.id
                 if (!adapter.focusSection(request.key, request.ordinal)) missingRef.current()
@@ -136,6 +146,14 @@ export function CrepeEditor({
   useEffect(() => {
     adapterRef.current?.setReadonly(readOnly)
   }, [readOnly])
+
+  useEffect(() => {
+    const adapter = adapterRef.current
+    if (!adapter || !cursorEdgeRequest || lastEdgeId.current === cursorEdgeRequest.id) return
+    lastEdgeId.current = cursorEdgeRequest.id
+    adapter.focusEdge?.(cursorEdgeRequest.edge)
+    onReady()
+  }, [cursorEdgeRequest, onReady])
 
   useEffect(() => {
     const adapter = adapterRef.current

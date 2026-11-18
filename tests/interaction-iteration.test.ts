@@ -7,6 +7,7 @@ import { TagVisibility } from '@/application/TagVisibility'
 import { TagCompletion } from '@/application/TagCompletion'
 import { AdjacentDiaryNavigator } from '@/application/AdjacentDiaryNavigator'
 import { ThemePalette } from '@/application/ThemePalette'
+import { AppearancePreferences } from '@/application/AppearancePreferences'
 
 it('groups branched headings without rewriting the original title or losing duplicate positions', () => {
   expect(TagName.parse('探索自我 - 恋爱')).toMatchObject({ key: '探索自我', branch: '恋爱' })
@@ -115,6 +116,33 @@ it('normalizes wheel units and resets a gesture only after the idle gap', () => 
   expect(gesture.add(1, 2, false, true, 600, 120)?.offset).toBeLessThan(-72)
   expect(gesture.add(1, 2, false, true, 600, 240)?.offset).toBe(-64)
   expect(gesture.add(-1, 2, true, false, 600, 250)?.offset).toBe(64)
+})
+
+it('keeps a physical trackpad pull at its exact offset while a finger pauses', () => {
+  const gesture = new AdjacentDiaryNavigator()
+  const first = gesture.add(-90, 0, true, false, 600, 100, true)!
+  const second = gesture.add(-90, 0, true, false, 600, 500, true)!
+  expect(first.phase).toBe('feedback')
+  expect(second.phase).toBe('pull')
+  expect(second.offset).toBeGreaterThan(first.offset)
+  expect(gesture.release()).toBe('rebound')
+})
+
+it('persists independent list color and clamps text spacing', () => {
+  const store = new Map<string, string>()
+  const storage = {
+    getItem: (key: string) => store.get(key) ?? null,
+    setItem: (key: string, value: string) => {
+      store.set(key, value)
+    },
+  }
+  const chosen = AppearancePreferences.save(storage, {
+    listColor: '#AABBCC',
+    lineHeight: 9,
+    letterSpacing: -2,
+  })
+  expect(chosen).toEqual({ listColor: '#aabbcc', lineHeight: 2.4, letterSpacing: -0.5 })
+  expect(AppearancePreferences.load(storage)).toEqual(chosen)
 })
 
 it('validates custom colors and restores a saved theme color', () => {

@@ -6,22 +6,31 @@ import { createApp } from '@/app/bootstrap'
 import { DiaryDate } from '@/domain/DiaryDate'
 import { DiaryError } from '@/domain/DiaryError'
 import type { DiaryRepository } from '@/domain/DiaryRepository'
+import { useEffect } from 'react'
 
 vi.mock('@/features/diary/CrepeEditor', () => ({
   CrepeEditor: ({
     markdown,
     focusRequest,
+    cursorEdgeRequest,
+    onReady,
   }: {
     markdown: string
     focusRequest: { key: string; ordinal: number } | null
-  }) => (
-    <pre
-      data-testid="editor"
-      data-focus={focusRequest ? focusRequest.key + ':' + focusRequest.ordinal : ''}
-    >
-      {markdown}
-    </pre>
-  ),
+    cursorEdgeRequest: { edge: 'start' | 'end' } | null
+    onReady: () => void
+  }) => {
+    useEffect(() => onReady(), [onReady])
+    return (
+      <pre
+        data-testid="editor"
+        data-focus={focusRequest ? focusRequest.key + ':' + focusRequest.ordinal : ''}
+        data-edge={cursorEdgeRequest?.edge ?? ''}
+      >
+        {markdown}
+      </pre>
+    )
+  },
 }))
 afterEach(cleanup)
 
@@ -379,4 +388,42 @@ it('respects reduced motion while keeping a one-diary gesture limit', async () =
   } finally {
     Object.defineProperty(window, 'matchMedia', { configurable: true, value: previous })
   }
+})
+
+it('lands at the newer diary end and at the older diary start after paging', async () => {
+  const user = userEvent.setup()
+  const read = vi.fn(async (date: DiaryDate) => (date.equals(first.date) ? first : second))
+  renderApp({
+    list: async () => ({ entries: [second, first], failures: [] }),
+    read,
+    save: async () => first,
+  })
+  await user.click(await screen.findByRole('button', { name: '2024-12-31' }))
+  const content = screen.getByRole('region', { name: '日记正文' })
+  Object.defineProperties(content, {
+    clientHeight: { configurable: true, value: 500 },
+    scrollHeight: { configurable: true, value: 1000 },
+  })
+  await user.click(screen.getByRole('button', { name: '放大正文' }))
+  content.scrollTop = 0
+  for (let i = 0; i < 4; i++) fireEvent.wheel(content, { deltaY: -90 })
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: '2025-01-01' })).toHaveAttribute(
+      'aria-current',
+      'true',
+    ),
+  )
+  await waitFor(() => expect(screen.getByTestId('editor')).toHaveAttribute('data-edge', 'end'))
+  await waitFor(() => expect(content.scrollTop).toBe(500))
+  await new Promise((resolve) => setTimeout(resolve, 140))
+  content.scrollTop = 500
+  for (let i = 0; i < 4; i++) fireEvent.wheel(content, { deltaY: 90 })
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: '2024-12-31' })).toHaveAttribute(
+      'aria-current',
+      'true',
+    ),
+  )
+  await waitFor(() => expect(screen.getByTestId('editor')).toHaveAttribute('data-edge', 'start'))
+  await waitFor(() => expect(content.scrollTop).toBe(0))
 })

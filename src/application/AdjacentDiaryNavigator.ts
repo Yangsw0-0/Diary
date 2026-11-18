@@ -41,6 +41,7 @@ export class AdjacentDiaryNavigator {
     atBottom: boolean,
     viewportHeight: number,
     now: number,
+    continuous = false,
   ): AdjacentGesture | null {
     if (this.isLocked || !Number.isFinite(deltaY)) return null
     const direction = deltaY > 0 && atBottom ? 'older' : deltaY < 0 && atTop ? 'newer' : null
@@ -48,7 +49,10 @@ export class AdjacentDiaryNavigator {
       this.reset()
       return null
     }
-    if (direction !== this.direction || now - this.lastWheelAt > AdjacentDiaryNavigator.idleGapMs)
+    if (
+      direction !== this.direction ||
+      (!continuous && now - this.lastWheelAt > AdjacentDiaryNavigator.idleGapMs)
+    )
       this.amount = 0
     this.direction = direction
     this.lastWheelAt = now

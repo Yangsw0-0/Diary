@@ -52,12 +52,15 @@
 
 :root {
   --diary-theme-color: #8fae94;
+  --diary-list-color: #8fae94;
+  --diary-text-line-height: 1.7;
+  --diary-text-letter-spacing: 0px;
   --diary-brand: #27352e;
   --diary-brand-foreground: #f6f8ef;
   --diary-active: #e8eee8;
   --diary-active-hover: #e1eae1;
   --diary-active-foreground: #263a2d;
-  --diary-list: #fdfdfa;
+  --diary-list: color-mix(in srgb, var(--diary-list-color) 5%, #ffffff);
   --diary-subtle: #8e9a8e;
   --diary-placeholder: #f7f9f5;
   --diary-placeholder-border: #e3e8df;
@@ -120,7 +123,7 @@
   --diary-active: color-mix(in srgb, var(--diary-theme-color) 23%, #1c2420);
   --diary-active-hover: color-mix(in srgb, var(--diary-theme-color) 30%, #1c2420);
   --diary-active-foreground: color-mix(in srgb, var(--diary-theme-color) 65%, white);
-  --diary-list: #1c2420;
+  --diary-list: color-mix(in srgb, var(--diary-list-color) 13%, #171717);
   --diary-subtle: color-mix(in srgb, var(--diary-theme-color) 45%, #b1b8b3);
   --diary-placeholder: color-mix(in srgb, var(--diary-theme-color) 9%, #1c2420);
   --diary-placeholder-border: color-mix(in srgb, var(--diary-theme-color) 20%, #36403a);

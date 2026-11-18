@@ -387,7 +387,8 @@
   min-height: 100%;
   color: var(--foreground);
   font-size: var(--detail-font-size, 16px);
-  line-height: 1.7;
+  line-height: var(--diary-text-line-height, 1.7);
+  letter-spacing: var(--diary-text-letter-spacing, 0px);
 }
 .adjacent-preview-paper h1 {
   margin: 0 0 1em;
@@ -832,6 +833,36 @@
 }
 .diary-crepe-root .milkdown .ProseMirror {
   padding: 48px 0 80px;
+  line-height: var(--diary-text-line-height, 1.7);
+  letter-spacing: var(--diary-text-letter-spacing, 0px);
+}
+.diary-crepe-root .milkdown .ProseMirror :is(p, li) {
+  line-height: var(--diary-text-line-height, 1.7);
+}
+.diary-crepe-root .milkdown .ProseMirror ::selection,
+.diary-crepe-root .milkdown .ProseMirror::selection {
+  color: #142719;
+  background: #a8d7b3;
+}
+.dark .diary-crepe-root .milkdown .ProseMirror ::selection,
+.dark .diary-crepe-root .milkdown .ProseMirror::selection {
+  color: #ffffff;
+  background: #466d9c;
+}
+.settings-typography {
+  display: grid;
+  gap: 12px;
+  min-width: 190px;
+}
+.settings-typography label {
+  display: grid;
+  grid-template-columns: 4em minmax(100px, 1fr) 3.5em;
+  align-items: center;
+  gap: 8px;
+}
+.settings-typography output {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
 }
 .tag-completion-ghost {
   color: var(--muted-foreground);

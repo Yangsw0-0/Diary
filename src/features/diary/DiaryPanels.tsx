@@ -16,6 +16,7 @@ import { CrepeEditor } from './CrepeEditor'
 import { useNavigation } from '@/shared/NavigationContext'
 import type { AttachmentService } from '@/application/AttachmentService'
 import type { DiaryDate } from '@/domain/DiaryDate'
+import { TagName } from '@/domain/TagName'
 
 const DiaryContext = createContext<{
   session: DiarySession
@@ -158,7 +159,11 @@ export function DiaryList() {
             />
           )}
           {entries.map((entry, index) => {
-            const title = session.getLabels(entry.date).join('·')
+            const title = [
+              ...new Set(
+                session.getLabels(entry.date).map((label) => TagName.parse(label)?.key ?? label),
+              ),
+            ].join('·')
             const previousYear = entries[index - 1]?.date.year
             const showYear = previousYear !== entry.date.year
             return (
@@ -431,8 +436,13 @@ export function DiaryDetail() {
             ? navigation.focusRequest
             : null
         }
+        cursorEdgeRequest={
+          navigation.cursorEdgeRequest?.date.equals(selected.date)
+            ? navigation.cursorEdgeRequest
+            : null
+        }
         onMissingSection={navigation.reportMissingSection}
-        onReady={navigation.restoreScroll}
+        onReady={navigation.editorReady}
       />
     </article>
   )

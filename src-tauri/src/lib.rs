@@ -5,6 +5,8 @@ mod diary_storage;
 mod error;
 mod external_link;
 mod platform;
+#[cfg(target_os = "macos")]
+mod scroll_phase;
 mod workspace;
 
 use tauri::Manager;
@@ -17,6 +19,8 @@ pub fn run() {
             let settings_path = workspace::settings_path(app.handle())
                 .map_err(|error| std::io::Error::other(error.message))?;
             app.manage(workspace::WorkspaceState::new(settings_path));
+            #[cfg(target_os = "macos")]
+            scroll_phase::install(app.handle());
             if cfg!(debug_assertions) {
                 app.handle().plugin(
                     tauri_plugin_log::Builder::default()

@@ -4,15 +4,16 @@
 
 ## 当前版本与平台
 
-- 当前公开版本为 `1.3.0`。macOS Apple 芯片版为包含 `Diary.app` 的 ZIP；Windows 10/11 x64 版为 NSIS 安装程序。两个安装包已发布在 [GitHub v1.3.0](https://github.com/Yangsw0-0/Diary/releases/tag/v1.3.0)。
+- macOS Apple 芯片当前版本为 `1.3.1`（[发布记录](./Release-1.3.1.md)）；Windows 10/11 x64 最新安装包为 `1.3.0`（[发布记录](./Release-1.3.0.md)）。Windows 真机窗口验收仍待完成。
 - M1–M6 已完成。M7 Windows 适配的自动检查与打包已通过；**M7-07 Windows 真机安装和窗口交互验收仍待完成**。不得把 CI 成功表述为真实 Windows 设备已验收。
-- 本地前端 `npm run check` 通过；macOS 上 `cargo fmt --check` 与 `cargo test --locked` 通过，Rust 单元测试为 19 项。最近的 GitHub Actions 运行中 `frontend`、`rust`、`windows` 三项均成功。安装包的 SHA-256 见[1.3.0 发布记录](./Release-1.3.0.md)。
+- 本地前端 `npm run check` 通过，测试为 88 项；macOS 上 `cargo fmt --check`、`cargo clippy --locked --all-targets -- -D warnings` 与 `cargo test --locked` 通过，Rust 单元测试为 19 项。macOS 1.3.1 ZIP 已构建、签名并校验；新触控板交互仍需实际窗口手感复核。
 
 ## 架构与数据边界
 
 - 前端使用 React 19、TypeScript 和 Milkdown Crepe，桌面与文件层使用 Tauri 2、Rust。日记正文以用户选择目录中的 Markdown 文件为唯一真实来源；附件位于同一根目录的 `assets/`。Git 与发布附件不得包含真实日记、附件、缓存或 `notes/`。
 - macOS 与 Windows 共用业务逻辑和日记目录结构。系统打开链接/文件、安全读取附件由 `src-tauri/src/platform/` 门面分派到 `macos.rs`、`windows.rs`。Windows 打包差异在 `src-tauri/tauri.windows.conf.json`；自动检查在 `.github/workflows/check.yml`。
 - 两个平台均无自动更新和云同步。升级安装程序不代替日记根目录备份。旧单文件日记批量导入仍是额外工作，不属于 M7。
+- macOS 相邻日记手势使用 `src-tauri/src/scroll_phase.rs` 的 AppKit 滚动阶段事件判断手指松开；Web 前端 `AdjacentDiaryNavigator` 负责阈值、回弹和一手势一页。向上翻页落在目标结尾，向下翻页落在目标开头。`AppearancePreferences` 独立保存列表底色、正文行距和字距于应用 WebView 的 localStorage，不改动日记 Markdown。
 
 ## 本次审查发现的待处理项
 

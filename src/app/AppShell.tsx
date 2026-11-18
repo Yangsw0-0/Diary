@@ -23,6 +23,9 @@ import {
 } from '@/application/AdjacentDiaryNavigator'
 import Markdown from 'react-markdown'
 import { flushSync } from 'react-dom'
+import type { AppearanceValues } from '@/application/AppearancePreferences'
+import { isTauri } from '@tauri-apps/api/core'
+import { listen } from '@tauri-apps/api/event'
 
 const MIN_LIST_WIDTH = 168
 const MAX_LIST_WIDTH = 420
@@ -42,6 +45,8 @@ interface AppShellProps {
   readonly onSaveTheme?: (theme: 'light' | 'dark') => Promise<void>
   readonly accentColor?: string
   readonly onSaveAccentColor?: (value: string) => void
+  readonly appearance?: AppearanceValues
+  readonly onSaveAppearance?: (value: Partial<AppearanceValues>) => void
 }
 
 export function AppShell({
@@ -58,6 +63,8 @@ export function AppShell({
   onSaveTheme,
   accentColor,
   onSaveAccentColor,
+  appearance,
+  onSaveAppearance,
 }: AppShellProps) {
   const [sidebarWidth, setSidebarWidth] = useState(
     initialSidebarWidth != null && initialSidebarWidth >= 172 && initialSidebarWidth <= 500
@@ -99,6 +106,28 @@ export function AppShell({
   const wheelHandler = useRef<(element: HTMLElement, event: WheelEvent) => void>(() => {})
   const gestureIdle = useRef<ReturnType<typeof setTimeout> | null>(null)
   const unlockIdle = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const nativeGestureActive = useRef(false)
+  const nativeMomentum = useRef(false)
+  const pendingAdjacent = useRef<{
+    target: (typeof sessionSnapshot.entries)[number]
+    direction: AdjacentDirection
+  } | null>(null)
+  const phaseHandler = useRef<(phase: string) => void>(() => {})
+  useEffect(() => {
+    if (!isTauri() || !('__TAURI_INTERNALS__' in window)) return
+    let cancelled = false
+    let stop: (() => void) | undefined
+    void listen<string>('diary-scroll-phase', (event) => phaseHandler.current(event.payload)).then(
+      (unlisten) => {
+        if (cancelled) unlisten()
+        else stop = unlisten
+      },
+    )
+    return () => {
+      cancelled = true
+      stop?.()
+    }
+  }, [])
   useEffect(
     () => () => {
       if (gestureIdle.current) clearTimeout(gestureIdle.current)
@@ -135,6 +164,11 @@ export function AppShell({
       ?.querySelectorAll<HTMLElement>('.milkdown-block-handle')
       .forEach((handle) => handle.setAttribute('data-show', 'false'))
   }
+  useEffect(() => {
+    diaryContentElement.current
+      ?.querySelectorAll<HTMLElement>('.milkdown-block-handle')
+      .forEach((handle) => handle.setAttribute('data-show', 'false'))
+  }, [appearance?.lineHeight, appearance?.letterSpacing])
   const sessionSnapshot = useSyncExternalStore(session.subscribe, session.getSnapshot)
   const saveSidebar = (width: number | null, collapsed: boolean) => {
     void onSavePreferences?.(width, collapsed).catch((reason: unknown) =>
@@ -175,7 +209,8 @@ export function AppShell({
     window.addEventListener('pointercancel', cancel)
     window.addEventListener('blur', cancel)
   }
-  const { navigation, navigating, registerContent, updateScroll } = useAppNavigation(session)
+  const { navigation, navigating, registerContent, updateScroll, waitForDiaryReady } =
+    useAppNavigation(session)
   const activeId = navigation.view.moduleId
   const activeModule = registry.require(activeId)
   const showViewControls =
@@ -217,7 +252,14 @@ export function AppShell({
   }
   const clearPreview = () => {
     previewIdentity.current = null
+    pendingAdjacent.current = null
     setAdjacentPreview(null)
+  }
+  const reboundAdjacent = () => {
+    adjacentGesture.current.reset()
+    void animateTrack(0, 300).then((finished) => {
+      if (finished) clearPreview()
+    })
   }
   const scheduleUnlock = () => {
     if (unlockIdle.current) clearTimeout(unlockIdle.current)
@@ -250,12 +292,13 @@ export function AppShell({
         if (!finished || epoch !== gestureEpoch.current) return
         let opened = false
         try {
-          opened = await navigation.openDiary(target.date)
+          opened = await navigation.openDiary(target.date, direction === 'newer' ? 'end' : 'start')
         } catch {
           // The navigation layer reports the read/save error through its existing notice.
         }
         if (epoch !== gestureEpoch.current) return
         if (opened) {
+          if (isTauri() && '__TAURI_INTERNALS__' in window) await waitForDiaryReady(target.date)
           await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()))
           setTrackOffset(0)
           clearPreview()
@@ -269,8 +312,37 @@ export function AppShell({
       }
     })()
   }
+  const releaseAdjacent = () => {
+    const pending = pendingAdjacent.current
+    const decision = adjacentGesture.current.release()
+    if (decision === 'commit' && pending) commitAdjacent(pending.target, pending.direction)
+    else if (decision === 'rebound') reboundAdjacent()
+  }
+  useLayoutEffect(() => {
+    phaseHandler.current = (phase) => {
+      if (phase === 'began') {
+        nativeGestureActive.current = true
+        nativeMomentum.current = false
+        if (gestureIdle.current) clearTimeout(gestureIdle.current)
+      } else if (phase === 'ended' || phase === 'cancelled') {
+        const active = nativeGestureActive.current
+        nativeGestureActive.current = false
+        if (!active) return
+        nativeMomentum.current = !!pendingAdjacent.current || trackOffset.current !== 0
+        if (gestureIdle.current) clearTimeout(gestureIdle.current)
+        if (phase === 'ended') releaseAdjacent()
+        else reboundAdjacent()
+      } else if (phase === 'mouse') {
+        nativeMomentum.current = false
+      }
+    }
+  })
   const onAdjacentWheel = (element: HTMLElement, event: WheelEvent) => {
     if (event.ctrlKey || event.metaKey) return
+    if (nativeMomentum.current) {
+      event.preventDefault()
+      return
+    }
     const now = Date.now()
     if (adjacentGesture.current.isLocked || adjacentBusyRef.current) {
       event.preventDefault()
@@ -287,7 +359,8 @@ export function AppShell({
     const atBottom = element.scrollTop + element.clientHeight >= element.scrollHeight - 3
     const direction = event.deltaY > 0 ? 'older' : 'newer'
     if (
-      now - lastWheelAt.current > AdjacentDiaryNavigator.idleGapMs ||
+      (!nativeGestureActive.current &&
+        now - lastWheelAt.current > AdjacentDiaryNavigator.idleGapMs) ||
       gestureDirection.current !== direction
     ) {
       cancelTrackAnimation.current?.()
@@ -302,6 +375,7 @@ export function AppShell({
       atBottom,
       element.clientHeight,
       now,
+      nativeGestureActive.current,
     )
     if (gestureIdle.current) clearTimeout(gestureIdle.current)
     if (!gesture) {
@@ -319,12 +393,11 @@ export function AppShell({
     if (!target) {
       setBoundaryNotice(gesture.direction === 'older' ? '已经是最早的日记' : '已经是最新的日记')
       setTrackOffset(signed * Math.min(Math.abs(gesture.offset), 72))
-      gestureIdle.current = setTimeout(() => {
-        adjacentGesture.current.reset()
-        void animateTrack(0, 300)
-      }, AdjacentDiaryNavigator.idleGapMs)
+      if (!nativeGestureActive.current)
+        gestureIdle.current = setTimeout(reboundAdjacent, AdjacentDiaryNavigator.idleGapMs)
       return
     }
+    pendingAdjacent.current = { target, direction: gesture.direction }
     if (boundaryNotice) setBoundaryNotice(null)
     const identity = gesture.direction + ':' + target.date.toString()
     if (previewIdentity.current !== identity) {
@@ -347,14 +420,8 @@ export function AppShell({
       commitAdjacent(target, gesture.direction)
       return
     }
-    gestureIdle.current = setTimeout(() => {
-      const decision = adjacentGesture.current.release()
-      if (decision === 'commit') commitAdjacent(target, gesture.direction)
-      else if (decision === 'rebound')
-        void animateTrack(0, 300).then((finished) => {
-          if (finished) clearPreview()
-        })
-    }, AdjacentDiaryNavigator.idleGapMs)
+    if (!nativeGestureActive.current)
+      gestureIdle.current = setTimeout(releaseAdjacent, AdjacentDiaryNavigator.idleGapMs)
   }
   useLayoutEffect(() => {
     wheelHandler.current = onAdjacentWheel
@@ -366,6 +433,8 @@ export function AppShell({
     if (unlockIdle.current) clearTimeout(unlockIdle.current)
     cancelTrackAnimation.current?.()
     adjacentGesture.current.reset()
+    nativeGestureActive.current = false
+    nativeMomentum.current = false
     adjacentBusyRef.current = false
     setAdjacentBusy(false)
     void animateTrack(0, 280).then((finished) => {
@@ -610,6 +679,8 @@ export function AppShell({
               onSaveTheme={onSaveTheme}
               accentColor={accentColor}
               onSaveAccentColor={onSaveAccentColor}
+              appearance={appearance}
+              onSaveAppearance={onSaveAppearance}
               onError={setSidebarError}
             />
           )}

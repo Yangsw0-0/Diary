@@ -13,15 +13,21 @@ export interface NavigationContextValue {
     readonly id: number
     readonly restoreScroll?: boolean
   } | null
+  readonly cursorEdgeRequest: {
+    readonly date: DiaryDate
+    readonly edge: 'start' | 'end'
+    readonly id: number
+  } | null
   readonly notice: string | null
   openModule(moduleId: 'diary' | 'tags'): Promise<boolean>
-  openDiary(date: DiaryDate): Promise<boolean>
+  openDiary(date: DiaryDate, edge?: 'start' | 'end'): Promise<boolean>
   createDiary(): Promise<boolean>
   openDiarySection(ref: DiarySectionRef): Promise<boolean>
   openTag(key: string): Promise<boolean>
   back(): Promise<boolean>
   forward(): Promise<boolean>
   restoreScroll(): void
+  editorReady(): void
   reportMissingSection(): void
 }
 

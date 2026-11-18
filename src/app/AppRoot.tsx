@@ -8,6 +8,7 @@ import type { ModuleCatalog } from './moduleRegistry'
 import type { AppServices } from './services'
 import { AppShell } from './AppShell'
 import { ThemePalette } from '@/application/ThemePalette'
+import { AppearancePreferences } from '@/application/AppearancePreferences'
 
 interface AppRootProps {
   readonly registry: ModuleCatalog
@@ -21,6 +22,9 @@ export function AppRoot({ registry, services }: AppRootProps) {
   const [error, setError] = useState<string | null>(null)
   const [closePrompt, setClosePrompt] = useState(false)
   const [accentColor, setAccentColor] = useState(() => ThemePalette.load(window.localStorage))
+  const [appearance, setAppearance] = useState(() =>
+    AppearancePreferences.load(window.localStorage),
+  )
   const theme = status?.theme ?? 'light'
 
   useEffect(() => {
@@ -30,6 +34,13 @@ export function AppRoot({ registry, services }: AppRootProps) {
   useEffect(() => {
     document.documentElement.style.setProperty('--diary-theme-color', accentColor)
   }, [accentColor])
+
+  useEffect(() => {
+    const root = document.documentElement.style
+    root.setProperty('--diary-list-color', appearance.listColor)
+    root.setProperty('--diary-text-line-height', String(appearance.lineHeight))
+    root.setProperty('--diary-text-letter-spacing', `${appearance.letterSpacing}px`)
+  }, [appearance])
 
   useEffect(() => {
     let current = true
@@ -164,6 +175,12 @@ export function AppRoot({ registry, services }: AppRootProps) {
         theme={theme}
         accentColor={accentColor}
         onSaveAccentColor={(value) => setAccentColor(ThemePalette.save(window.localStorage, value))}
+        appearance={appearance}
+        onSaveAppearance={(value) =>
+          setAppearance(
+            AppearancePreferences.save(window.localStorage, { ...appearance, ...value }),
+          )
+        }
         onSaveTheme={async (next) => {
           await services.workspace.saveTheme(next)
           setStatus((current) => (current ? { ...current, theme: next } : current))
