@@ -4,7 +4,6 @@ import type { TagCompletion } from '@/application/TagCompletion'
 import { createTagCompletionPlugin } from './TagCompletionPlugin'
 import { editorViewCtx } from '@milkdown/kit/core'
 import { Selection } from '@milkdown/kit/prose/state'
-import { blockHandlePlacement } from './blockHandlePlacement'
 
 interface AttachmentHooks {
   readonly onUpload?: (file: File) => Promise<string>
@@ -43,8 +42,8 @@ export class CrepeEditorAdapter implements EditorAdapter {
       featureConfigs: {
         [CrepeFeature.BlockEdit]: {
           blockHandle: {
-            getOffset: () => 6,
-            getPlacement: ({ editorDom, blockDom }) => blockHandlePlacement(editorDom, blockDom),
+            getOffset: () => 4,
+            getPlacement: () => 'left-start',
           },
         },
         [CrepeFeature.ImageBlock]: {

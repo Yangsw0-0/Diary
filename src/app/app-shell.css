@@ -350,6 +350,7 @@
   min-width: 0;
   min-height: 0;
   overflow: hidden;
+  container: diary-content / inline-size;
 }
 .adjacent-diary-track {
   position: relative;
@@ -785,10 +786,16 @@
 }
 .diary-crepe-root .milkdown {
   --crepe-base-font-size: var(--detail-font-size, 16px);
-  --diary-handle-size: clamp(18px, calc(var(--detail-font-size, 16px) * 1.75), 40px);
+  --diary-handle-size: min(
+    clamp(18px, calc(var(--detail-font-size, 16px) * 1.75), 40px),
+    calc(10cqw - 6px)
+  );
   --crepe-color-background: var(--background);
   --crepe-color-on-background: var(--foreground);
   --crepe-color-primary: var(--diary-brand);
+}
+.diary-crepe-root .milkdown .milkdown-block-handle {
+  transition: opacity 120ms ease;
 }
 .diary-crepe-root .milkdown .milkdown-block-handle .operation-item {
   width: var(--diary-handle-size);
@@ -798,6 +805,11 @@
 .diary-crepe-root .milkdown .milkdown-block-handle .operation-item svg {
   width: 100%;
   height: 100%;
+}
+@container diary-content (max-width: 899px) {
+  .diary-crepe-root .milkdown .milkdown-block-handle {
+    flex-direction: column;
+  }
 }
 .dark .diary-crepe-root .milkdown {
   --crepe-color-surface: #121212;
