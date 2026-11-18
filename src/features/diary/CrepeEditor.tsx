@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import type { EditorAdapter } from '@/application/EditorAdapter'
 import type { DiaryDate } from '@/domain/DiaryDate'
 
@@ -22,6 +23,7 @@ interface Props {
   readonly onFiles?: (files: readonly File[]) => void
   readonly onOpenLink?: (url: string) => void
   readonly onInsertError?: (message: string) => void
+  readonly onRequestAttachment?: () => void
 }
 
 export function CrepeEditor({
@@ -38,6 +40,7 @@ export function CrepeEditor({
   onFiles,
   onOpenLink,
   onInsertError,
+  onRequestAttachment,
 }: Props) {
   const root = useRef<HTMLDivElement>(null)
   const onChangeRef = useRef(onChange)
@@ -53,6 +56,17 @@ export function CrepeEditor({
   const insertErrorRef = useRef(onInsertError)
   const insertedRef = useRef(onInserted)
   const [error, setError] = useState<string | null>(null)
+  const [insertMenu, setInsertMenu] = useState<{ x: number; y: number } | null>(null)
+  useEffect(() => {
+    if (!insertMenu) return
+    const close = () => setInsertMenu(null)
+    window.addEventListener('pointerdown', close)
+    window.addEventListener('keydown', close)
+    return () => {
+      window.removeEventListener('pointerdown', close)
+      window.removeEventListener('keydown', close)
+    }
+  }, [insertMenu])
   onChangeRef.current = onChange
   onComposingRef.current = onComposing
   readOnlyRef.current = readOnly
@@ -71,6 +85,14 @@ export function CrepeEditor({
       insertedRef.current?.(request.id)
     } catch (reason) {
       insertErrorRef.current?.(reason instanceof Error ? reason.message : '无法插入附件链接')
+    }
+  }
+  const insertFromMenu = (markdown: string) => {
+    setInsertMenu(null)
+    try {
+      adapterRef.current?.insertMarkdown(markdown)
+    } catch (reason) {
+      onInsertError?.(reason instanceof Error ? reason.message : '无法插入内容')
     }
   }
 
@@ -161,6 +183,19 @@ export function CrepeEditor({
           onOpenLink?.(url)
         }
       }}
+      onContextMenuCapture={(event) => {
+        if (readOnly || !(event.target instanceof Element && event.target.closest('.ProseMirror')))
+          return
+        event.preventDefault()
+        if (!adapterRef.current?.placeCursorAt(event.clientX, event.clientY)) {
+          onInsertError?.('编辑器尚未启动')
+          return
+        }
+        setInsertMenu({
+          x: Math.max(8, Math.min(event.clientX, window.innerWidth - 210)),
+          y: Math.max(8, Math.min(event.clientY, window.innerHeight - 210)),
+        })
+      }}
     >
       {error && (
         <p role="alert" className="workspace-error">
@@ -168,6 +203,51 @@ export function CrepeEditor({
         </p>
       )}
       <div className="diary-crepe-root" ref={root} aria-label="日记编辑器" />
+      {insertMenu &&
+        createPortal(
+          <div
+            className="diary-insert-menu"
+            role="menu"
+            aria-label="插入插件"
+            style={{ left: insertMenu.x, top: insertMenu.y }}
+            onPointerDown={(event) => {
+              event.preventDefault()
+              event.stopPropagation()
+            }}
+          >
+            <strong>插入插件</strong>
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setInsertMenu(null)
+                onRequestAttachment?.()
+              }}
+            >
+              图片或附件…
+            </button>
+            <button type="button" role="menuitem" onClick={() => insertFromMenu('\n\n---\n\n')}>
+              分隔线
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => insertFromMenu('\n\n```\n\n```\n\n')}
+            >
+              代码块
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() =>
+                insertFromMenu('\n\n| 列 1 | 列 2 |\n| --- | --- |\n| 内容 | 内容 |\n\n')
+              }
+            >
+              表格
+            </button>
+          </div>,
+          document.body,
+        )}
     </div>
   )
 }

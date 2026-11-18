@@ -56,7 +56,7 @@ it('closes settings on Back without changing the underlying page or history', as
   expect(screen.getByRole('region', { name: '日记列表' })).toBeInTheDocument()
 })
 
-it('switches only one diary after a boundary wheel burst and ignores its momentum tail', async () => {
+it('pulls current and adjacent pages on one track, then switches only one diary', async () => {
   const user = userEvent.setup()
   const entries = ['2024-03-03', '2024-03-02', '2024-03-01'].map((value) => ({
     date: DiaryDate.parse(value),
@@ -76,23 +76,28 @@ it('switches only one diary after a boundary wheel burst and ignores its momentu
   })
   content.scrollTop = 200
   for (let i = 0; i < 4; i++) fireEvent.wheel(content, { deltaY: 90 })
-  expect(screen.queryByText('继续滚动以切换日记')).not.toBeInTheDocument()
+  const track = content.closest('.adjacent-diary-track') as HTMLElement
+  expect(track.style.transform).toBe('')
   content.scrollTop = 500
   fireEvent.wheel(content, { deltaY: 90 })
-  expect(screen.queryByText('继续滚动以切换日记')).not.toBeInTheDocument()
-  await new Promise((resolve) => setTimeout(resolve, 200))
-  for (let i = 0; i < 3; i++) fireEvent.wheel(content, { deltaY: 90 })
-  expect(screen.getByText('松开以切换日记')).toBeInTheDocument()
+  expect(track.style.transform).toBe('translate3d(0px, -64px, 0px)')
+  expect(track.querySelector('.adjacent-diary-preview')).toHaveAttribute('data-direction', 'older')
+  expect(screen.getByRole('button', { name: '2024-03-03' })).toHaveAttribute('aria-current', 'true')
+  fireEvent.wheel(content, { deltaY: 90 })
+  expect(track.style.transform).not.toBe('translate3d(0px, 0px, 0px)')
+  fireEvent.wheel(content, { deltaY: 90 })
+  for (let i = 0; i < 8; i++) fireEvent.wheel(content, { deltaY: 90 })
   await waitFor(
     () =>
       expect(screen.getByRole('button', { name: '2024-03-02' })).toHaveAttribute(
         'aria-current',
         'true',
       ),
-    { timeout: 1000 },
+    { timeout: 1500 },
   )
+  await waitFor(() => expect(track.style.transform).toBe('translate3d(0px, 0px, 0px)'))
   for (let i = 0; i < 8; i++) fireEvent.wheel(content, { deltaY: 90 })
-  await new Promise((resolve) => setTimeout(resolve, 250))
+  await new Promise((resolve) => setTimeout(resolve, 150))
   expect(screen.getByRole('button', { name: '2024-03-02' })).toHaveAttribute('aria-current', 'true')
   expect(screen.getByRole('button', { name: '2024-03-01' })).not.toHaveAttribute(
     'aria-current',
@@ -111,6 +116,7 @@ it('keeps zoom and panel controls scoped to an open diary and opens settings at 
   })
   expect(screen.queryByRole('slider', { name: '正文缩放' })).not.toBeInTheDocument()
   await user.click(await screen.findByRole('button', { name: '2024-02-29' }))
+  expect(screen.getByRole('button', { name: '保存日记' })).toHaveAttribute('data-state', 'saved')
   await user.click(screen.getByRole('button', { name: '缩小正文' }))
   expect(screen.getByRole('slider', { name: '正文缩放' })).toHaveValue('90')
   await user.click(screen.getByRole('button', { name: '展开正文' }))

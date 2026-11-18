@@ -8,7 +8,7 @@ import {
   useSyncExternalStore,
   type PropsWithChildren,
 } from 'react'
-import { BookOpenText, CalendarDays, Paperclip, Plus, RefreshCw, Save } from 'lucide-react'
+import { BookOpenText, CalendarDays, Paperclip, Plus, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { DiarySession, type DiarySessionSnapshot } from '@/application/DiarySession'
 import type { EditorAdapter } from '@/application/EditorAdapter'
@@ -16,7 +16,6 @@ import { CrepeEditor } from './CrepeEditor'
 import { useNavigation } from '@/shared/NavigationContext'
 import type { AttachmentService } from '@/application/AttachmentService'
 import type { DiaryDate } from '@/domain/DiaryDate'
-import Markdown from 'react-markdown'
 
 const DiaryContext = createContext<{
   session: DiarySession
@@ -238,7 +237,7 @@ export function DiaryList() {
 }
 
 export function DiaryDetail() {
-  const [session, { selected, opening, entries }, attachments, createAdapter] = useDiary()
+  const [session, { selected, opening }, attachments, createAdapter] = useDiary()
   const navigation = useNavigation()
   const input = useRef<HTMLInputElement>(null)
   const insertId = useRef(0)
@@ -318,8 +317,13 @@ export function DiaryDetail() {
       : selected.version !== selected.savedVersion
         ? '尚未保存'
         : '已保存'
-  const selectedIndex = entries.findIndex((entry) => entry.date.equals(selected.date))
-  const older = selectedIndex >= 0 ? entries[selectedIndex + 1] : undefined
+  const saveState = selected.error
+    ? 'error'
+    : selected.saving
+      ? 'saving'
+      : selected.version !== selected.savedVersion
+        ? 'unsaved'
+        : 'saved'
   return (
     <article className="diary-editor-layout">
       <div className="diary-editor-toolbar">
@@ -346,18 +350,20 @@ export function DiaryDetail() {
             <Paperclip aria-hidden="true" />
             {importing ? '导入中…' : '附件'}
           </Button>
-          <span role="status" className={selected.error ? 'workspace-error' : 'workspace-status'}>
+          <span id="diary-save-state" role="status" className="diary-visually-hidden">
             {status}
           </span>
-          <Button
-            size="sm"
-            variant="outline"
+          <button
+            type="button"
+            className="diary-save-indicator"
+            data-state={saveState}
+            title={`${status}，点击手动保存`}
             onClick={() => void session.flush()}
             aria-label="保存日记"
+            aria-describedby="diary-save-state"
           >
-            <Save aria-hidden="true" />
-            保存
-          </Button>
+            <span className="diary-save-dot" aria-hidden="true" />
+          </button>
         </div>
       </div>
       {attachmentError && (
@@ -418,6 +424,7 @@ export function DiaryDetail() {
         onFiles={(files) => void importFiles(files)}
         onOpenLink={openLink}
         onInsertError={setAttachmentError}
+        onRequestAttachment={() => input.current?.click()}
         focusRequest={
           navigation.view.moduleId === 'diary' &&
           navigation.focusRequest?.date.equals(selected.date)
@@ -427,21 +434,6 @@ export function DiaryDetail() {
         onMissingSection={navigation.reportMissingSection}
         onReady={navigation.restoreScroll}
       />
-      {older && (
-        <div
-          className="diary-adjacent-teaser"
-          aria-label={`上一篇日记 ${older.date.toString()} 的预览`}
-        >
-          <strong>{older.date.toString()}</strong>
-          <div className="diary-adjacent-teaser-content">
-            <Markdown
-              components={{ img: () => null, a: ({ children }) => <span>{children}</span> }}
-            >
-              {older.markdown.slice(0, 500)}
-            </Markdown>
-          </div>
-        </div>
-      )}
     </article>
   )
 }

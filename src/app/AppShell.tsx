@@ -17,8 +17,12 @@ import { Separator } from '@/components/ui/separator'
 import type { ModuleCatalog } from './moduleRegistry'
 import { SettingsPanel } from '@/features/settings/SettingsPanel'
 import { ViewControls } from './ViewControls'
-import { AdjacentDiaryNavigator } from '@/application/AdjacentDiaryNavigator'
+import {
+  AdjacentDiaryNavigator,
+  type AdjacentDirection,
+} from '@/application/AdjacentDiaryNavigator'
 import Markdown from 'react-markdown'
+import { flushSync } from 'react-dom'
 
 const MIN_LIST_WIDTH = 168
 const MAX_LIST_WIDTH = 420
@@ -79,25 +83,34 @@ export function AppShell({
     date: string
     markdown: string
   } | null>(null)
-  const [adjacentBusy, setAdjacentBusy] = useState(false)
-  const previewIdentity = useRef<string | null>(null)
-  const previewProgress = useRef(0)
+  const [, setAdjacentBusy] = useState(false)
+  const adjacentBusyRef = useRef(false)
+  const [boundaryNotice, setBoundaryNotice] = useState<string | null>(null)
+  const trackElement = useRef<HTMLDivElement>(null)
   const previewElement = useRef<HTMLDivElement>(null)
+  const previewIdentity = useRef<string | null>(null)
+  const trackOffset = useRef(0)
+  const cancelTrackAnimation = useRef<(() => void) | null>(null)
+  const gestureBaseOffset = useRef(0)
+  const gestureDirection = useRef<AdjacentDirection | null>(null)
+  const lastWheelAt = useRef(0)
+  const gestureEpoch = useRef(0)
   const diaryContentElement = useRef<HTMLElement | null>(null)
   const wheelHandler = useRef<(element: HTMLElement, event: WheelEvent) => void>(() => {})
-  const gestureSettle = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const gestureUnlock = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const previewHide = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const gestureIdle = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const unlockIdle = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(
     () => () => {
-      if (gestureSettle.current) clearTimeout(gestureSettle.current)
-      if (gestureUnlock.current) clearTimeout(gestureUnlock.current)
-      if (previewHide.current) clearTimeout(previewHide.current)
+      if (gestureIdle.current) clearTimeout(gestureIdle.current)
+      if (unlockIdle.current) clearTimeout(unlockIdle.current)
+      cancelTrackAnimation.current?.()
     },
     [],
   )
   useLayoutEffect(() => {
-    previewElement.current?.style.setProperty('--gesture-progress', String(previewProgress.current))
+    if (adjacentPreview && previewElement.current)
+      previewElement.current.scrollTop =
+        adjacentPreview.direction === 'newer' ? previewElement.current.scrollHeight : 0
   }, [adjacentPreview])
   const resizeCleanup = useRef<(() => void) | null>(null)
   useEffect(() => () => resizeCleanup.current?.(), [])
@@ -117,6 +130,11 @@ export function AppShell({
     ),
   )
   const visibleListWidth = Math.min(listWidth, maxListWidth)
+  const hideBlockControls = () => {
+    diaryContentElement.current
+      ?.querySelectorAll<HTMLElement>('.milkdown-block-handle')
+      .forEach((handle) => handle.setAttribute('data-show', 'false'))
+  }
   const sessionSnapshot = useSyncExternalStore(session.subscribe, session.getSnapshot)
   const saveSidebar = (width: number | null, collapsed: boolean) => {
     void onSavePreferences?.(width, collapsed).catch((reason: unknown) =>
@@ -132,6 +150,7 @@ export function AppShell({
   const startResize = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (sidebarCollapsed || event.button !== 0) return
     event.preventDefault()
+    hideBlockControls()
     resizeCleanup.current?.()
     setResizingList(false)
     const move = (pointer: PointerEvent) => {
@@ -161,88 +180,210 @@ export function AppShell({
   const activeModule = registry.require(activeId)
   const showViewControls =
     !settingsOpen && (activeId === 'tags' || (activeId === 'diary' && !!sessionSnapshot.selected))
-  const showPreviewProgress = (progress: number) => {
-    previewProgress.current = progress
-    previewElement.current?.style.setProperty('--gesture-progress', String(progress))
-    previewElement.current?.setAttribute('data-ready', String(progress >= 1))
+  const setTrackOffset = (pixels: number) => {
+    const height = diaryContentElement.current?.clientHeight || window.innerHeight
+    trackOffset.current = Math.max(-height, Math.min(height, pixels))
+    if (trackElement.current)
+      trackElement.current.style.transform = `translate3d(0, ${trackOffset.current}px, 0)`
   }
-  const dismissPreview = (completed = false) => {
-    if (!previewIdentity.current) return
+  const animateTrack = (destination: number, duration = 280): Promise<boolean> => {
+    cancelTrackAnimation.current?.()
+    const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    if (reduced || duration === 0) {
+      setTrackOffset(destination)
+      return Promise.resolve(true)
+    }
+    const from = trackOffset.current
+    return new Promise((resolve) => {
+      const started = performance.now()
+      let frame = 0
+      const tick = (now: number) => {
+        const t = Math.min(1, Math.max(0, (now - started) / duration))
+        const eased = 1 - (1 - t) ** 4
+        setTrackOffset(from + (destination - from) * eased)
+        if (t < 1) frame = window.requestAnimationFrame(tick)
+        else {
+          cancelTrackAnimation.current = null
+          resolve(true)
+        }
+      }
+      cancelTrackAnimation.current = () => {
+        window.cancelAnimationFrame(frame)
+        cancelTrackAnimation.current = null
+        resolve(false)
+      }
+      frame = window.requestAnimationFrame(tick)
+    })
+  }
+  const clearPreview = () => {
     previewIdentity.current = null
-    if (completed) previewElement.current?.setAttribute('data-complete', 'true')
-    else showPreviewProgress(0)
-    if (previewHide.current) clearTimeout(previewHide.current)
-    previewHide.current = setTimeout(() => setAdjacentPreview(null), completed ? 280 : 220)
+    setAdjacentPreview(null)
   }
   const scheduleUnlock = () => {
-    if (gestureUnlock.current) clearTimeout(gestureUnlock.current)
-    gestureUnlock.current = setTimeout(() => adjacentGesture.current.unlock(), 700)
+    if (unlockIdle.current) clearTimeout(unlockIdle.current)
+    if (adjacentBusyRef.current) return
+    unlockIdle.current = setTimeout(() => {
+      if (
+        !adjacentBusyRef.current &&
+        Date.now() - lastWheelAt.current >= AdjacentDiaryNavigator.idleGapMs
+      )
+        adjacentGesture.current.unlock()
+      else scheduleUnlock()
+    }, AdjacentDiaryNavigator.idleGapMs)
+  }
+  const commitAdjacent = (
+    target: (typeof sessionSnapshot.entries)[number],
+    direction: AdjacentDirection,
+  ) => {
+    adjacentGesture.current.lock()
+    adjacentBusyRef.current = true
+    setAdjacentBusy(true)
+    const epoch = ++gestureEpoch.current
+    const height = diaryContentElement.current?.clientHeight || window.innerHeight
+    const destination = direction === 'older' ? -height : height
+    void (async () => {
+      try {
+        const finished = await animateTrack(
+          destination,
+          Math.abs(trackOffset.current - destination) < 1 ? 0 : 300,
+        )
+        if (!finished || epoch !== gestureEpoch.current) return
+        let opened = false
+        try {
+          opened = await navigation.openDiary(target.date)
+        } catch {
+          // The navigation layer reports the read/save error through its existing notice.
+        }
+        if (epoch !== gestureEpoch.current) return
+        if (opened) {
+          await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()))
+          setTrackOffset(0)
+          clearPreview()
+        } else if (await animateTrack(0, 300)) clearPreview()
+      } finally {
+        if (epoch === gestureEpoch.current) {
+          adjacentBusyRef.current = false
+          setAdjacentBusy(false)
+          scheduleUnlock()
+        }
+      }
+    })()
   }
   const onAdjacentWheel = (element: HTMLElement, event: WheelEvent) => {
     if (event.ctrlKey || event.metaKey) return
-    if (adjacentGesture.current.isLocked || adjacentBusy) {
+    const now = Date.now()
+    if (adjacentGesture.current.isLocked || adjacentBusyRef.current) {
       event.preventDefault()
+      lastWheelAt.current = now
       scheduleUnlock()
       return
     }
-    if (sessionSnapshot.opening || activeId !== 'diary') return
+    if (sessionSnapshot.opening || settingsOpen || activeId !== 'diary') return
     const selected = sessionSnapshot.selected
     if (!selected) return
     const index = sessionSnapshot.entries.findIndex((entry) => entry.date.equals(selected.date))
     if (index < 0) return
     const atTop = element.scrollTop <= 2
     const atBottom = element.scrollTop + element.clientHeight >= element.scrollHeight - 3
+    const direction = event.deltaY > 0 ? 'older' : 'newer'
+    if (
+      now - lastWheelAt.current > AdjacentDiaryNavigator.idleGapMs ||
+      gestureDirection.current !== direction
+    ) {
+      cancelTrackAnimation.current?.()
+      gestureBaseOffset.current = trackOffset.current
+      gestureDirection.current = direction
+    }
+    lastWheelAt.current = now
     const gesture = adjacentGesture.current.add(
       event.deltaY,
       event.deltaMode,
       atTop,
       atBottom,
       element.clientHeight,
-      Date.now(),
+      now,
     )
-    if (gestureSettle.current) clearTimeout(gestureSettle.current)
+    if (gestureIdle.current) clearTimeout(gestureIdle.current)
     if (!gesture) {
-      dismissPreview()
+      adjacentGesture.current.reset()
+      if (trackOffset.current !== 0)
+        void animateTrack(0, 300).then((finished) => {
+          if (finished) clearPreview()
+        })
       return
     }
     const target = sessionSnapshot.entries[index + (gesture.direction === 'older' ? 1 : -1)]
+    event.preventDefault()
+    const height = element.clientHeight || window.innerHeight
+    const signed = gesture.direction === 'older' ? -1 : 1
     if (!target) {
-      adjacentGesture.current.reset()
-      dismissPreview()
+      setBoundaryNotice(gesture.direction === 'older' ? '已经是最早的日记' : '已经是最新的日记')
+      setTrackOffset(signed * Math.min(Math.abs(gesture.offset), 72))
+      gestureIdle.current = setTimeout(() => {
+        adjacentGesture.current.reset()
+        void animateTrack(0, 300)
+      }, AdjacentDiaryNavigator.idleGapMs)
       return
     }
-    event.preventDefault()
-    if (previewHide.current) clearTimeout(previewHide.current)
+    if (boundaryNotice) setBoundaryNotice(null)
     const identity = gesture.direction + ':' + target.date.toString()
     if (previewIdentity.current !== identity) {
       previewIdentity.current = identity
-      setAdjacentPreview({
-        direction: gesture.direction,
-        date: target.date.toString(),
-        markdown: target.markdown,
+      flushSync(() => {
+        setAdjacentPreview({
+          direction: gesture.direction,
+          date: target.date.toString(),
+          markdown: target.markdown,
+        })
       })
     }
-    previewElement.current?.setAttribute('data-complete', 'false')
-    showPreviewProgress(gesture.progress)
-    gestureSettle.current = setTimeout(() => {
-      const direction = adjacentGesture.current.finish()
-      if (!direction || !session.getSnapshot().selected?.date.equals(selected.date)) {
-        adjacentGesture.current.unlock()
-        dismissPreview()
-        return
-      }
-      setAdjacentBusy(true)
-      void navigation
-        .openDiary(target.date)
-        .then((opened) => dismissPreview(opened))
-        .catch(() => dismissPreview())
-        .finally(() => {
-          setAdjacentBusy(false)
-          scheduleUnlock()
+    const amount = gestureBaseOffset.current + gesture.offset
+    setTrackOffset(
+      gesture.phase === 'complete'
+        ? signed * height
+        : Math.max(-height + 1, Math.min(height - 1, amount)),
+    )
+    if (gesture.phase === 'complete') {
+      commitAdjacent(target, gesture.direction)
+      return
+    }
+    gestureIdle.current = setTimeout(() => {
+      const decision = adjacentGesture.current.release()
+      if (decision === 'commit') commitAdjacent(target, gesture.direction)
+      else if (decision === 'rebound')
+        void animateTrack(0, 300).then((finished) => {
+          if (finished) clearPreview()
         })
-    }, 180)
+    }, AdjacentDiaryNavigator.idleGapMs)
   }
-  wheelHandler.current = onAdjacentWheel
+  useLayoutEffect(() => {
+    wheelHandler.current = onAdjacentWheel
+  })
+  const abortAdjacent = () => {
+    if (!adjacentBusyRef.current && trackOffset.current === 0 && !previewIdentity.current) return
+    gestureEpoch.current += 1
+    if (gestureIdle.current) clearTimeout(gestureIdle.current)
+    if (unlockIdle.current) clearTimeout(unlockIdle.current)
+    cancelTrackAnimation.current?.()
+    adjacentGesture.current.reset()
+    adjacentBusyRef.current = false
+    setAdjacentBusy(false)
+    void animateTrack(0, 280).then((finished) => {
+      if (finished) clearPreview()
+    })
+  }
+  const abortAdjacentRef = useRef(abortAdjacent)
+  useLayoutEffect(() => {
+    abortAdjacentRef.current = abortAdjacent
+  })
+  useEffect(() => {
+    if (settingsOpen || activeId !== 'diary') abortAdjacentRef.current()
+  }, [settingsOpen, activeId])
+  useEffect(() => {
+    const abort = () => abortAdjacentRef.current()
+    window.addEventListener('resize', abort)
+    return () => window.removeEventListener('resize', abort)
+  }, [])
   useEffect(() => {
     const element = diaryContentElement.current
     if (!element) return
@@ -250,14 +391,17 @@ export function AppShell({
     element.addEventListener('wheel', handleWheel, { passive: false })
     return () => element.removeEventListener('wheel', handleWheel)
   }, [])
-  const setZoomClamped = (moduleId: string, value: number) =>
+  const setZoomClamped = (moduleId: string, value: number) => {
+    hideBlockControls()
     setZoomByModule((current) => ({
       ...current,
       [moduleId]: Math.max(50, Math.min(150, value)),
     }))
+  }
   const startListResize = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (event.button !== 0) return
     event.preventDefault()
+    hideBlockControls()
     resizeCleanup.current?.()
     setResizingList(true)
     const move = (pointer: PointerEvent) =>
@@ -445,11 +589,13 @@ export function AppShell({
             </div>
           </header>
           {(navigation.notice ||
+            boundaryNotice ||
             workspaceIssue ||
             sidebarError ||
             sessionSnapshot.error?.message) && (
             <p role="alert" className="app-error-toast">
               {navigation.notice ||
+                boundaryNotice ||
                 workspaceIssue ||
                 sidebarError ||
                 sessionSnapshot.error?.message}
@@ -472,6 +618,19 @@ export function AppShell({
             const Detail = module.Detail
             const Provider = module.Provider
             const moduleZoom = zoomByModule[module.id] ?? 100
+            const contentSection = (
+              <section
+                className="module-content"
+                aria-label={module.detailLabel}
+                ref={(element) => {
+                  registerContent(module.id, element)
+                  if (module.id === 'diary') diaryContentElement.current = element
+                }}
+                onScroll={(event) => updateScroll(module.id, event.currentTarget.scrollTop)}
+              >
+                <Detail />
+              </section>
+            )
             const panels = (
               <div
                 className="workspace-panels"
@@ -522,44 +681,33 @@ export function AppShell({
                     <PanelLeftClose aria-hidden="true" />
                   )}
                 </Button>
-                <section
-                  className="module-content"
-                  aria-label={module.detailLabel}
-                  ref={(element) => {
-                    registerContent(module.id, element)
-                    if (module.id === 'diary') diaryContentElement.current = element
-                  }}
-                  onScroll={(event) => updateScroll(module.id, event.currentTarget.scrollTop)}
-                >
-                  <Detail />
-                </section>
-                {module.id === 'diary' && adjacentPreview && activeId === 'diary' && (
-                  <div
-                    ref={previewElement}
-                    className="adjacent-diary-preview"
-                    data-direction={adjacentPreview.direction}
-                    data-ready="false"
-                    data-complete="false"
-                    aria-hidden="true"
-                  >
-                    <div className="adjacent-preview-paper">
-                      <strong>{adjacentPreview.date}</strong>
-                      <Markdown
-                        components={{
-                          img: () => null,
-                          a: ({ children }) => <span>{children}</span>,
-                        }}
-                      >
-                        {adjacentPreview.markdown.slice(0, 700)}
-                      </Markdown>
+                {module.id === 'diary' ? (
+                  <div className="diary-track-viewport">
+                    <div className="adjacent-diary-track" ref={trackElement}>
+                      {contentSection}
+                      {adjacentPreview && activeId === 'diary' && (
+                        <div
+                          ref={previewElement}
+                          className="adjacent-diary-preview"
+                          data-direction={adjacentPreview.direction}
+                          aria-hidden="true"
+                        >
+                          <div className="adjacent-preview-paper">
+                            <Markdown
+                              components={{
+                                img: () => null,
+                                a: ({ children }) => <span>{children}</span>,
+                              }}
+                            >
+                              {adjacentPreview.markdown}
+                            </Markdown>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                    <span className="adjacent-preview-hint adjacent-preview-pulling">
-                      继续滚动以切换日记
-                    </span>
-                    <span className="adjacent-preview-hint adjacent-preview-ready">
-                      松开以切换日记
-                    </span>
                   </div>
+                ) : (
+                  contentSection
                 )}
                 {showViewControls && activeId === module.id && (
                   <ViewControls

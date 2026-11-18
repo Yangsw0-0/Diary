@@ -50,7 +50,7 @@ it('sorts visible and hidden tags by distinct days then recency and persists ove
   expect(index.listGroups(restored).singleDay.map((item) => item.key)).toEqual(['A'])
 })
 
-it('offers a suffix after a heading prefix and requires boundary wheel movement to switch', () => {
+it('offers a suffix and starts boundary feedback in the first wheel burst', () => {
   const completion = new TagCompletion((prefix) =>
     ['探索自我 - 恋爱'].filter((item) => item.startsWith(prefix)),
   )
@@ -58,30 +58,63 @@ it('offers a suffix after a heading prefix and requires boundary wheel movement 
   expect(completion.suggest('')).toBeNull()
   const gesture = new AdjacentDiaryNavigator()
   expect(gesture.add(80, 0, false, false, 500, 100)).toBeNull()
-  expect(gesture.add(70, 0, false, true, 500, 110)).toBeNull()
+  expect(gesture.add(70, 0, false, true, 500, 110)).toMatchObject({
+    direction: 'older',
+    phase: 'feedback',
+    offset: -64,
+  })
+  expect(gesture.add(100, 0, false, true, 500, 120)).toMatchObject({
+    direction: 'older',
+    phase: 'pull',
+  })
+  expect(gesture.release()).toBe('rebound')
   expect(gesture.add(70, 0, false, true, 500, 300)).toMatchObject({
     direction: 'older',
-    ready: false,
+    phase: 'feedback',
   })
   expect(gesture.add(100, 0, false, true, 500, 310)).toMatchObject({
     direction: 'older',
-    ready: false,
+    phase: 'pull',
   })
   expect(gesture.add(90, 0, false, true, 500, 320)).toMatchObject({
     direction: 'older',
-    ready: true,
+    phase: 'armed',
   })
-  expect(gesture.finish()).toBe('older')
+  expect(gesture.release()).toBe('commit')
   expect(gesture.isLocked).toBe(true)
-  expect(gesture.add(90, 0, false, true, 500)).toBeNull()
-  expect(gesture.finish()).toBeNull()
+  expect(gesture.add(90, 0, false, true, 500, 330)).toBeNull()
   gesture.unlock()
-  gesture.reset()
-  expect(gesture.add(-1000, 0, true, false, 500)).toMatchObject({
+  expect(gesture.add(-1000, 0, true, false, 500, 500)).toMatchObject({
     direction: 'newer',
-    ready: false,
+    phase: 'feedback',
+    offset: 64,
   })
-  expect(gesture.finish()).toBeNull()
+  expect(gesture.release()).toBe('rebound')
+})
+
+it('flows continuously through feedback, pull and arm with a one-page cap', () => {
+  const gesture = new AdjacentDiaryNavigator()
+  const offsets = [100, 110, 120, 130].map((now) => gesture.add(90, 0, false, true, 500, now)!)
+  expect(offsets.map((item) => item.phase)).toEqual(['feedback', 'pull', 'armed', 'complete'])
+  expect(offsets.map((item) => Math.abs(item.offset))).toEqual(
+    [...offsets.map((item) => Math.abs(item.offset))].sort((a, b) => a - b),
+  )
+  expect(offsets[3]!.progress).toBeGreaterThan(offsets[2]!.progress)
+  expect(gesture.add(90, 0, false, true, 500, 140)).toMatchObject({
+    phase: 'complete',
+    progress: 1,
+    offset: -500,
+  })
+  expect(gesture.add(90, 0, false, true, 500, 150)?.offset).toBe(-500)
+  expect(gesture.release()).toBe('commit')
+})
+
+it('normalizes wheel units and resets a gesture only after the idle gap', () => {
+  const gesture = new AdjacentDiaryNavigator()
+  expect(gesture.add(1, 1, false, true, 600, 100)?.offset).toBe(-16)
+  expect(gesture.add(1, 2, false, true, 600, 120)?.offset).toBeLessThan(-72)
+  expect(gesture.add(1, 2, false, true, 600, 240)?.offset).toBe(-64)
+  expect(gesture.add(-1, 2, true, false, 600, 250)?.offset).toBe(64)
 })
 
 it('validates custom colors and restores a saved theme color', () => {

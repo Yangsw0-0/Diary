@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from 'vitest'
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { useState } from 'react'
 import { CrepeEditor } from '@/features/diary/CrepeEditor'
 import type { EditorAdapter } from '@/application/EditorAdapter'
@@ -23,6 +23,7 @@ it('waits for editor startup before inserting an attachment link', async () => {
     destroy: async () => {},
     setReadonly: () => {},
     focusSection: () => true,
+    placeCursorAt: () => true,
     getMarkdown: () => '',
     insertMarkdown: insert,
   }
@@ -56,6 +57,7 @@ it('consumes an insertion after success so an editor remount cannot repeat it', 
     destroy: async () => {},
     setReadonly: () => {},
     focusSection: () => true,
+    placeCursorAt: () => true,
     getMarkdown: () => '',
     insertMarkdown: insert,
   }
@@ -89,4 +91,45 @@ it('consumes an insertion after success so an editor remount cannot repeat it', 
   screen.getByRole('button', { name: '重载编辑器' }).click()
   await waitFor(() => expect(mount).toHaveBeenCalledTimes(2))
   expect(insert).toHaveBeenCalledTimes(1)
+})
+
+it('inserts a block from the paragraph context menu at the clicked cursor', async () => {
+  const insert = vi.fn()
+  const placeCursorAt = vi.fn(() => true)
+  const adapter: EditorAdapter = {
+    mount: async (root) => {
+      const paragraph = document.createElement('p')
+      paragraph.textContent = '正文'
+      const editor = document.createElement('div')
+      editor.className = 'ProseMirror'
+      editor.append(paragraph)
+      root.append(editor)
+    },
+    destroy: async () => {},
+    setReadonly: () => {},
+    focusSection: () => true,
+    getMarkdown: () => '',
+    placeCursorAt,
+    insertMarkdown: insert,
+  }
+  render(
+    <CrepeEditor
+      markdown="# 2024-02-29"
+      onChange={() => {}}
+      onComposing={() => {}}
+      readOnly={false}
+      createAdapter={() => adapter}
+      focusRequest={null}
+      onMissingSection={() => {}}
+      onReady={() => {}}
+    />,
+  )
+  const paragraph = await screen.findByText('正文')
+  fireEvent.contextMenu(paragraph, { clientX: 120, clientY: 180 })
+  expect(placeCursorAt).toHaveBeenCalledWith(120, 180)
+  const menu = screen.getByRole('menu', { name: '插入插件' })
+  fireEvent.pointerDown(menu)
+  fireEvent.click(screen.getByRole('menuitem', { name: '分隔线' }))
+  expect(insert).toHaveBeenCalledWith('\n\n---\n\n')
+  expect(screen.queryByRole('menu', { name: '插入插件' })).not.toBeInTheDocument()
 })

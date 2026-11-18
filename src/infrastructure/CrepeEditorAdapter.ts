@@ -2,6 +2,9 @@ import type { EditorAdapter } from '@/application/EditorAdapter'
 import { TagName } from '@/domain/TagName'
 import type { TagCompletion } from '@/application/TagCompletion'
 import { createTagCompletionPlugin } from './TagCompletionPlugin'
+import { editorViewCtx } from '@milkdown/kit/core'
+import { Selection } from '@milkdown/kit/prose/state'
+import { blockHandlePlacement } from './blockHandlePlacement'
 
 interface AttachmentHooks {
   readonly onUpload?: (file: File) => Promise<string>
@@ -38,6 +41,12 @@ export class CrepeEditorAdapter implements EditorAdapter {
       root,
       defaultValue: markdown,
       featureConfigs: {
+        [CrepeFeature.BlockEdit]: {
+          blockHandle: {
+            getOffset: () => 6,
+            getPlacement: ({ editorDom, blockDom }) => blockHandlePlacement(editorDom, blockDom),
+          },
+        },
         [CrepeFeature.ImageBlock]: {
           ...(this.attachments.onUpload ? { onUpload: this.attachments.onUpload } : {}),
           ...(this.attachments.previewUrl
@@ -100,6 +109,20 @@ export class CrepeEditorAdapter implements EditorAdapter {
   getMarkdown(): string {
     if (!this.editor) throw new Error('编辑器尚未启动')
     return this.editor.getMarkdown()
+  }
+
+  placeCursorAt(x: number, y: number): boolean {
+    if (!this.editor) return false
+    let placed = false
+    this.editor.editor.action((ctx) => {
+      const view = ctx.get(editorViewCtx)
+      const position = view.posAtCoords({ left: x, top: y })?.pos
+      if (position === undefined) return
+      view.dispatch(view.state.tr.setSelection(Selection.near(view.state.doc.resolve(position))))
+      view.focus()
+      placed = true
+    })
+    return placed
   }
 
   insertMarkdown(markdown: string): void {

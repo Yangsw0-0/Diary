@@ -2,7 +2,7 @@
 
 一个本地 Markdown 日记应用。首个正式版面向 macOS，使用 Tauri 2、React、TypeScript 和 Rust。Windows 适配目前不在计划内。
 
-M1–M6 已实现，macOS 正式版为 `1.0.0`；当前版本为 `1.2.1`。旧文件批量导入工具属于后续额外工作。
+M1–M6 已实现，macOS 正式版为 `1.0.0`；当前版本为 `1.2.2`。旧文件批量导入工具属于后续额外工作。
 
 [项目规划](./docs/Diary-Project-Plan.md) · [进度与任务](./docs/Diary-Project-Progress.md) · [使用说明](./docs/Diary-User-Guide.md) · [1.1.0 交互规划](./docs/Diary-Interaction-Iteration-Plan.md)
 
@@ -33,7 +33,7 @@ M1–M6 已实现，macOS 正式版为 `1.0.0`；当前版本为 `1.2.1`。旧�
 
 ## macOS 安装
 
-最新 `1.2.1` 安装包可从 [GitHub Release 下载](https://github.com/Yangsw0-0/Diary/releases/tag/v1.2.1)，适用于 Apple 芯片 Mac。直接下载：[Diary_1.2.1_aarch64.zip](https://github.com/Yangsw0-0/Diary/releases/download/v1.2.1/Diary_1.2.1_aarch64.zip)。解压后退出旧版 Diary，再将 `Diary.app` 拖到「应用程序」文件夹替换旧版。首次运行请选择一个已有的日记文件夹。应用使用临时（ad hoc）签名，未做 Apple 公证；macOS 若阻止打开，请在系统设置的「隐私与安全性」中确认你信任此应用后手动放行。不要忽略来源不明安装包的安全提示。
+最新 `1.2.2` 安装包可从 [GitHub Release 下载](https://github.com/Yangsw0-0/Diary/releases/tag/v1.2.2)，适用于 Apple 芯片 Mac。直接下载：[Diary_1.2.2_aarch64.zip](https://github.com/Yangsw0-0/Diary/releases/download/v1.2.2/Diary_1.2.2_aarch64.zip)。解压后退出旧版 Diary，再将 `Diary.app` 拖到「应用程序」文件夹替换旧版。首次运行请选择一个已有的日记文件夹。应用使用临时（ad hoc）签名，未做 Apple 公证；macOS 若阻止打开，请在系统设置的「隐私与安全性」中确认你信任此应用后手动放行。不要忽略来源不明安装包的安全提示。
 
 本版本只支持 macOS。附件上限为单个 20 MiB；删除正文中的附件链接不会清理附件文件，清理时请在备份后手动核对。项目不提供云同步或自动备份，建议定期复制整个日记根目录。
 
