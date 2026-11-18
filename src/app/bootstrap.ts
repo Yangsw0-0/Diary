@@ -2,6 +2,7 @@ import { BookOpenText, Tags } from 'lucide-react'
 import type { DiaryRepository } from '@/domain/DiaryRepository'
 import { createDiaryPanels } from '@/features/diary/DiaryPanels'
 import { CrepeEditorAdapter } from '@/infrastructure/CrepeEditorAdapter'
+import { TagCompletion } from '@/application/TagCompletion'
 import { createTagsPanels } from '@/features/tags/TagsPanels'
 import { ModuleRegistry } from './moduleRegistry'
 import { createServices } from './services'
@@ -15,15 +16,21 @@ export function createApp(
   attachmentGateway?: AttachmentGateway,
 ) {
   const services = createServices(repository, workspaceGateway, attachmentGateway)
+  const completion = new TagCompletion((prefix) =>
+    services.tagIndex.getCompletionCandidates(prefix),
+  )
   const diaryPanels = createDiaryPanels(
     services.session,
     services.attachments,
     (date) =>
-      new CrepeEditorAdapter({
-        onUpload: async (file) =>
-          (await services.attachments.importFile(date, file)).attachment.relativePath,
-        previewUrl: (url) => services.attachments.previewUrl(date, url),
-      }),
+      new CrepeEditorAdapter(
+        {
+          onUpload: async (file) =>
+            (await services.attachments.importFile(date, file)).attachment.relativePath,
+          previewUrl: (url) => services.attachments.previewUrl(date, url),
+        },
+        completion,
+      ),
   )
   const tagPanels = createTagsPanels(
     services.tagIndex,

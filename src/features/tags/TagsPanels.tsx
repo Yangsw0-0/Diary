@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button'
 import { useNavigation } from '@/app/NavigationContext'
 import type { DiarySession } from '@/application/DiarySession'
 import type { TagIndex } from '@/application/TagIndex'
+import { TagVisibility } from '@/application/TagVisibility'
 import type { TagSection, TagReadFailure, TagService } from '@/application/TagService'
 import { attachmentFileName, type AttachmentService } from '@/application/AttachmentService'
 import type { DiaryDate } from '@/domain/DiaryDate'
@@ -98,14 +99,34 @@ function TagImage({
 
 export function TagsList() {
   const { index, selectedKey, navigation, dirty } = useTags()
-  const { frequent, singleDay } = index.listGroups()
-  const groupButton = (group: (typeof frequent)[number]) => (
+  const [visibility] = useState(() => new TagVisibility(window.localStorage))
+  const [visibilityVersion, setVisibilityVersion] = useState(0)
+  void visibilityVersion
+  const [menu, setMenu] = useState<{ key: string; shown: boolean; x: number; y: number } | null>(
+    null,
+  )
+  useEffect(() => {
+    if (!menu) return
+    const close = () => setMenu(null)
+    window.addEventListener('pointerdown', close)
+    window.addEventListener('keydown', close)
+    return () => {
+      window.removeEventListener('pointerdown', close)
+      window.removeEventListener('keydown', close)
+    }
+  }, [menu])
+  const { frequent, singleDay } = index.listGroups(visibility)
+  const groupButton = (group: (typeof frequent)[number], shown: boolean) => (
     <li key={group.key}>
       <Button
         variant="ghost"
         className="tag-group-button"
         aria-current={selectedKey === group.key ? 'true' : undefined}
         onClick={() => void navigation.openTag(group.key)}
+        onContextMenu={(event) => {
+          event.preventDefault()
+          setMenu({ key: group.key, shown, x: event.clientX, y: event.clientY })
+        }}
       >
         <span title={group.displayTitle}>{group.displayTitle}</span>
         <small>{group.dayCount} 天</small>
@@ -137,12 +158,34 @@ export function TagsList() {
           <span>日记中的二级标题会汇集在这里。</span>
         </div>
       )}
-      {frequent.length > 0 && <ul className="tag-group-list">{frequent.map(groupButton)}</ul>}
+      {frequent.length > 0 && (
+        <ul className="tag-group-list">{frequent.map((group) => groupButton(group, true))}</ul>
+      )}
       {singleDay.length > 0 && (
         <details className="tag-single-day">
-          <summary>仅出现一次（{singleDay.length}）</summary>
-          <ul className="tag-group-list">{singleDay.map(groupButton)}</ul>
+          <summary>隐藏的标签（{singleDay.length}）</summary>
+          <ul className="tag-group-list">{singleDay.map((group) => groupButton(group, false))}</ul>
         </details>
+      )}
+      {menu && (
+        <div
+          className="diary-context-menu"
+          role="menu"
+          style={{ left: menu.x, top: menu.y }}
+          onPointerDown={(event) => event.stopPropagation()}
+        >
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              visibility.setShown(menu.key, !menu.shown)
+              setMenu(null)
+              setVisibilityVersion((current) => current + 1)
+            }}
+          >
+            {menu.shown ? '隐藏' : '显示'}
+          </button>
+        </div>
       )}
     </>
   )
@@ -240,22 +283,25 @@ export function TagsDetail() {
             key={occurrence.date.toString() + ':' + occurrence.ordinal}
             className="tag-section"
           >
-            <h3>
-              <Button
-                variant="link"
-                className="tag-section-date-button"
-                onClick={() =>
-                  void navigation.openDiarySection({
-                    date: occurrence.date,
-                    key: occurrence.key,
-                    ordinal: occurrence.ordinal,
-                  })
-                }
-              >
-                {occurrence.date.toString()}
-                {occurrence.ordinal > 0 ? ' · 第 ' + (occurrence.ordinal + 1) + ' 次' : ''}
-              </Button>
-            </h3>
+            <div className="tag-section-heading">
+              <h3>
+                <Button
+                  variant="link"
+                  className="tag-section-date-button"
+                  onClick={() =>
+                    void navigation.openDiarySection({
+                      date: occurrence.date,
+                      key: occurrence.key,
+                      ordinal: occurrence.ordinal,
+                    })
+                  }
+                >
+                  {occurrence.date.toString()}
+                  {occurrence.ordinal > 0 ? ' · 第 ' + (occurrence.ordinal + 1) + ' 次' : ''}
+                </Button>
+              </h3>
+              {occurrence.branch && <small>{occurrence.branch}</small>}
+            </div>
             <div className="tag-section-content">
               <Markdown
                 remarkPlugins={[remarkGfm]}

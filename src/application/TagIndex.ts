@@ -2,6 +2,7 @@ import type { DiaryDate } from '@/domain/DiaryDate'
 import type { DiaryEntry, DiarySummary } from '@/domain/DiaryEntry'
 import type { TagOccurrence } from '@/domain/TagOccurrence'
 import { MarkdownSectionExtractor } from './MarkdownSectionExtractor'
+import type { TagVisibility } from './TagVisibility'
 
 export interface TagGroup {
   readonly key: string
@@ -136,6 +137,34 @@ export class TagIndex {
     return this.summaries.get(date.toString())
   }
 
+  getDayLabels(date: DiaryDate): readonly string[] {
+    return this.byDate.get(date.toString())?.map((item) => item.displayTitle) ?? []
+  }
+
+  getCompletionCandidates(prefix: string): readonly string[] {
+    const normalized = prefix.trim().normalize('NFC')
+    if (!normalized) return []
+    const matches = new Map<string, { days: number; latest: string }>()
+    for (const [day, occurrences] of this.byDate) {
+      for (const title of new Set(occurrences.map((item) => item.displayTitle))) {
+        if (!title.normalize('NFC').startsWith(normalized) || title === normalized) continue
+        const current = matches.get(title)
+        matches.set(title, {
+          days: (current?.days ?? 0) + 1,
+          latest: current?.latest && current.latest > day ? current.latest : day,
+        })
+      }
+    }
+    return [...matches]
+      .sort(
+        ([a, left], [b, right]) =>
+          right.days - left.days ||
+          right.latest.localeCompare(left.latest) ||
+          a.localeCompare(b, 'zh-CN'),
+      )
+      .map(([title]) => title)
+  }
+
   getOccurrences(key: string): readonly TagOccurrence[] {
     const dates = this.byTag.get(key)
     if (!dates) return []
@@ -144,27 +173,34 @@ export class TagIndex {
       .sort((a, b) => b.date.compare(a.date) || a.ordinal - b.ordinal)
   }
 
-  listGroups(): TagGroups {
-    if (this.groupCache?.version === this.version) return this.groupCache.groups
+  listGroups(visibility?: TagVisibility): TagGroups {
+    if (!visibility && this.groupCache?.version === this.version) return this.groupCache.groups
     const all: TagGroup[] = []
     for (const [key, dates] of this.byTag) {
       const latest = this.getOccurrences(key)[0]
       if (!latest) continue
       all.push({
         key,
-        displayTitle: latest.displayTitle,
+        displayTitle: key,
         dayCount: dates.size,
         latestDate: latest.date,
       })
     }
     all.sort(
-      (a, b) => b.latestDate.compare(a.latestDate) || (a.key < b.key ? -1 : a.key > b.key ? 1 : 0),
+      (a, b) =>
+        b.dayCount - a.dayCount ||
+        b.latestDate.compare(a.latestDate) ||
+        (a.key < b.key ? -1 : a.key > b.key ? 1 : 0),
     )
     const groups = {
-      frequent: all.filter((group) => group.dayCount >= 2),
-      singleDay: all.filter((group) => group.dayCount === 1),
+      frequent: all.filter(
+        (group) => visibility?.isShown(group.key, group.dayCount) ?? group.dayCount >= 2,
+      ),
+      singleDay: all.filter(
+        (group) => !(visibility?.isShown(group.key, group.dayCount) ?? group.dayCount >= 2),
+      ),
     }
-    this.groupCache = { version: this.version, groups }
+    if (!visibility) this.groupCache = { version: this.version, groups }
     return groups
   }
 }

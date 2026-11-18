@@ -2,6 +2,7 @@ import {
   createContext,
   useContext,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   useSyncExternalStore,
@@ -15,6 +16,7 @@ import { CrepeEditor } from './CrepeEditor'
 import { useNavigation } from '@/app/NavigationContext'
 import type { AttachmentService } from '@/application/AttachmentService'
 import type { DiaryDate } from '@/domain/DiaryDate'
+import Markdown from 'react-markdown'
 
 const DiaryContext = createContext<{
   session: DiarySession
@@ -60,6 +62,42 @@ export function DiaryList() {
   const [session, { entries, failures, selected, loading, opening }] = useDiary()
   const navigation = useNavigation()
   const [menu, setMenu] = useState<{ date: DiaryDate; x: number; y: number } | null>(null)
+  const listRef = useRef<HTMLUListElement>(null)
+  const [highlight, setHighlight] = useState<{
+    top: number
+    height: number
+    width: number
+    left: number
+  } | null>(null)
+  useLayoutEffect(() => {
+    const list = listRef.current
+    if (!list || !selected) {
+      setHighlight(null)
+      return
+    }
+    const update = () => {
+      const button = [...list.querySelectorAll<HTMLElement>('.diary-date-button')].find(
+        (item) => item.getAttribute('aria-current') === 'true',
+      )
+      if (!button) {
+        setHighlight(null)
+        return
+      }
+      const listBox = list.getBoundingClientRect()
+      const box = button.getBoundingClientRect()
+      setHighlight({
+        top: box.top - listBox.top,
+        left: box.left - listBox.left,
+        width: box.width,
+        height: box.height,
+      })
+    }
+    update()
+    if (typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(update)
+    observer.observe(list)
+    return () => observer.disconnect()
+  }, [selected?.date.toString(), entries])
   useEffect(() => {
     if (!menu) return
     const close = () => setMenu(null)
@@ -107,9 +145,21 @@ export function DiaryList() {
         </div>
       )}
       {entries.length > 0 && (
-        <ul className="diary-date-list">
+        <ul className="diary-date-list" ref={listRef}>
+          {highlight && (
+            <li
+              className="diary-selection-glass"
+              aria-hidden="true"
+              style={{
+                top: highlight.top,
+                left: highlight.left,
+                width: highlight.width,
+                height: highlight.height,
+              }}
+            />
+          )}
           {entries.map((entry, index) => {
-            const title = session.getSummary(entry.date) ?? ''
+            const title = session.getLabels(entry.date).join('·')
             const previousYear = entries[index - 1]?.date.year
             const showYear = previousYear !== entry.date.year
             return (
@@ -188,7 +238,7 @@ export function DiaryList() {
 }
 
 export function DiaryDetail() {
-  const [session, { selected, opening }, attachments, createAdapter] = useDiary()
+  const [session, { selected, opening, entries }, attachments, createAdapter] = useDiary()
   const navigation = useNavigation()
   const input = useRef<HTMLInputElement>(null)
   const insertId = useRef(0)
@@ -268,6 +318,8 @@ export function DiaryDetail() {
       : selected.version !== selected.savedVersion
         ? '尚未保存'
         : '已保存'
+  const selectedIndex = entries.findIndex((entry) => entry.date.equals(selected.date))
+  const older = selectedIndex >= 0 ? entries[selectedIndex + 1] : undefined
   return (
     <article className="diary-editor-layout">
       <div className="diary-editor-toolbar">
@@ -375,6 +427,21 @@ export function DiaryDetail() {
         onMissingSection={navigation.reportMissingSection}
         onReady={navigation.restoreScroll}
       />
+      {older && (
+        <div
+          className="diary-adjacent-teaser"
+          aria-label={`上一篇日记 ${older.date.toString()} 的预览`}
+        >
+          <strong>{older.date.toString()}</strong>
+          <div className="diary-adjacent-teaser-content">
+            <Markdown
+              components={{ img: () => null, a: ({ children }) => <span>{children}</span> }}
+            >
+              {older.markdown.slice(0, 500)}
+            </Markdown>
+          </div>
+        </div>
+      )}
     </article>
   )
 }

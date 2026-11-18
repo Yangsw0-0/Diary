@@ -16,6 +16,8 @@ import { Separator } from '@/components/ui/separator'
 import type { ModuleCatalog } from './moduleRegistry'
 import { SettingsPanel } from '@/features/settings/SettingsPanel'
 import { ViewControls } from './ViewControls'
+import { AdjacentDiaryNavigator } from '@/application/AdjacentDiaryNavigator'
+import Markdown from 'react-markdown'
 
 const MIN_LIST_WIDTH = 168
 const MAX_LIST_WIDTH = 420
@@ -33,6 +35,8 @@ interface AppShellProps {
   readonly onSavePreferences?: (width: number | null, collapsed: boolean) => Promise<void>
   readonly theme?: 'light' | 'dark'
   readonly onSaveTheme?: (theme: 'light' | 'dark') => Promise<void>
+  readonly accentColor?: string
+  readonly onSaveAccentColor?: (value: string) => void
 }
 
 export function AppShell({
@@ -47,6 +51,8 @@ export function AppShell({
   onSavePreferences,
   theme = 'light',
   onSaveTheme,
+  accentColor,
+  onSaveAccentColor,
 }: AppShellProps) {
   const [sidebarWidth, setSidebarWidth] = useState(
     initialSidebarWidth != null && initialSidebarWidth >= 172 && initialSidebarWidth <= 500
@@ -66,6 +72,21 @@ export function AppShell({
     tags: 100,
   })
   const [viewportWidth, setViewportWidth] = useState(() => window.innerWidth)
+  const adjacentGesture = useRef(new AdjacentDiaryNavigator())
+  const [adjacentPreview, setAdjacentPreview] = useState<{
+    direction: 'older' | 'newer'
+    progress: number
+    date: string
+    markdown: string
+  } | null>(null)
+  const [adjacentBusy, setAdjacentBusy] = useState(false)
+  const gestureReset = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(
+    () => () => {
+      if (gestureReset.current) clearTimeout(gestureReset.current)
+    },
+    [],
+  )
   const resizeCleanup = useRef<(() => void) | null>(null)
   useEffect(() => () => resizeCleanup.current?.(), [])
   useEffect(() => {
@@ -128,6 +149,46 @@ export function AppShell({
   const activeModule = registry.require(activeId)
   const showViewControls =
     !settingsOpen && (activeId === 'tags' || (activeId === 'diary' && !!sessionSnapshot.selected))
+  const onAdjacentWheel = (element: HTMLElement, deltaY: number, deltaMode: number) => {
+    if (adjacentBusy || sessionSnapshot.opening || activeId !== 'diary') return
+    const selected = sessionSnapshot.selected
+    if (!selected) return
+    const index = sessionSnapshot.entries.findIndex((entry) => entry.date.equals(selected.date))
+    if (index < 0) return
+    const atTop = element.scrollTop <= 2
+    const atBottom = element.scrollTop + element.clientHeight >= element.scrollHeight - 3
+    const gesture = adjacentGesture.current.add(deltaY, deltaMode, atTop, atBottom, Date.now())
+    if (gestureReset.current) clearTimeout(gestureReset.current)
+    if (!gesture) {
+      setAdjacentPreview(null)
+      return
+    }
+    const target = sessionSnapshot.entries[index + (gesture.direction === 'older' ? 1 : -1)]
+    if (!target) {
+      adjacentGesture.current.reset()
+      setAdjacentPreview(null)
+      return
+    }
+    setAdjacentPreview({
+      direction: gesture.direction,
+      progress: gesture.progress,
+      date: target.date.toString(),
+      markdown: target.markdown,
+    })
+    if (gesture.ready) {
+      adjacentGesture.current.reset()
+      setAdjacentBusy(true)
+      void navigation.openDiary(target.date).finally(() => {
+        setAdjacentBusy(false)
+        setAdjacentPreview(null)
+      })
+    } else {
+      gestureReset.current = setTimeout(() => {
+        adjacentGesture.current.reset()
+        setAdjacentPreview(null)
+      }, 700)
+    }
+  }
   const setZoomClamped = (moduleId: string, value: number) =>
     setZoomByModule((current) => ({
       ...current,
@@ -339,6 +400,8 @@ export function AppShell({
               onChooseRoot={onChooseRoot}
               theme={theme}
               onSaveTheme={onSaveTheme}
+              accentColor={accentColor}
+              onSaveAccentColor={onSaveAccentColor}
               onError={setSidebarError}
             />
           )}
@@ -402,9 +465,36 @@ export function AppShell({
                   aria-label={module.detailLabel}
                   ref={(element) => registerContent(module.id, element)}
                   onScroll={(event) => updateScroll(module.id, event.currentTarget.scrollTop)}
+                  onWheel={(event) => {
+                    if (module.id === 'diary' && !event.ctrlKey && !event.metaKey)
+                      onAdjacentWheel(event.currentTarget, event.deltaY, event.deltaMode)
+                  }}
                 >
                   <Detail />
                 </section>
+                {module.id === 'diary' && adjacentPreview && activeId === 'diary' && (
+                  <div
+                    className="adjacent-diary-preview"
+                    data-direction={adjacentPreview.direction}
+                    style={{ '--gesture-progress': adjacentPreview.progress } as CSSProperties}
+                    aria-hidden="true"
+                  >
+                    <div className="adjacent-preview-paper">
+                      <strong>{adjacentPreview.date}</strong>
+                      <Markdown
+                        components={{
+                          img: () => null,
+                          a: ({ children }) => <span>{children}</span>,
+                        }}
+                      >
+                        {adjacentPreview.markdown.slice(0, 700)}
+                      </Markdown>
+                    </div>
+                    <span className="adjacent-preview-hint">
+                      {adjacentPreview.progress >= 1 ? '正在切换…' : '继续滚动以切换日记'}
+                    </span>
+                  </div>
+                )}
                 {showViewControls && activeId === module.id && (
                   <ViewControls
                     zoom={moduleZoom}

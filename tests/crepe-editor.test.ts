@@ -1,5 +1,6 @@
 import { expect, it, vi } from 'vitest'
 import { CrepeEditorAdapter } from '@/infrastructure/CrepeEditorAdapter'
+import { TagCompletion } from '@/application/TagCompletion'
 
 it('loads Markdown into Crepe and serializes it back', async () => {
   const root = document.createElement('div')
@@ -45,6 +46,19 @@ it('inserts a rendered attachment link and keeps its relative path in Markdown',
       '[资料](../assets/2024/2024-02-29/att-00000000000000000000000000000000.pdf)',
     )
     expect(adapter.getMarkdown()).toContain('../assets/2024/2024-02-29/att-')
+  } finally {
+    await adapter.destroy()
+    root.remove()
+  }
+})
+
+it('mounts a heading completion plugin without changing saved Markdown', async () => {
+  const root = document.createElement('div')
+  document.body.append(root)
+  const adapter = new CrepeEditorAdapter({}, new TagCompletion(() => ['探索自我 - 恋爱']))
+  try {
+    await adapter.mount(root, '# 2024-02-29\n## 探索自我 - 恋爱\n正文', () => {})
+    expect(adapter.getMarkdown()).toContain('## 探索自我 - 恋爱')
   } finally {
     await adapter.destroy()
     root.remove()

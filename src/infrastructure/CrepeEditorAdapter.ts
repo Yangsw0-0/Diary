@@ -1,4 +1,7 @@
 import type { EditorAdapter } from '@/application/EditorAdapter'
+import { TagName } from '@/domain/TagName'
+import type { TagCompletion } from '@/application/TagCompletion'
+import { createTagCompletionPlugin } from './TagCompletionPlugin'
 
 interface AttachmentHooks {
   readonly onUpload?: (file: File) => Promise<string>
@@ -14,9 +17,11 @@ export class CrepeEditorAdapter implements EditorAdapter {
   private readonly previewCache = new Map<string, Promise<string>>()
   private previewEpoch = 0
   private readonly attachments: AttachmentHooks
+  private readonly completion: TagCompletion | null
 
-  constructor(attachments: AttachmentHooks = {}) {
+  constructor(attachments: AttachmentHooks = {}, completion: TagCompletion | null = null) {
     this.attachments = attachments
+    this.completion = completion
   }
 
   async mount(
@@ -60,6 +65,7 @@ export class CrepeEditorAdapter implements EditorAdapter {
         },
       },
     })
+    if (this.completion) editor.editor.use(createTagCompletionPlugin(this.completion))
     editor.on((listener) => {
       listener.markdownUpdated((_ctx, next, previous) => {
         if (next !== previous) onChange(next)
@@ -83,7 +89,7 @@ export class CrepeEditorAdapter implements EditorAdapter {
   focusSection(key: string, ordinal: number): boolean {
     if (!this.root) return false
     const headings = [...this.root.querySelectorAll<HTMLElement>('.ProseMirror > h2')].filter(
-      (heading) => heading.textContent?.trim().normalize('NFC') === key,
+      (heading) => TagName.parse(heading.textContent ?? '')?.key === key,
     )
     const target = headings[ordinal]
     if (!target) return false

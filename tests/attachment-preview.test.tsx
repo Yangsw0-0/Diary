@@ -37,7 +37,7 @@ it('renders a selected-root image in tag details through the safe preview gatewa
   const app = createApp(repo, undefined, attachments)
   render(<AppShell registry={app.registry} session={app.services.session} />)
   await user.click(screen.getByRole('button', { name: '标签' }))
-  await user.click(screen.getByText('仅出现一次（1）'))
+  await user.click(screen.getByText('隐藏的标签（1）'))
   await user.click(await screen.findByRole('button', { name: /工作.*1 天/ }))
   await waitFor(() =>
     expect(screen.getByRole('img', { name: '图片' })).toHaveAttribute('src', 'blob:diary-image'),

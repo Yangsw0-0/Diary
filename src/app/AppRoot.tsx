@@ -7,6 +7,7 @@ import type { WorkspaceStatus } from '@/application/WorkspaceService'
 import type { ModuleCatalog } from './moduleRegistry'
 import type { AppServices } from './services'
 import { AppShell } from './AppShell'
+import { ThemePalette } from '@/application/ThemePalette'
 
 interface AppRootProps {
   readonly registry: ModuleCatalog
@@ -19,11 +20,16 @@ export function AppRoot({ registry, services }: AppRootProps) {
   const [choosing, setChoosing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [closePrompt, setClosePrompt] = useState(false)
+  const [accentColor, setAccentColor] = useState(() => ThemePalette.load(window.localStorage))
   const theme = status?.theme ?? 'light'
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', theme === 'dark')
   }, [theme])
+
+  useEffect(() => {
+    document.documentElement.style.setProperty('--diary-theme-color', accentColor)
+  }, [accentColor])
 
   useEffect(() => {
     let current = true
@@ -156,6 +162,8 @@ export function AppRoot({ registry, services }: AppRootProps) {
           services.workspace.savePreferences(width, collapsed)
         }
         theme={theme}
+        accentColor={accentColor}
+        onSaveAccentColor={(value) => setAccentColor(ThemePalette.save(window.localStorage, value))}
         onSaveTheme={async (next) => {
           await services.workspace.saveTheme(next)
           setStatus((current) => (current ? { ...current, theme: next } : current))

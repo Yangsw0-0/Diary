@@ -4,6 +4,7 @@ export interface TagOccurrence {
   readonly date: DiaryDate
   readonly key: string
   readonly displayTitle: string
+  readonly branch?: string | null
   readonly ordinal: number
   readonly revision: string
   /** UTF-16 code unit offsets into the original Markdown; ranges are half-open. */

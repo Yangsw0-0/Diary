@@ -165,11 +165,11 @@ it('keeps the current diary when another date fails to load', async () => {
   expect(screen.getByText('# 2024-02-29 Saved')).toBeInTheDocument()
 })
 
-it('groups dates by year and displays long titles without changing the date label', async () => {
+it('groups dates by year and displays long tag labels without changing the date label', async () => {
   const longTitle = '这是一段很长的日记标题'.repeat(8)
   const newer = {
     date: DiaryDate.parse('2025-01-01'),
-    markdown: `# 2025-01-01 ${longTitle}`,
+    markdown: `# 2025-01-01\n## ${longTitle}`,
     revision: 'r2',
   }
   const older = {
@@ -187,7 +187,11 @@ it('groups dates by year and displays long titles without changing the date labe
     'aria-label',
     '2025-01-01',
   )
-  expect(screen.getByText(longTitle)).toHaveAttribute('title', longTitle)
+  expect(
+    screen
+      .getAllByText(longTitle)
+      .find((element) => element.classList.contains('diary-list-title')),
+  ).toHaveAttribute('title', longTitle)
   expect(screen.getAllByText('2025').length).toBeGreaterThan(0)
   expect(screen.getByText('2024')).toBeInTheDocument()
 })
@@ -212,17 +216,17 @@ it('shows frequent tags by day, keeps single-day tags collapsed and renders read
   renderShell(diary)
   await user.click(screen.getByRole('button', { name: '标签' }))
   expect(await screen.findByRole('button', { name: /工作.*2 天/ })).toBeInTheDocument()
-  expect(screen.getByText('仅出现一次（1）')).toBeInTheDocument()
+  expect(screen.getByText('隐藏的标签（1）')).toBeInTheDocument()
   await user.click(screen.getByRole('button', { name: /工作.*2 天/ }))
   expect(await screen.findByText('第二天')).toBeInTheDocument()
   expect(screen.getByText('第一天').tagName).toBe('STRONG')
   expect(screen.getByText('第二次')).toBeInTheDocument()
 })
 
-it('uses the parsed visible heading for a formatted diary title', async () => {
+it('uses the parsed visible heading for a formatted diary tag', async () => {
   const entry = {
     date: DiaryDate.parse('2026-07-11'),
-    markdown: '# 2026-07-11 **Bold**',
+    markdown: '# 2026-07-11\n## **Bold**',
     revision: 'r1',
   }
   const diary: DiaryRepository = {

@@ -85,6 +85,10 @@ export class DiarySession {
     return this.service.getSummary(date)?.title
   }
 
+  getLabels(date: DiaryDate): readonly string[] {
+    return this.service.getLabels(date)
+  }
+
   private set(next: Partial<DiarySessionSnapshot>): void {
     this.snapshot = { ...this.snapshot, ...next }
     for (const listener of this.listeners) {

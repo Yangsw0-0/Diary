@@ -96,6 +96,10 @@ export class DiaryService {
     return this.index.getSummary(date)
   }
 
+  getLabels(date: DiaryDate): readonly string[] {
+    return this.index.getDayLabels(date)
+  }
+
   clearIndex(): void {
     this.workspaceEpoch++
     this.latestSaved.clear()

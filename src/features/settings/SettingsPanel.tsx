@@ -1,5 +1,6 @@
 import { FolderOpen, Moon, Sun } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { ThemePalette } from '@/application/ThemePalette'
 
 interface SettingsPanelProps {
   root: string | undefined
@@ -8,6 +9,8 @@ interface SettingsPanelProps {
   theme: 'light' | 'dark'
   onSaveTheme?: ((theme: 'light' | 'dark') => Promise<void>) | undefined
   onError: (message: string) => void
+  accentColor?: string | undefined
+  onSaveAccentColor?: ((value: string) => void) | undefined
 }
 
 export function SettingsPanel({
@@ -17,6 +20,8 @@ export function SettingsPanel({
   theme,
   onSaveTheme,
   onError,
+  accentColor = ThemePalette.presets.green,
+  onSaveAccentColor,
 }: SettingsPanelProps) {
   return (
     <section className="settings-panel" aria-label="设置">
@@ -32,6 +37,40 @@ export function SettingsPanel({
           <FolderOpen aria-hidden="true" />
           {choosingRoot ? '正在选择…' : '更换文件夹'}
         </Button>
+      </div>
+      <div className="settings-card">
+        <div>
+          <h2>主题色</h2>
+          <p>选择绿色、浅粉、浅蓝，或从调色盘自选颜色。</p>
+        </div>
+        <div className="settings-colors" role="group" aria-label="主题色">
+          {Object.entries(ThemePalette.presets).map(([name, color]) => (
+            <button
+              key={name}
+              type="button"
+              className="settings-color-swatch"
+              style={{ backgroundColor: color }}
+              aria-label={{ green: '绿色', pink: '浅粉色', blue: '浅蓝色' }[name]}
+              aria-pressed={accentColor === color}
+              onClick={() => onSaveAccentColor?.(color)}
+            />
+          ))}
+          <label className="settings-color-custom">
+            自选{' '}
+            <input
+              type="color"
+              aria-label="自选主题色"
+              value={accentColor}
+              onChange={(event) => {
+                try {
+                  onSaveAccentColor?.(event.target.value)
+                } catch (reason) {
+                  onError(reason instanceof Error ? reason.message : '主题色无效')
+                }
+              }}
+            />
+          </label>
+        </div>
       </div>
       <div className="settings-card">
         <div>

@@ -51,6 +51,7 @@
 }
 
 :root {
+  --diary-theme-color: #8fae94;
   --diary-brand: #27352e;
   --diary-brand-foreground: #f6f8ef;
   --diary-active: #e8eee8;
@@ -98,20 +99,35 @@
   --sidebar-ring: oklch(0.708 0 0);
 }
 
+:root:not(.dark) {
+  --diary-brand: color-mix(in srgb, var(--diary-theme-color) 32%, #152019);
+  --diary-active: color-mix(in srgb, var(--diary-theme-color) 22%, white);
+  --diary-active-hover: color-mix(in srgb, var(--diary-theme-color) 31%, white);
+  --diary-active-foreground: color-mix(in srgb, var(--diary-theme-color) 40%, #132017);
+  --diary-subtle: color-mix(in srgb, var(--diary-theme-color) 45%, #59635a);
+  --diary-placeholder: color-mix(in srgb, var(--diary-theme-color) 9%, white);
+  --diary-placeholder-border: color-mix(in srgb, var(--diary-theme-color) 21%, white);
+  --diary-empty-icon: color-mix(in srgb, var(--diary-theme-color) 17%, white);
+  --diary-empty-icon-foreground: color-mix(in srgb, var(--diary-theme-color) 57%, #29382f);
+  --diary-heading: color-mix(in srgb, var(--diary-theme-color) 25%, #1f2d23);
+  --sidebar-accent: var(--diary-active);
+  --sidebar-accent-foreground: var(--diary-active-foreground);
+}
+
 .dark {
-  --diary-brand: #d4e6d5;
+  --diary-brand: color-mix(in srgb, var(--diary-theme-color) 60%, white);
   --diary-brand-foreground: #1d2b21;
-  --diary-active: #304437;
-  --diary-active-hover: #3a5041;
-  --diary-active-foreground: #e5f2e5;
+  --diary-active: color-mix(in srgb, var(--diary-theme-color) 23%, #1c2420);
+  --diary-active-hover: color-mix(in srgb, var(--diary-theme-color) 30%, #1c2420);
+  --diary-active-foreground: color-mix(in srgb, var(--diary-theme-color) 65%, white);
   --diary-list: #1c2420;
-  --diary-subtle: #a8b9aa;
-  --diary-placeholder: #253029;
-  --diary-placeholder-border: #445348;
-  --diary-placeholder-icon: #a2b5a5;
-  --diary-empty-icon: #2b3b30;
-  --diary-empty-icon-foreground: #aec4b0;
-  --diary-heading: #e8f0e9;
+  --diary-subtle: color-mix(in srgb, var(--diary-theme-color) 45%, #b1b8b3);
+  --diary-placeholder: color-mix(in srgb, var(--diary-theme-color) 9%, #1c2420);
+  --diary-placeholder-border: color-mix(in srgb, var(--diary-theme-color) 20%, #36403a);
+  --diary-placeholder-icon: color-mix(in srgb, var(--diary-theme-color) 50%, #a6afa9);
+  --diary-empty-icon: color-mix(in srgb, var(--diary-theme-color) 14%, #26322a);
+  --diary-empty-icon-foreground: color-mix(in srgb, var(--diary-theme-color) 65%, #dce7de);
+  --diary-heading: color-mix(in srgb, var(--diary-theme-color) 18%, white);
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.205 0 0);

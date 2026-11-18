@@ -91,7 +91,7 @@ it('restores the last diary section when reopening its module', async () => {
   }
   renderApp(repo)
   await user.click(screen.getByRole('button', { name: '标签' }))
-  await user.click(screen.getByText('仅出现一次（1）'))
+  await user.click(screen.getByText('隐藏的标签（1）'))
   await user.click(await screen.findByRole('button', { name: /工作.*1 天/ }))
   await user.click(await screen.findByRole('button', { name: /2024-12-31.*第 2 次/ }))
   await user.click(screen.getByRole('button', { name: '标签' }))
@@ -143,7 +143,7 @@ it('opens the day and reports when a tag target changed', async () => {
   }
   renderApp(repo)
   await user.click(screen.getByRole('button', { name: '标签' }))
-  await user.click(screen.getByText('仅出现一次（1）'))
+  await user.click(screen.getByText('隐藏的标签（1）'))
   await user.click(await screen.findByRole('button', { name: /工作.*1 天/ }))
   expect(await screen.findByText('第二次')).toBeInTheDocument()
   disk = { ...first, markdown: '# 2024-12-31\n## 家庭\n变化', revision: 'r3' }
@@ -187,7 +187,7 @@ it('saves an edited diary before returning to the tag view', async () => {
   }
   const app = renderApp(repo)
   await user.click(screen.getByRole('button', { name: '标签' }))
-  await user.click(screen.getByText('仅出现一次（1）'))
+  await user.click(screen.getByText('隐藏的标签（1）'))
   await user.click(await screen.findByRole('button', { name: /工作.*1 天/ }))
   await user.click(await screen.findByRole('button', { name: /2024-12-31.*第 2 次/ }))
   app.services.session.edit('# 2024-12-31\n## 工作\n第一次\n## 工作\n修订后')

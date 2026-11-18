@@ -6,6 +6,7 @@ import type { Heading } from 'mdast'
 import type { DiaryDate } from '@/domain/DiaryDate'
 import type { DiarySummary } from '@/domain/DiaryEntry'
 import type { TagOccurrence } from '@/domain/TagOccurrence'
+import { TagName } from '@/domain/TagName'
 
 export interface ExtractedDay {
   readonly summary: DiarySummary
@@ -33,9 +34,9 @@ export class MarkdownSectionExtractor {
     for (let index = 0; index < children.length; index++) {
       const node = children[index]
       if (node?.type !== 'heading' || node.depth !== 2) continue
-      const displayTitle = toString(node)
-      const key = displayTitle.trim().normalize('NFC')
-      if (!key) continue
+      const name = TagName.parse(toString(node))
+      if (!name) continue
+      const { displayTitle, key, branch } = name
       const headingOffset = node.position?.start.offset
       const contentStartOffset = node.position?.end.offset
       if (headingOffset === undefined || contentStartOffset === undefined) continue
@@ -53,6 +54,7 @@ export class MarkdownSectionExtractor {
         date,
         key,
         displayTitle,
+        branch,
         ordinal,
         revision,
         headingOffset,
