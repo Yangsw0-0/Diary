@@ -1,4 +1,4 @@
-use crate::error::AppError;
+use crate::{error::AppError, platform};
 
 fn checked_url(value: &str) -> Result<url::Url, AppError> {
     let parsed =
@@ -13,19 +13,9 @@ fn checked_url(value: &str) -> Result<url::Url, AppError> {
 #[tauri::command]
 pub async fn open_external_link(url: String) -> Result<(), AppError> {
     let checked = checked_url(&url)?;
-    let status = tauri::async_runtime::spawn_blocking(move || {
-        std::process::Command::new("open")
-            .arg(checked.as_str())
-            .status()
-    })
-    .await
-    .map_err(|error| AppError::new("unexpected", error.to_string()))?
-    .map_err(AppError::from_io)?;
-    if status.success() {
-        Ok(())
-    } else {
-        Err(AppError::new("unexpected", "系统无法打开链接"))
-    }
+    tauri::async_runtime::spawn_blocking(move || platform::open_url(checked.as_str()))
+        .await
+        .map_err(|error| AppError::new("unexpected", error.to_string()))?
 }
 
 #[cfg(test)]

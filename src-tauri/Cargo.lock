@@ -612,7 +612,7 @@ dependencies = [
 
 [[package]]
 name = "diary"
-version = "1.2.3"
+version = "1.3.0"
 dependencies = [
  "libc",
  "log",
@@ -624,6 +624,7 @@ dependencies = [
  "tauri-plugin-dialog",
  "tauri-plugin-log",
  "url",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]

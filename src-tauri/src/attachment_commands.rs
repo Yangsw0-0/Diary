@@ -26,7 +26,9 @@ pub async fn import_attachment(
     let encoded_name = header("x-diary-name")?;
     let name_bytes: Result<Vec<u8>, _> = encoded_name
         .as_bytes()
-        .chunks_exact(2)
+        .as_chunks::<2>()
+        .0
+        .iter()
         .map(|pair| u8::from_str_radix(std::str::from_utf8(pair).unwrap_or(""), 16))
         .collect();
     if encoded_name.len() % 2 != 0 {

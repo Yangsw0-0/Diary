@@ -4,6 +4,7 @@ mod diary_commands;
 mod diary_storage;
 mod error;
 mod external_link;
+mod platform;
 mod workspace;
 
 use tauri::Manager;

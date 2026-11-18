@@ -1,10 +1,7 @@
 use std::{
     fs,
-    fs::OpenOptions,
     io::{Read, Write},
-    os::unix::fs::OpenOptionsExt,
     path::{Path, PathBuf},
-    process::Command,
     sync::atomic::{AtomicU64, Ordering},
     time::{SystemTime, UNIX_EPOCH},
 };
@@ -12,8 +9,9 @@ use std::{
 use serde::Serialize;
 
 use crate::{
-    diary_storage::{DiaryDate, create_temp_file},
+    diary_storage::{DiaryDate, create_temp_file, link_or_copy_new},
     error::AppError,
+    platform,
 };
 
 pub const MAX_ATTACHMENT_BYTES: usize = 20 * 1024 * 1024;
@@ -129,7 +127,7 @@ pub fn import(
             let sequence = ATTACHMENT_SEQUENCE.fetch_add(1, Ordering::Relaxed);
             let name = format!("att-{nonce:020x}{sequence:012x}.{extension}");
             let destination = directory.join(&name);
-            match fs::hard_link(&temporary, &destination) {
+            match link_or_copy_new(&temporary, &destination) {
                 Ok(()) => {
                     return Ok(ImportedAttachment {
                         relative_path: format!(
@@ -143,35 +141,7 @@ pub fn import(
                     });
                 }
                 Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => continue,
-                Err(_) => {
-                    let mut source = fs::File::open(&temporary).map_err(AppError::from_io)?;
-                    let mut target = match OpenOptions::new()
-                        .write(true)
-                        .create_new(true)
-                        .open(&destination)
-                    {
-                        Ok(file) => file,
-                        Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => continue,
-                        Err(error) => return Err(AppError::from_io(error)),
-                    };
-                    let copied =
-                        std::io::copy(&mut source, &mut target).and_then(|_| target.sync_all());
-                    if let Err(error) = copied {
-                        drop(target);
-                        let _ = fs::remove_file(&destination);
-                        return Err(AppError::from_io(error));
-                    }
-                    return Ok(ImportedAttachment {
-                        relative_path: format!(
-                            "../assets/{}/{}/{}",
-                            date.year(),
-                            date.as_str(),
-                            name
-                        ),
-                        file_name: name,
-                        is_image: image_mime(&extension).is_some(),
-                    });
-                }
+                Err(error) => return Err(AppError::from_io(error)),
             }
         }
         Err(AppError::new("unexpected", "无法生成唯一附件文件名"))
@@ -188,11 +158,7 @@ pub fn preview(root: &Path, date: &DiaryDate, name: &str) -> Result<AttachmentPr
         .unwrap_or_default();
     let mime_type = image_mime(&extension)
         .ok_or_else(|| AppError::new("invalid_attachment", "只支持预览图片附件"))?;
-    let file = OpenOptions::new()
-        .read(true)
-        .custom_flags(libc::O_NOFOLLOW)
-        .open(&path)
-        .map_err(AppError::from_io)?;
+    let file = platform::open_read_no_follow(&path)?;
     let metadata = file.metadata().map_err(AppError::from_io)?;
     if !metadata.is_file() {
         return Err(AppError::new("permission_denied", "附件必须是普通文件"));
@@ -216,23 +182,9 @@ pub fn preview(root: &Path, date: &DiaryDate, name: &str) -> Result<AttachmentPr
     Ok(AttachmentPreview { bytes, mime_type })
 }
 
-#[cfg(target_os = "macos")]
 pub fn open(root: &Path, date: &DiaryDate, name: &str) -> Result<(), AppError> {
     let path = checked_file(root, date, name)?;
-    let status = Command::new("open")
-        .arg(path)
-        .status()
-        .map_err(AppError::from_io)?;
-    if status.success() {
-        Ok(())
-    } else {
-        Err(AppError::new("unexpected", "系统无法打开附件"))
-    }
-}
-
-#[cfg(not(target_os = "macos"))]
-pub fn open(_root: &Path, _date: &DiaryDate, _name: &str) -> Result<(), AppError> {
-    Err(AppError::new("unexpected", "当前平台不支持打开附件"))
+    platform::open_path(&path)
 }
 
 #[cfg(test)]
@@ -282,6 +234,7 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn preview_rejects_symlink_and_oversized_file() {
+        use std::fs::OpenOptions;
         use std::os::unix::fs::symlink;
         let base = std::env::temp_dir().join(format!("diary-preview-{}", std::process::id()));
         let _ = fs::remove_dir_all(&base);

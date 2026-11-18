@@ -3,7 +3,8 @@ use std::{
     io::Write,
     path::{Path, PathBuf},
     sync::atomic::{AtomicU64, Ordering},
-    time::{SystemTime, UNIX_EPOCH},
+    thread,
+    time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
 use serde::{Deserialize, Serialize};
@@ -288,6 +289,52 @@ impl Drop for TempCleanup {
     }
 }
 
+/// Publish a new file without ever replacing an existing one.
+///
+/// Hard links are the fast, atomic path on macOS and NTFS. Some Windows
+/// volumes (exFAT/FAT32), network shares, and sandboxed sync folders reject
+/// hard links, so fall back to an exclusive copy. `AlreadyExists` is returned
+/// unchanged so callers can keep their conflict semantics.
+pub(crate) fn link_or_copy_new(source: &Path, destination: &Path) -> std::io::Result<()> {
+    match fs::hard_link(source, destination) {
+        Ok(()) => Ok(()),
+        Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => Err(error),
+        Err(_) => copy_new_file(source, destination),
+    }
+}
+
+fn copy_new_file(source: &Path, destination: &Path) -> std::io::Result<()> {
+    let mut source_file = File::open(source)?;
+    let mut target = OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(destination)?;
+    let result = std::io::copy(&mut source_file, &mut target).and_then(|_| target.sync_all());
+    drop(target);
+    if let Err(error) = result {
+        let _ = fs::remove_file(destination);
+        return Err(error);
+    }
+    Ok(())
+}
+
+/// Windows can briefly hold a file open while an antivirus/indexer scans it.
+/// Retry a rename only for that transient permission error.
+fn replace_file(source: &Path, destination: &Path) -> std::io::Result<()> {
+    let mut last_error = None;
+    for attempt in 0..3 {
+        match fs::rename(source, destination) {
+            Ok(()) => return Ok(()),
+            Err(error) if error.kind() == std::io::ErrorKind::PermissionDenied && attempt < 2 => {
+                last_error = Some(error);
+                thread::sleep(Duration::from_millis(40));
+            }
+            Err(error) => return Err(error),
+        }
+    }
+    Err(last_error.unwrap_or_else(|| std::io::Error::other("rename failed")))
+}
+
 fn atomic_write_checked(
     path: &Path,
     bytes: &[u8],
@@ -304,7 +351,7 @@ fn atomic_write_checked(
     drop(file);
     check()?;
     if create_new {
-        fs::hard_link(&temp_path, path).map_err(|error| {
+        link_or_copy_new(&temp_path, path).map_err(|error| {
             if error.kind() == std::io::ErrorKind::AlreadyExists {
                 AppError::new("conflict", "该日期已有日记")
             } else {
@@ -312,7 +359,7 @@ fn atomic_write_checked(
             }
         })?;
     } else {
-        fs::rename(&temp_path, path).map_err(AppError::from_io)?;
+        replace_file(&temp_path, path).map_err(AppError::from_io)?;
     }
     drop(cleanup);
     Ok(())
@@ -463,7 +510,7 @@ pub fn trash(root: &Path, date: &DiaryDate, expected_revision: &str) -> Result<(
         }
         check_expectation(&year_dir, date, &expectation)?;
         let source = year_dir.join(date.file_name());
-        match fs::hard_link(&source, &destination) {
+        match link_or_copy_new(&source, &destination) {
             Ok(()) => {
                 if let Err(error) = fs::remove_file(&source) {
                     let _ = fs::remove_file(&destination);
