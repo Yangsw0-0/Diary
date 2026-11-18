@@ -2,7 +2,7 @@ import type { DiaryDate } from '@/domain/DiaryDate'
 import type { DiaryEntry, DiarySummary } from '@/domain/DiaryEntry'
 import type { TagOccurrence } from '@/domain/TagOccurrence'
 import { MarkdownSectionExtractor } from './MarkdownSectionExtractor'
-import type { TagVisibility } from './TagVisibility'
+import type { TagVisibilityPolicy } from './TagVisibilityPolicy'
 
 export interface TagGroup {
   readonly key: string
@@ -173,7 +173,7 @@ export class TagIndex {
       .sort((a, b) => b.date.compare(a.date) || a.ordinal - b.ordinal)
   }
 
-  listGroups(visibility?: TagVisibility): TagGroups {
+  listGroups(visibility?: TagVisibilityPolicy): TagGroups {
     if (!visibility && this.groupCache?.version === this.version) return this.groupCache.groups
     const all: TagGroup[] = []
     for (const [key, dates] of this.byTag) {

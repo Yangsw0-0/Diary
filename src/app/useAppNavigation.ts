@@ -7,7 +7,7 @@ import {
 import { MarkdownSectionExtractor } from '@/application/MarkdownSectionExtractor'
 import type { DiarySession } from '@/application/DiarySession'
 import type { DiaryDate } from '@/domain/DiaryDate'
-import type { NavigationContextValue } from './NavigationContext'
+import type { NavigationContextValue } from '@/shared/NavigationContext'
 
 const extractor = new MarkdownSectionExtractor()
 

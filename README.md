@@ -2,9 +2,9 @@
 
 一个本地 Markdown 日记应用。首个正式版面向 macOS，使用 Tauri 2、React、TypeScript 和 Rust。Windows 适配目前不在计划内。
 
-M1–M6 已实现，macOS 正式版为 `1.0.0`；当前版本为 `1.1.1`。旧文件批量导入工具属于后续额外工作。
+M1–M6 已实现，macOS 正式版为 `1.0.0`；当前版本为 `1.2.0`。旧文件批量导入工具属于后续额外工作。
 
-[项目规划](./docs/Diary-Project-Plan.md) · [进度与任务](./docs/Diary-Project-Progress.md) · [1.1.0 交互规划](./docs/Diary-Interaction-Iteration-Plan.md)
+[项目规划](./docs/Diary-Project-Plan.md) · [进度与任务](./docs/Diary-Project-Progress.md) · [使用说明](./docs/Diary-User-Guide.md) · [1.1.0 交互规划](./docs/Diary-Interaction-Iteration-Plan.md)
 
 日记根文件夹由用户首次启动时自行选择。日记正文与附件属于用户数据，不应提交到本代码仓库。
 
@@ -21,7 +21,7 @@ M1–M6 已实现，macOS 正式版为 `1.0.0`；当前版本为 `1.1.1`。旧�
 
 仓库根目录保留 README、`.gitignore`、`package.json`、Vite 和 TypeScript 配置。应用首次启动会要求选择已有日记文件夹；取消后仍停留在引导页。选定后可新建或打开日记，在原位渲染的编辑器中写作；停顿约 800 毫秒后自动保存，也可按 `⌘S` 保存。保存失败时草稿留在当前页面，可重新加载、确认覆盖保存或放弃草稿；更换文件夹前会再次尝试保存。
 
-左侧底部的「设置」可更换日记文件夹、切换浅色与深色主题，并选择绿色、浅粉、浅蓝或自选主题色；侧栏右下角可收起导航。中间列表可拖动分隔条调整宽度，或按列表边缘按钮折叠。三个区域各自滚动。打开日记后，右下角可将正文缩放至 50%–150%，也可让正文暂时占满整个窗口。日记列表显示当天的标签；标签可写成 `## 主标签 - 分支`，并在标签页按主标签聚合。
+左侧底部的「设置」可更换日记文件夹、切换浅色与深色主题、选择绿色、浅粉、浅蓝或自选主题色，并从“帮助”打开使用说明；侧栏右下角可收起导航。中间列表可拖动分隔条调整宽度，或按列表边缘按钮折叠。三个区域各自滚动。打开日记后，右下角可将正文缩放至 50%–150%，也可让正文暂时占满整个窗口。日记列表显示当天的标签；标签可写成 `## 主标签 - 分支`，并在标签页按主标签聚合。
 
 ## 使用和备份
 
@@ -33,7 +33,7 @@ M1–M6 已实现，macOS 正式版为 `1.0.0`；当前版本为 `1.1.1`。旧�
 
 ## macOS 安装
 
-最新 `1.1.1` 安装包可从 [GitHub Release 下载](https://github.com/Yangsw0-0/Diary/releases/tag/v1.1.1)，适用于 Apple 芯片 Mac。直接下载：[Diary_1.1.1_aarch64.zip](https://github.com/Yangsw0-0/Diary/releases/download/v1.1.1/Diary_1.1.1_aarch64.zip)。解压后退出旧版 Diary，再将 `Diary.app` 拖到「应用程序」文件夹替换旧版。首次运行请选择一个已有的日记文件夹。应用使用临时（ad hoc）签名，未做 Apple 公证；macOS 若阻止打开，请在系统设置的「隐私与安全性」中确认你信任此应用后手动放行。不要忽略来源不明安装包的安全提示。
+最新 `1.2.0` 安装包可从 [GitHub Release 下载](https://github.com/Yangsw0-0/Diary/releases/tag/v1.2.0)，适用于 Apple 芯片 Mac。直接下载：[Diary_1.2.0_aarch64.zip](https://github.com/Yangsw0-0/Diary/releases/download/v1.2.0/Diary_1.2.0_aarch64.zip)。解压后退出旧版 Diary，再将 `Diary.app` 拖到「应用程序」文件夹替换旧版。首次运行请选择一个已有的日记文件夹。应用使用临时（ad hoc）签名，未做 Apple 公证；macOS 若阻止打开，请在系统设置的「隐私与安全性」中确认你信任此应用后手动放行。不要忽略来源不明安装包的安全提示。
 
 本版本只支持 macOS。附件上限为单个 20 MiB；删除正文中的附件链接不会清理附件文件，清理时请在备份后手动核对。项目不提供云同步或自动备份，建议定期复制整个日记根目录。
 

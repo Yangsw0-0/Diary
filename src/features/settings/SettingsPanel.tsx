@@ -1,6 +1,8 @@
-import { FolderOpen, Moon, Sun } from 'lucide-react'
+import { useState } from 'react'
+import { BookOpenText, FolderOpen, Moon, Sun } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ThemePalette } from '@/application/ThemePalette'
+import { HelpDialog } from '@/features/help/HelpDialog'
 
 interface SettingsPanelProps {
   root: string | undefined
@@ -23,6 +25,7 @@ export function SettingsPanel({
   accentColor = ThemePalette.presets.green,
   onSaveAccentColor,
 }: SettingsPanelProps) {
+  const [helpOpen, setHelpOpen] = useState(false)
   return (
     <section className="settings-panel" aria-label="设置">
       <p className="eyebrow">PREFERENCES</p>
@@ -95,6 +98,17 @@ export function SettingsPanel({
           ))}
         </div>
       </div>
+      <div className="settings-card">
+        <div>
+          <h2>帮助</h2>
+          <p>查看写作、标签、附件、备份和更新等使用说明。</p>
+        </div>
+        <Button variant="outline" onClick={() => setHelpOpen(true)}>
+          <BookOpenText aria-hidden="true" />
+          打开使用说明
+        </Button>
+      </div>
+      {helpOpen && <HelpDialog onClose={() => setHelpOpen(false)} />}
     </section>
   )
 }

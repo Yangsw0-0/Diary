@@ -10,20 +10,25 @@ import { Tags } from 'lucide-react'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Button } from '@/components/ui/button'
-import { useNavigation } from '@/app/NavigationContext'
+import { useNavigation } from '@/shared/NavigationContext'
 import type { DiarySession } from '@/application/DiarySession'
 import type { TagIndex } from '@/application/TagIndex'
-import { TagVisibility } from '@/application/TagVisibility'
+import type { TagVisibilitySettings } from '@/application/TagVisibilityPolicy'
 import type { TagSection, TagReadFailure, TagService } from '@/application/TagService'
 import { attachmentFileName, type AttachmentService } from '@/application/AttachmentService'
 import type { DiaryDate } from '@/domain/DiaryDate'
-import { openExternalLink } from '@/infrastructure/openExternalLink'
+
+export interface ExternalLinkPort {
+  open(url: string): Promise<void>
+}
 
 interface TagsContextValue {
   readonly index: TagIndex
   readonly service: TagService
   readonly session: DiarySession
   readonly attachments: AttachmentService
+  readonly visibility: TagVisibilitySettings
+  readonly externalLinks: ExternalLinkPort
 }
 
 const TagsContext = createContext<TagsContextValue | null>(null)
@@ -43,10 +48,14 @@ export function createTagsPanels(
   service: TagService,
   session: DiarySession,
   attachments: AttachmentService,
+  visibility: TagVisibilitySettings,
+  externalLinks: ExternalLinkPort,
 ) {
   function Provider({ children }: PropsWithChildren) {
     return (
-      <TagsContext.Provider value={{ index, service, session, attachments }}>
+      <TagsContext.Provider
+        value={{ index, service, session, attachments, visibility, externalLinks }}
+      >
         {children}
       </TagsContext.Provider>
     )
@@ -98,8 +107,7 @@ function TagImage({
 }
 
 export function TagsList() {
-  const { index, selectedKey, navigation, dirty } = useTags()
-  const [visibility] = useState(() => new TagVisibility(window.localStorage))
+  const { index, selectedKey, navigation, dirty, visibility } = useTags()
   const [visibilityVersion, setVisibilityVersion] = useState(0)
   void visibilityVersion
   const [menu, setMenu] = useState<{ key: string; shown: boolean; x: number; y: number } | null>(
@@ -192,7 +200,8 @@ export function TagsList() {
 }
 
 export function TagsDetail() {
-  const { index, service, selectedKey, version, dirty, navigation, attachments } = useTags()
+  const { index, service, selectedKey, version, dirty, navigation, attachments, externalLinks } =
+    useTags()
   const [loadedKey, setLoadedKey] = useState<string | null>(null)
   const [sections, setSections] = useState<readonly TagSection[]>([])
   const [failures, setFailures] = useState<readonly TagReadFailure[]>([])
@@ -322,7 +331,7 @@ export function TagsDetail() {
                         if (!href) return
                         const opener = attachmentFileName(occurrence.date, href)
                           ? attachments.openUrl(occurrence.date, href)
-                          : openExternalLink(href)
+                          : externalLinks.open(href)
                         void opener.catch((reason: unknown) =>
                           setError(reason instanceof Error ? reason.message : '无法打开链接'),
                         )

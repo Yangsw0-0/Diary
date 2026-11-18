@@ -1,5 +1,7 @@
+import type { TagVisibilitySettings } from './TagVisibilityPolicy'
+
 /** User choices override the default (shown when a tag occurs on at least two days). */
-export class TagVisibility {
+export class TagVisibility implements TagVisibilitySettings {
   private readonly overrides: Record<string, boolean>
   private readonly storage: Pick<Storage, 'getItem' | 'setItem'>
   private readonly storageKey: string

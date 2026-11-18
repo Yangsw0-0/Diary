@@ -3,7 +3,9 @@ import type { DiaryRepository } from '@/domain/DiaryRepository'
 import { createDiaryPanels } from '@/features/diary/DiaryPanels'
 import { CrepeEditorAdapter } from '@/infrastructure/CrepeEditorAdapter'
 import { TagCompletion } from '@/application/TagCompletion'
+import { TagVisibility } from '@/application/TagVisibility'
 import { createTagsPanels } from '@/features/tags/TagsPanels'
+import { openExternalLink } from '@/infrastructure/openExternalLink'
 import { ModuleRegistry } from './moduleRegistry'
 import { createServices } from './services'
 import type { WorkspaceGateway } from '@/application/WorkspaceService'
@@ -37,6 +39,8 @@ export function createApp(
     services.tags,
     services.session,
     services.attachments,
+    new TagVisibility(window.localStorage),
+    { open: openExternalLink },
   )
   const registry = new ModuleRegistry('diary')
   registry.register({

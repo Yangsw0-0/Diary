@@ -9,7 +9,7 @@ import {
 } from 'react'
 import { ArrowLeft, ArrowRight, PanelLeftClose, PanelLeftOpen, Settings2 } from 'lucide-react'
 import type { DiarySession } from '@/application/DiarySession'
-import { NavigationContext } from './NavigationContext'
+import { NavigationContext } from '@/shared/NavigationContext'
 import { useAppNavigation } from './useAppNavigation'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
@@ -356,8 +356,11 @@ export function AppShell({
                 variant="ghost"
                 size="sm"
                 aria-label="返回上一页面"
-                onClick={() => void navigation.back()}
-                disabled={!navigation.canGoBack || navigating}
+                onClick={() => {
+                  if (settingsOpen) setSettingsOpen(false)
+                  else void navigation.back()
+                }}
+                disabled={(!settingsOpen && !navigation.canGoBack) || navigating}
               >
                 <ArrowLeft aria-hidden="true" />
               </Button>
@@ -366,7 +369,7 @@ export function AppShell({
                 size="sm"
                 aria-label="返回下一页面"
                 onClick={() => void navigation.forward()}
-                disabled={!navigation.canGoForward || navigating}
+                disabled={settingsOpen || !navigation.canGoForward || navigating}
               >
                 <ArrowRight aria-hidden="true" />
               </Button>

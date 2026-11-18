@@ -41,6 +41,21 @@ it('switches between diary and tags without showing fake diary data', async () =
   expect(screen.getByRole('button', { name: '标签' })).toHaveAttribute('aria-current', 'page')
 })
 
+it('closes settings on Back without changing the underlying page or history', async () => {
+  const user = userEvent.setup()
+  renderShell(repository)
+  await user.click(screen.getByRole('button', { name: '标签' }))
+  await user.click(screen.getByRole('button', { name: '设置' }))
+  expect(screen.getByRole('region', { name: '设置' })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: '返回下一页面' })).toBeDisabled()
+  await user.click(screen.getByRole('button', { name: '返回上一页面' }))
+  expect(screen.queryByRole('region', { name: '设置' })).not.toBeInTheDocument()
+  expect(screen.getByRole('region', { name: '标签列表' })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: '返回上一页面' })).toBeEnabled()
+  await user.click(screen.getByRole('button', { name: '返回上一页面' }))
+  expect(screen.getByRole('region', { name: '日记列表' })).toBeInTheDocument()
+})
+
 it('keeps zoom and panel controls scoped to an open diary and opens settings at the left footer', async () => {
   const user = userEvent.setup()
   const date = DiaryDate.parse('2024-02-29')
