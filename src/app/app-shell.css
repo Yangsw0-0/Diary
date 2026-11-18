@@ -345,51 +345,65 @@
   position: relative;
 }
 .adjacent-diary-preview {
+  --gesture-progress: 0;
   position: absolute;
   z-index: 8;
   left: calc(var(--list-width) + 8px);
   right: 0;
   bottom: 0;
-  height: min(220px, 33vh);
+  height: 100%;
   overflow: hidden;
   border-top: 1px solid color-mix(in srgb, var(--diary-theme-color) 30%, transparent);
-  border-radius: 18px 18px 0 0;
-  background: color-mix(in srgb, var(--card) 84%, transparent);
-  box-shadow: 0 -12px 40px rgb(0 0 0 / 0.08);
-  backdrop-filter: blur(22px);
-  opacity: calc(0.25 + var(--gesture-progress) * 0.75);
-  transform: translateY(calc((1 - var(--gesture-progress)) * 80px));
+  background: var(--background);
+  opacity: calc(var(--gesture-progress) * 0.96);
+  transform: translateY(calc((1 - var(--gesture-progress)) * 100%));
   pointer-events: none;
   transition:
-    opacity 150ms ease,
-    transform 150ms ease;
+    opacity 100ms linear,
+    transform 100ms linear;
+  will-change: transform, opacity;
 }
 .adjacent-diary-preview[data-direction='newer'] {
   top: 0;
   bottom: auto;
-  border-radius: 0 0 18px 18px;
-  transform: translateY(calc((var(--gesture-progress) - 1) * 80px));
+  transform: translateY(calc((var(--gesture-progress) - 1) * 100%));
+}
+.workspace-panels[data-list-collapsed='true'] .adjacent-diary-preview {
+  left: 8px;
+}
+.adjacent-diary-preview[data-complete='true'] {
+  opacity: 0;
+  transition: opacity 260ms ease-out;
 }
 .adjacent-preview-paper {
   width: 80%;
-  margin: 12px auto;
-  max-height: 170px;
+  margin: 0 auto;
+  padding: 38px 0 80px;
+  height: 100%;
   overflow: hidden;
-  mask-image: linear-gradient(#000 20%, transparent);
+  mask-image: linear-gradient(to bottom, #000 45%, transparent 100%);
   color: var(--foreground);
-  font-size: 13px;
-  line-height: 1.55;
+  font-size: var(--detail-font-size, 16px);
+  line-height: 1.7;
 }
 .adjacent-preview-paper strong {
   display: block;
-  margin-bottom: 8px;
+  margin-bottom: 28px;
+  font-size: 1.4em;
 }
 .adjacent-preview-hint {
   position: absolute;
-  bottom: 8px;
-  right: 20px;
+  bottom: 18px;
+  right: 24px;
   color: var(--muted-foreground);
-  font-size: 11px;
+  font-size: 12px;
+}
+.adjacent-preview-ready,
+.adjacent-diary-preview[data-ready='true'] .adjacent-preview-pulling {
+  display: none;
+}
+.adjacent-diary-preview[data-ready='true'] .adjacent-preview-ready {
+  display: block;
 }
 
 .panel-heading {

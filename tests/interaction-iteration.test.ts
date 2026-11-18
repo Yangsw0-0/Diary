@@ -57,11 +57,31 @@ it('offers a suffix after a heading prefix and requires boundary wheel movement 
   expect(completion.suggest('探')).toBe('探索自我 - 恋爱')
   expect(completion.suggest('')).toBeNull()
   const gesture = new AdjacentDiaryNavigator()
-  expect(gesture.add(80, 0, false, false, 100)).toBeNull()
-  expect(gesture.add(70, 0, false, true, 110)).toMatchObject({ direction: 'older', ready: false })
-  expect(gesture.add(100, 0, false, true, 120)).toMatchObject({ direction: 'older', ready: true })
+  expect(gesture.add(80, 0, false, false, 500, 100)).toBeNull()
+  expect(gesture.add(70, 0, false, true, 500, 110)).toBeNull()
+  expect(gesture.add(70, 0, false, true, 500, 300)).toMatchObject({
+    direction: 'older',
+    ready: false,
+  })
+  expect(gesture.add(100, 0, false, true, 500, 310)).toMatchObject({
+    direction: 'older',
+    ready: false,
+  })
+  expect(gesture.add(90, 0, false, true, 500, 320)).toMatchObject({
+    direction: 'older',
+    ready: true,
+  })
+  expect(gesture.finish()).toBe('older')
+  expect(gesture.isLocked).toBe(true)
+  expect(gesture.add(90, 0, false, true, 500)).toBeNull()
+  expect(gesture.finish()).toBeNull()
+  gesture.unlock()
   gesture.reset()
-  expect(gesture.add(-160, 0, true, false, 130)).toMatchObject({ direction: 'newer', ready: true })
+  expect(gesture.add(-1000, 0, true, false, 500)).toMatchObject({
+    direction: 'newer',
+    ready: false,
+  })
+  expect(gesture.finish()).toBeNull()
 })
 
 it('validates custom colors and restores a saved theme color', () => {

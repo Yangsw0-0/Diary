@@ -1,6 +1,7 @@
 import {
   Fragment,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   useSyncExternalStore,
@@ -75,18 +76,29 @@ export function AppShell({
   const adjacentGesture = useRef(new AdjacentDiaryNavigator())
   const [adjacentPreview, setAdjacentPreview] = useState<{
     direction: 'older' | 'newer'
-    progress: number
     date: string
     markdown: string
   } | null>(null)
   const [adjacentBusy, setAdjacentBusy] = useState(false)
-  const gestureReset = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const previewIdentity = useRef<string | null>(null)
+  const previewProgress = useRef(0)
+  const previewElement = useRef<HTMLDivElement>(null)
+  const diaryContentElement = useRef<HTMLElement | null>(null)
+  const wheelHandler = useRef<(element: HTMLElement, event: WheelEvent) => void>(() => {})
+  const gestureSettle = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const gestureUnlock = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const previewHide = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(
     () => () => {
-      if (gestureReset.current) clearTimeout(gestureReset.current)
+      if (gestureSettle.current) clearTimeout(gestureSettle.current)
+      if (gestureUnlock.current) clearTimeout(gestureUnlock.current)
+      if (previewHide.current) clearTimeout(previewHide.current)
     },
     [],
   )
+  useLayoutEffect(() => {
+    previewElement.current?.style.setProperty('--gesture-progress', String(previewProgress.current))
+  }, [adjacentPreview])
   const resizeCleanup = useRef<(() => void) | null>(null)
   useEffect(() => () => resizeCleanup.current?.(), [])
   useEffect(() => {
@@ -149,46 +161,95 @@ export function AppShell({
   const activeModule = registry.require(activeId)
   const showViewControls =
     !settingsOpen && (activeId === 'tags' || (activeId === 'diary' && !!sessionSnapshot.selected))
-  const onAdjacentWheel = (element: HTMLElement, deltaY: number, deltaMode: number) => {
-    if (adjacentBusy || sessionSnapshot.opening || activeId !== 'diary') return
+  const showPreviewProgress = (progress: number) => {
+    previewProgress.current = progress
+    previewElement.current?.style.setProperty('--gesture-progress', String(progress))
+    previewElement.current?.setAttribute('data-ready', String(progress >= 1))
+  }
+  const dismissPreview = (completed = false) => {
+    if (!previewIdentity.current) return
+    previewIdentity.current = null
+    if (completed) previewElement.current?.setAttribute('data-complete', 'true')
+    else showPreviewProgress(0)
+    if (previewHide.current) clearTimeout(previewHide.current)
+    previewHide.current = setTimeout(() => setAdjacentPreview(null), completed ? 280 : 220)
+  }
+  const scheduleUnlock = () => {
+    if (gestureUnlock.current) clearTimeout(gestureUnlock.current)
+    gestureUnlock.current = setTimeout(() => adjacentGesture.current.unlock(), 700)
+  }
+  const onAdjacentWheel = (element: HTMLElement, event: WheelEvent) => {
+    if (event.ctrlKey || event.metaKey) return
+    if (adjacentGesture.current.isLocked || adjacentBusy) {
+      event.preventDefault()
+      scheduleUnlock()
+      return
+    }
+    if (sessionSnapshot.opening || activeId !== 'diary') return
     const selected = sessionSnapshot.selected
     if (!selected) return
     const index = sessionSnapshot.entries.findIndex((entry) => entry.date.equals(selected.date))
     if (index < 0) return
     const atTop = element.scrollTop <= 2
     const atBottom = element.scrollTop + element.clientHeight >= element.scrollHeight - 3
-    const gesture = adjacentGesture.current.add(deltaY, deltaMode, atTop, atBottom, Date.now())
-    if (gestureReset.current) clearTimeout(gestureReset.current)
+    const gesture = adjacentGesture.current.add(
+      event.deltaY,
+      event.deltaMode,
+      atTop,
+      atBottom,
+      element.clientHeight,
+      Date.now(),
+    )
+    if (gestureSettle.current) clearTimeout(gestureSettle.current)
     if (!gesture) {
-      setAdjacentPreview(null)
+      dismissPreview()
       return
     }
     const target = sessionSnapshot.entries[index + (gesture.direction === 'older' ? 1 : -1)]
     if (!target) {
       adjacentGesture.current.reset()
-      setAdjacentPreview(null)
+      dismissPreview()
       return
     }
-    setAdjacentPreview({
-      direction: gesture.direction,
-      progress: gesture.progress,
-      date: target.date.toString(),
-      markdown: target.markdown,
-    })
-    if (gesture.ready) {
-      adjacentGesture.current.reset()
-      setAdjacentBusy(true)
-      void navigation.openDiary(target.date).finally(() => {
-        setAdjacentBusy(false)
-        setAdjacentPreview(null)
+    event.preventDefault()
+    if (previewHide.current) clearTimeout(previewHide.current)
+    const identity = gesture.direction + ':' + target.date.toString()
+    if (previewIdentity.current !== identity) {
+      previewIdentity.current = identity
+      setAdjacentPreview({
+        direction: gesture.direction,
+        date: target.date.toString(),
+        markdown: target.markdown,
       })
-    } else {
-      gestureReset.current = setTimeout(() => {
-        adjacentGesture.current.reset()
-        setAdjacentPreview(null)
-      }, 700)
     }
+    previewElement.current?.setAttribute('data-complete', 'false')
+    showPreviewProgress(gesture.progress)
+    gestureSettle.current = setTimeout(() => {
+      const direction = adjacentGesture.current.finish()
+      if (!direction || !session.getSnapshot().selected?.date.equals(selected.date)) {
+        adjacentGesture.current.unlock()
+        dismissPreview()
+        return
+      }
+      setAdjacentBusy(true)
+      void navigation
+        .openDiary(target.date)
+        .then((opened) => dismissPreview(opened))
+        .catch(() => dismissPreview())
+        .finally(() => {
+          setAdjacentBusy(false)
+          scheduleUnlock()
+        })
+    }, 180)
   }
+  wheelHandler.current = onAdjacentWheel
+  useEffect(() => {
+    const element = diaryContentElement.current
+    if (!element) return
+    const handleWheel = (event: WheelEvent) => wheelHandler.current(element, event)
+    element.addEventListener('wheel', handleWheel, { passive: false })
+    return () => element.removeEventListener('wheel', handleWheel)
+  }, [])
   const setZoomClamped = (moduleId: string, value: number) =>
     setZoomByModule((current) => ({
       ...current,
@@ -464,20 +525,21 @@ export function AppShell({
                 <section
                   className="module-content"
                   aria-label={module.detailLabel}
-                  ref={(element) => registerContent(module.id, element)}
-                  onScroll={(event) => updateScroll(module.id, event.currentTarget.scrollTop)}
-                  onWheel={(event) => {
-                    if (module.id === 'diary' && !event.ctrlKey && !event.metaKey)
-                      onAdjacentWheel(event.currentTarget, event.deltaY, event.deltaMode)
+                  ref={(element) => {
+                    registerContent(module.id, element)
+                    if (module.id === 'diary') diaryContentElement.current = element
                   }}
+                  onScroll={(event) => updateScroll(module.id, event.currentTarget.scrollTop)}
                 >
                   <Detail />
                 </section>
                 {module.id === 'diary' && adjacentPreview && activeId === 'diary' && (
                   <div
+                    ref={previewElement}
                     className="adjacent-diary-preview"
                     data-direction={adjacentPreview.direction}
-                    style={{ '--gesture-progress': adjacentPreview.progress } as CSSProperties}
+                    data-ready="false"
+                    data-complete="false"
                     aria-hidden="true"
                   >
                     <div className="adjacent-preview-paper">
@@ -491,8 +553,11 @@ export function AppShell({
                         {adjacentPreview.markdown.slice(0, 700)}
                       </Markdown>
                     </div>
-                    <span className="adjacent-preview-hint">
-                      {adjacentPreview.progress >= 1 ? '正在切换…' : '继续滚动以切换日记'}
+                    <span className="adjacent-preview-hint adjacent-preview-pulling">
+                      继续滚动以切换日记
+                    </span>
+                    <span className="adjacent-preview-hint adjacent-preview-ready">
+                      松开以切换日记
                     </span>
                   </div>
                 )}

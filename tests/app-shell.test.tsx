@@ -2,7 +2,7 @@ vi.mock('@/features/diary/CrepeEditor', () => ({
   CrepeEditor: ({ markdown }: { markdown: string }) => <pre>{markdown}</pre>,
 }))
 import { afterEach, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { AppShell } from '@/app/AppShell'
 import { createApp } from '@/app/bootstrap'
@@ -54,6 +54,50 @@ it('closes settings on Back without changing the underlying page or history', as
   expect(screen.getByRole('button', { name: '返回上一页面' })).toBeEnabled()
   await user.click(screen.getByRole('button', { name: '返回上一页面' }))
   expect(screen.getByRole('region', { name: '日记列表' })).toBeInTheDocument()
+})
+
+it('switches only one diary after a boundary wheel burst and ignores its momentum tail', async () => {
+  const user = userEvent.setup()
+  const entries = ['2024-03-03', '2024-03-02', '2024-03-01'].map((value) => ({
+    date: DiaryDate.parse(value),
+    markdown: `# ${value}\n\nA diary entry.`,
+    revision: value,
+  }))
+  renderShell({
+    list: async () => ({ entries, failures: [] }),
+    read: async (date) => entries.find((entry) => entry.date.equals(date))!,
+    save: async (_date, markdown) => ({ ...entries[0]!, markdown }),
+  })
+  await user.click(await screen.findByRole('button', { name: '2024-03-03' }))
+  const content = screen.getByRole('region', { name: '日记正文' })
+  Object.defineProperties(content, {
+    clientHeight: { configurable: true, value: 500 },
+    scrollHeight: { configurable: true, value: 1000 },
+  })
+  content.scrollTop = 200
+  for (let i = 0; i < 4; i++) fireEvent.wheel(content, { deltaY: 90 })
+  expect(screen.queryByText('继续滚动以切换日记')).not.toBeInTheDocument()
+  content.scrollTop = 500
+  fireEvent.wheel(content, { deltaY: 90 })
+  expect(screen.queryByText('继续滚动以切换日记')).not.toBeInTheDocument()
+  await new Promise((resolve) => setTimeout(resolve, 200))
+  for (let i = 0; i < 3; i++) fireEvent.wheel(content, { deltaY: 90 })
+  expect(screen.getByText('松开以切换日记')).toBeInTheDocument()
+  await waitFor(
+    () =>
+      expect(screen.getByRole('button', { name: '2024-03-02' })).toHaveAttribute(
+        'aria-current',
+        'true',
+      ),
+    { timeout: 1000 },
+  )
+  for (let i = 0; i < 8; i++) fireEvent.wheel(content, { deltaY: 90 })
+  await new Promise((resolve) => setTimeout(resolve, 250))
+  expect(screen.getByRole('button', { name: '2024-03-02' })).toHaveAttribute('aria-current', 'true')
+  expect(screen.getByRole('button', { name: '2024-03-01' })).not.toHaveAttribute(
+    'aria-current',
+    'true',
+  )
 })
 
 it('keeps zoom and panel controls scoped to an open diary and opens settings at the left footer', async () => {
