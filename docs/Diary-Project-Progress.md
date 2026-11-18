@@ -1,7 +1,7 @@
 # Diary 项目进度与任务规划
 
 > 更新：2026-11-18 · 依据：[项目规划](./Diary-Project-Plan.md)
-> 总体状态：M1–M6 已完成；macOS `1.0.0` 已通过功能、原生窗口与安装包验收。`1.3.0` 新增 Windows x64 平行版本：源码分区、NSIS 配置和 CI 已就绪，Windows 真机安装与窗口验收待完成。
+> 总体状态：M1–M6 已完成；macOS `1.0.0` 已通过功能、原生窗口与安装包验收。`1.3.0` 已发布：macOS 与 Windows x64 安装包通过 [GitHub Release](https://github.com/Yangsw0-0/Diary/releases/tag/v1.3.0) 提供下载，Windows 真机安装与窗口验收待完成。
 
 ## 使用规则
 
@@ -137,7 +137,7 @@ M5 验证：导航历史类测试覆盖后退、前进和新导航清空前进�
 | M7-05 | 已完成 | 增加 Windows CI 任务               | `check.yml` 在 `windows-latest` 运行 Rust 测试并构建 NSIS，上传可安装构件。                                     |
 | M7-06 | 已完成 | 验证 Windows 自动检查与安装包      | CI 的 Windows 格式检查、clippy、单元测试和 NSIS 构建全部通过；构件为 `Diary_1.3.0_x64-setup.exe`。               |
 | M7-07 | 待验证 | Windows 真机窗口验收               | 首次选目录、中文输入、自动保存与失败恢复、标签、导航、附件打开、改日期、删除日记和小窗口布局通过。              |
-| M7-08 | 进行中 | 更新文档并发布 `1.3.0`             | README、用户指南、平台文档、进度和发布记录与实现一致；版本统一为 `1.3.0`，发布 macOS ZIP 与 Windows 安装程序。 |
+| M7-08 | 已完成 | 更新文档并发布 `1.3.0`             | README、用户指南、平台文档、进度和发布记录与实现一致；[v1.3.0](https://github.com/Yangsw0-0/Diary/releases/tag/v1.3.0) 已发布 macOS ZIP 与 Windows NSIS 安装程序。 |
 
 Windows 1.3.0 使用未签名安装包，SmartScreen 可能提示未知发布者；在完成 M7-07 前，README 和发布记录应继续注明真机验收状态，不宣称 Windows 正式版验收完成。
 
@@ -165,6 +165,8 @@ Windows 适配已作为 M7 与 macOS 平行推进；后续新增平台按 [平�
 - Windows 使用 `\` 作为路径分隔符，日记内的附件链接仍固定为 `/`；测试同时覆盖两种平台的路径校验。Windows 安装包未签名，发布说明需保留 SmartScreen 提示。
 
 ## 最近完成
+
+- **2026-11-18**：发布 `1.3.0`，加入与 macOS 平行的 Windows x64 版本。macOS ZIP 与 Windows NSIS 安装程序已上传到 [v1.3.0](https://github.com/Yangsw0-0/Diary/releases/tag/v1.3.0)，SHA-256 记录在[发布记录](./Release-1.3.0.md)。CI 的 frontend、macOS rust 与 Windows 三个任务全部通过；Windows 真机安装与窗口验收仍待完成。
 
 - **2026-11-18**：开始 `1.3.0`，新增与 macOS 平行的 Windows x64 支持。系统调用集中到 `src-tauri/src/platform/` 门面（`macos.rs`、`windows.rs`），业务层移除平台分支；Windows 使用 `ShellExecuteW` 打开链接和附件，以重解析点方式安全读取附件，覆盖写入增加短暂占用重试，新建文件在硬链接不可用时回退复制。新增 `tauri.windows.conf.json`（NSIS、当前用户安装、WebView2 bootstrapper）和 Windows CI 构建任务。macOS 与 Windows 目标的 Rust 格式、clippy、单元测试通过，前端检查与构建通过；Windows 真机安装和窗口验收待完成。
 
