@@ -1,12 +1,12 @@
 # Diary 项目记忆
 
-> 最近核对：2026-11-18。此文件记录当前实现与验收状态；历史计划仍见[项目规划](./Diary-Project-Plan.md)，逐项进度见[进度文档](./Diary-Project-Progress.md)。
+> 最近核对：2026-11-20。此文件记录当前实现与验收状态；历史计划仍见[项目规划](./Diary-Project-Plan.md)，逐项进度见[进度文档](./Diary-Project-Progress.md)。
 
 ## 当前版本与平台
 
-- macOS Apple 芯片当前版本为 `1.3.1`（[发布记录](./Release-1.3.1.md)）；Windows 10/11 x64 最新安装包为 `1.3.0`（[发布记录](./Release-1.3.0.md)）。Windows 真机窗口验收仍待完成。
+- macOS Apple 芯片当前版本为 `1.3.2`（[发布记录](./Release-1.3.2.md)）；Windows 10/11 x64 最新安装包为 `1.3.0`（[发布记录](./Release-1.3.0.md)）。Windows 真机窗口验收仍待完成。
 - M1–M6 已完成。M7 Windows 适配的自动检查与打包已通过；**M7-07 Windows 真机安装和窗口交互验收仍待完成**。不得把 CI 成功表述为真实 Windows 设备已验收。
-- 本地前端 `npm run check` 通过，测试为 88 项；macOS 上 `cargo fmt --check`、`cargo clippy --locked --all-targets -- -D warnings` 与 `cargo test --locked` 通过，Rust 单元测试为 19 项。macOS 1.3.1 ZIP 已构建、签名并校验；新触控板交互仍需实际窗口手感复核。
+- 本地前端 `npm run check` 通过，测试为 91 项；Rust 源码未改，macOS 1.3.2 ZIP 已构建、签名并校验；新触控板交互仍需实际窗口手感复核。
 
 ## 架构与数据边界
 
@@ -14,6 +14,7 @@
 - macOS 与 Windows 共用业务逻辑和日记目录结构。系统打开链接/文件、安全读取附件由 `src-tauri/src/platform/` 门面分派到 `macos.rs`、`windows.rs`。Windows 打包差异在 `src-tauri/tauri.windows.conf.json`；自动检查在 `.github/workflows/check.yml`。
 - 两个平台均无自动更新和云同步。升级安装程序不代替日记根目录备份。旧单文件日记批量导入仍是额外工作，不属于 M7。
 - macOS 相邻日记手势使用 `src-tauri/src/scroll_phase.rs` 的 AppKit 滚动阶段事件判断手指松开；Web 前端 `AdjacentDiaryNavigator` 负责阈值、回弹和一手势一页。向上翻页落在目标结尾，向下翻页落在目标开头。`AppearancePreferences` 独立保存列表底色、正文行距和字距于应用 WebView 的 localStorage，不改动日记 Markdown。
+- 左侧栏写作统计由 `DiaryStatistics` 从 `DiarySession.entries` 派生，只统计当前文件夹已保存且成功载入的日记；可见字符按 Markdown 解析后统计，并按日期、revision 与原文缓存。卡片位于设置分隔线上方，文件载入失败时提示数字不完整；统计不写入日记或额外数据库。
 
 ## 本次审查发现的待处理项
 

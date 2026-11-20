@@ -2,6 +2,7 @@ import {
   Fragment,
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
   useSyncExternalStore,
@@ -16,6 +17,8 @@ import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import type { ModuleCatalog } from './moduleRegistry'
 import { SettingsPanel } from '@/features/settings/SettingsPanel'
+import { SidebarStatistics } from '@/features/diary/SidebarStatistics'
+import { DiaryStatistics } from '@/application/DiaryStatistics'
 import { ViewControls } from './ViewControls'
 import {
   AdjacentDiaryNavigator,
@@ -170,6 +173,11 @@ export function AppShell({
       .forEach((handle) => handle.setAttribute('data-show', 'false'))
   }, [appearance?.lineHeight, appearance?.letterSpacing])
   const sessionSnapshot = useSyncExternalStore(session.subscribe, session.getSnapshot)
+  const [statisticsService] = useState(() => new DiaryStatistics())
+  const statistics = useMemo(
+    () => statisticsService.calculate(sessionSnapshot.entries),
+    [statisticsService, sessionSnapshot.entries],
+  )
   const saveSidebar = (width: number | null, collapsed: boolean) => {
     void onSavePreferences?.(width, collapsed).catch((reason: unknown) =>
       setSidebarError(reason instanceof Error ? reason.message : '无法保存侧栏设置'),
@@ -568,6 +576,12 @@ export function AppShell({
               )
             })}
           </nav>
+          <SidebarStatistics
+            statistics={statistics}
+            loading={sessionSnapshot.loading}
+            unavailable={!!sessionSnapshot.error && sessionSnapshot.entries.length === 0}
+            failedFiles={sessionSnapshot.failures.length}
+          />
           <div className="sidebar-footer">
             <Button
               variant="ghost"

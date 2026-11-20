@@ -41,6 +41,33 @@ it('switches between diary and tags without showing fake diary data', async () =
   expect(screen.getByRole('button', { name: '标签' })).toHaveAttribute('aria-current', 'page')
 })
 
+it('updates sidebar writing totals only after a save or deletion', async () => {
+  const user = userEvent.setup()
+  const today = DiaryDate.parse('2026-11-20')
+  const yesterday = DiaryDate.parse('2026-11-19')
+  const entries = [
+    { date: today, markdown: '# 2026-11-20\n你好', revision: 'r1' },
+    { date: yesterday, markdown: '# 2026-11-19\n世界', revision: 'r1' },
+  ]
+  const app = renderShell({
+    list: async () => ({ entries, failures: [] }),
+    read: async (date) => entries.find((entry) => entry.date.equals(date))!,
+    save: async (date, markdown) => ({ date, markdown, revision: 'r2' }),
+    trash: async () => undefined,
+  })
+  const card = await screen.findByRole('region', { name: '写作统计' })
+  await waitFor(() => expect(card).toHaveTextContent('2 天'))
+  expect(card).toHaveTextContent('写下 4 字')
+  await user.click(await screen.findByRole('button', { name: '2026-11-20' }))
+  app.services.session.edit('# 2026-11-20\n你好朋友')
+  expect(card).toHaveTextContent('写下 4 字')
+  await app.services.session.flush()
+  await waitFor(() => expect(card).toHaveTextContent('写下 6 字'))
+  await app.services.session.trash(yesterday)
+  await waitFor(() => expect(card).toHaveTextContent('1 天'))
+  expect(card).toHaveTextContent('写下 4 字')
+})
+
 it('closes settings on Back without changing the underlying page or history', async () => {
   const user = userEvent.setup()
   renderShell(repository)

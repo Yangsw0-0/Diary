@@ -147,8 +147,60 @@
   background: var(--diary-active-hover);
 }
 
-.sidebar-footer {
+.sidebar-statistics {
   margin-top: auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 13px 12px;
+  border: 1px solid var(--diary-placeholder-border);
+  border-radius: 12px;
+  background: var(--diary-placeholder);
+  color: var(--foreground);
+}
+
+.sidebar-statistics-label,
+.sidebar-statistics-characters,
+.sidebar-statistics-loading {
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.sidebar-statistics-label,
+.sidebar-statistics-loading {
+  color: var(--muted-foreground);
+}
+
+.sidebar-statistics-days {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 25px;
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+}
+
+.sidebar-statistics-days small {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.sidebar-statistics-characters {
+  overflow-wrap: anywhere;
+}
+
+.sidebar-statistics-characters b {
+  font-variant-numeric: tabular-nums;
+}
+
+.sidebar-statistics-warning {
+  color: var(--muted-foreground);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.sidebar-footer {
+  margin-top: 12px;
   display: flex;
   align-items: center;
   justify-content: space-between;
