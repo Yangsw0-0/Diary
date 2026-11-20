@@ -85,7 +85,11 @@ export class AdjacentDiaryNavigator {
   }
 
   /** Called only when the wheel stream has been idle for one gesture gap. */
-  release(): 'commit' | 'rebound' | null {
+  release(hasTarget = true): 'commit' | 'rebound' | null {
+    if (!hasTarget && !this.isLocked && this.phase !== 'idle') {
+      this.reset()
+      return 'rebound'
+    }
     if (this.phase === 'armed' || this.phase === 'complete') {
       this.lock()
       return 'commit'

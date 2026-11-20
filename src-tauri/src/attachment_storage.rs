@@ -9,7 +9,7 @@ use std::{
 use serde::Serialize;
 
 use crate::{
-    diary_storage::{DiaryDate, create_temp_file, link_or_copy_new},
+    diary_storage::{DiaryDate, create_temp_file, publish_new_file},
     error::AppError,
     platform,
 };
@@ -127,7 +127,7 @@ pub fn import(
             let sequence = ATTACHMENT_SEQUENCE.fetch_add(1, Ordering::Relaxed);
             let name = format!("att-{nonce:020x}{sequence:012x}.{extension}");
             let destination = directory.join(&name);
-            match link_or_copy_new(&temporary, &destination) {
+            match publish_new_file(&temporary, &destination) {
                 Ok(()) => {
                     return Ok(ImportedAttachment {
                         relative_path: format!(

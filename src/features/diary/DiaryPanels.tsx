@@ -442,7 +442,7 @@ export function DiaryDetail() {
             : null
         }
         onMissingSection={navigation.reportMissingSection}
-        onReady={navigation.editorReady}
+        onReady={() => navigation.editorReady(selected.date)}
       />
     </article>
   )

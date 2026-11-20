@@ -27,7 +27,7 @@ export interface NavigationContextValue {
   back(): Promise<boolean>
   forward(): Promise<boolean>
   restoreScroll(): void
-  editorReady(): void
+  editorReady(date: DiaryDate): void
   reportMissingSection(): void
 }
 

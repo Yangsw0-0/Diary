@@ -4,6 +4,7 @@ import {
   type DiarySectionRef,
   type NavigationView,
 } from '@/application/NavigationHistory'
+import { EditorReadiness } from '@/application/EditorReadiness'
 import { MarkdownSectionExtractor } from '@/application/MarkdownSectionExtractor'
 import type { DiarySession } from '@/application/DiarySession'
 import type { DiaryDate } from '@/domain/DiaryDate'
@@ -27,8 +28,8 @@ export function useAppNavigation(session: DiarySession) {
   const focusId = useRef(0)
   const scrollEpoch = useRef(0)
   const pendingEdge = useRef<string | null>(null)
-  const readyDate = useRef<string | null>(null)
-  const readyWaiters = useRef(new Set<() => void>())
+  const [readiness] = useState(() => new EditorReadiness())
+  useLayoutEffect(() => () => readiness.begin(null), [readiness])
   const content = useRef(new Map<string, HTMLElement>())
   const lastDiary = useRef<NavigationView | null>(null)
   const lastTags = useRef<NavigationView | null>(null)
@@ -56,25 +57,28 @@ export function useAppNavigation(session: DiarySession) {
     else setTimeout(restore, 0)
   }, [history])
 
-  const editorReady = useCallback(() => {
-    restoreScroll()
-    const date = history.current.moduleId === 'diary' ? history.current.date?.toString() : null
-    if (!date) return
-    window.requestAnimationFrame(() =>
+  const editorReady = useCallback(
+    (editorDate: DiaryDate) => {
+      const date = editorDate.toString()
+      if (history.current.moduleId !== 'diary' || history.current.date?.toString() !== date) return
+      restoreScroll()
+      const token = readiness.token
       window.requestAnimationFrame(() =>
-        window.requestAnimationFrame(() => {
-          if (pendingEdge.current === date) {
-            pendingEdge.current = null
-            const element = content.current.get('diary')
-            if (element) history.updateScroll(element.scrollTop)
-          }
-          readyDate.current = date
-          readyWaiters.current.forEach((notify) => notify())
-          readyWaiters.current.clear()
-        }),
-      ),
-    )
-  }, [history, restoreScroll])
+        window.requestAnimationFrame(() =>
+          window.requestAnimationFrame(() => {
+            if (token !== readiness.token) return
+            if (pendingEdge.current === date) {
+              pendingEdge.current = null
+              const element = content.current.get('diary')
+              if (element) history.updateScroll(element.scrollTop)
+            }
+            readiness.markReady(date, token)
+          }),
+        ),
+      )
+    },
+    [history, restoreScroll, readiness],
+  )
 
   const focusFor = useCallback(
     (view: NavigationView, restoreScroll = false): NavigationContextValue['focusRequest'] =>
@@ -164,7 +168,7 @@ export function useAppNavigation(session: DiarySession) {
           return false
         }
         capture()
-        readyDate.current = null
+        readiness.begin(next.moduleId === 'diary' ? (next.date?.toString() ?? null) : null)
         pendingEdge.current =
           next.moduleId === 'diary' && next.date && edge === 'end' ? next.date.toString() : null
         history.push(next)
@@ -176,7 +180,7 @@ export function useAppNavigation(session: DiarySession) {
         )
         return true
       }),
-    [activate, capture, focusFor, history, run, session],
+    [activate, capture, focusFor, history, run, session, readiness],
   )
 
   const openDiary = useCallback(
@@ -221,12 +225,13 @@ export function useAppNavigation(session: DiarySession) {
         if (!date) return false
         if (history.current.moduleId === 'diary' && history.current.date?.equals(date)) return true
         capture()
+        readiness.begin(date.toString())
         history.push({ moduleId: 'diary', date, section: null, scrollTop: 0 })
         setFocusRequest(null)
         setCursorEdgeRequest({ date, edge: 'start', id: ++focusId.current })
         return true
       }),
-    [capture, history, run, session],
+    [capture, history, run, session, readiness],
   )
 
   const openDiarySection = useCallback(
@@ -248,6 +253,7 @@ export function useAppNavigation(session: DiarySession) {
             .parse(selected.markdown, ref.date, selected.revision ?? '')
             .occurrences.some((item) => item.key === ref.key && item.ordinal === ref.ordinal)
         capture()
+        readiness.begin(ref.date.toString())
         history.push({
           moduleId: 'diary',
           date: ref.date,
@@ -262,7 +268,7 @@ export function useAppNavigation(session: DiarySession) {
         if (!exists) setNotice('小节已变化，已打开该日记。')
         return true
       }),
-    [activate, capture, focusFor, history, run, session],
+    [activate, capture, focusFor, history, run, session, readiness],
   )
 
   const openTag = useCallback(
@@ -329,13 +335,14 @@ export function useAppNavigation(session: DiarySession) {
           return false
         }
         capture()
+        readiness.begin(target.moduleId === 'diary' ? (target.date?.toString() ?? null) : null)
         if (direction === 'back') history.back()
         else history.forward()
         setFocusRequest(focusFor(target, true))
         setCursorEdgeRequest(null)
         return true
       }),
-    [activate, capture, focusFor, history, run, session],
+    [activate, capture, focusFor, history, run, session, readiness],
   )
 
   const navigation: NavigationContextValue = {
@@ -370,19 +377,6 @@ export function useAppNavigation(session: DiarySession) {
         history.updateScroll(scrollTop)
       }
     },
-    waitForDiaryReady: (date: DiaryDate) =>
-      new Promise<void>((resolve) => {
-        if (readyDate.current === date.toString()) {
-          resolve()
-          return
-        }
-        const done = () => {
-          clearTimeout(timeout)
-          readyWaiters.current.delete(done)
-          resolve()
-        }
-        const timeout = setTimeout(done, 2500)
-        readyWaiters.current.add(done)
-      }),
+    waitForDiaryReady: (date: DiaryDate) => readiness.wait(date.toString()),
   }
 }

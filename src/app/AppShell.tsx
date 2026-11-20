@@ -275,6 +275,7 @@ export function AppShell({
     unlockIdle.current = setTimeout(() => {
       if (
         !adjacentBusyRef.current &&
+        !nativeGestureActive.current &&
         Date.now() - lastWheelAt.current >= AdjacentDiaryNavigator.idleGapMs
       )
         adjacentGesture.current.unlock()
@@ -306,8 +307,13 @@ export function AppShell({
         }
         if (epoch !== gestureEpoch.current) return
         if (opened) {
-          if (isTauri() && '__TAURI_INTERNALS__' in window) await waitForDiaryReady(target.date)
+          if (isTauri() && '__TAURI_INTERNALS__' in window) {
+            const result = await waitForDiaryReady(target.date)
+            if (result === 'cancelled') return
+            if (result === 'timeout') setSidebarError('编辑器尚未就绪，请稍后重试打开日记。')
+          }
           await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()))
+          if (epoch !== gestureEpoch.current) return
           setTrackOffset(0)
           clearPreview()
         } else if (await animateTrack(0, 300)) clearPreview()
@@ -322,7 +328,7 @@ export function AppShell({
   }
   const releaseAdjacent = () => {
     const pending = pendingAdjacent.current
-    const decision = adjacentGesture.current.release()
+    const decision = adjacentGesture.current.release(!!pending)
     if (decision === 'commit' && pending) commitAdjacent(pending.target, pending.direction)
     else if (decision === 'rebound') reboundAdjacent()
   }
@@ -399,6 +405,7 @@ export function AppShell({
     const height = element.clientHeight || window.innerHeight
     const signed = gesture.direction === 'older' ? -1 : 1
     if (!target) {
+      pendingAdjacent.current = null
       setBoundaryNotice(gesture.direction === 'older' ? '已经是最早的日记' : '已经是最新的日记')
       setTrackOffset(signed * Math.min(Math.abs(gesture.offset), 72))
       if (!nativeGestureActive.current)
