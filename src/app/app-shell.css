@@ -1780,3 +1780,8 @@
   background: currentColor;
   opacity: 0.6;
 }
+.node-wheel,
+.node-timeline {
+  user-select: none;
+  -webkit-user-select: none;
+}

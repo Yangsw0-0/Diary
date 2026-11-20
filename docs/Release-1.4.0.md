@@ -11,3 +11,7 @@
 验证：前端107项测试、类型检查、格式、lint与生产构建通过（仍有既有lint警告）；Rust23项测试与严格clippy通过。节点真实窗口拖动手感和Windows真机尚未完成人工验收。CI编译、测试与安装包完整性不能替代人工验收。
 
 macOS采用ad hoc签名，未做Apple公证。退出旧版后用新的Diary.app替换旧应用；日记目录不变。首次浏览节点不创建文件，首次实际保存创建Nodes.json。未知格式不自动覆盖；请将Nodes.json与日记、附件一起备份。
+
+[下载 macOS Apple 芯片版 Diary_1.4.0_aarch64.zip](https://github.com/Yangsw0-0/Diary/releases/download/v1.4.0/Diary_1.4.0_aarch64.zip)。SHA-256：`a65b6af6f046736556a6c72264edef0ea884b07ff88270a02efa6840f6a7abab`。
+
+macOS应用版本、arm64架构、ad hoc签名、ZIP完整性及仅含程序文件均已核对。模拟浏览器验收已检查画布、同日追加事件与轮盘拖动；原生窗口交互验收仍待完成。
