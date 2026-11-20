@@ -15,3 +15,5 @@ macOS采用ad hoc签名，未做Apple公证。退出旧版后用新的Diary.app�
 [下载 macOS Apple 芯片版 Diary_1.4.0_aarch64.zip](https://github.com/Yangsw0-0/Diary/releases/download/v1.4.0/Diary_1.4.0_aarch64.zip)。SHA-256：`a65b6af6f046736556a6c72264edef0ea884b07ff88270a02efa6840f6a7abab`。
 
 macOS应用版本、arm64架构、ad hoc签名、ZIP完整性及仅含程序文件均已核对。模拟浏览器验收已检查画布、同日追加事件与轮盘拖动；原生窗口交互验收仍待完成。
+
+功能提交的[三项 CI 检查](https://github.com/Yangsw0-0/Diary/actions/runs/44769710854)均通过，包括Windows编译、测试和NSIS打包。本次Release仅附macOS安装包，Windows真机仍待验收。
