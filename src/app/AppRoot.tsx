@@ -160,6 +160,7 @@ export function AppRoot({ registry, services }: AppRootProps) {
   return (
     <>
       <AppShell
+        statistics={services.statistics}
         key={status.root}
         registry={registry}
         session={services.session}

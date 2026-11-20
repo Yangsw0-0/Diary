@@ -11,13 +11,22 @@ import { DiaryError } from '@/domain/DiaryError'
 export class DiaryService {
   private readonly repository: DiaryRepository
   private readonly index: TagIndex
-  private readonly extractor = new MarkdownSectionExtractor()
   private saveSerial = 0
   private workspaceEpoch = 0
   private readonly latestSaved = new Map<string, { entry: DiaryEntry; serial: number }>()
   private readonly latestRemoved = new Map<string, number>()
 
-  constructor(repository: DiaryRepository, index = new TagIndex()) {
+  private readonly extractor: MarkdownSectionExtractor
+  private readonly clearDocuments: () => void
+
+  constructor(
+    repository: DiaryRepository,
+    index = new TagIndex(),
+    extractor = new MarkdownSectionExtractor(),
+    clearDocuments: () => void = () => {},
+  ) {
+    this.extractor = extractor
+    this.clearDocuments = clearDocuments
     this.repository = repository
     this.index = index
   }
@@ -101,6 +110,7 @@ export class DiaryService {
   }
 
   clearIndex(): void {
+    this.clearDocuments()
     this.workspaceEpoch++
     this.latestSaved.clear()
     this.latestRemoved.clear()

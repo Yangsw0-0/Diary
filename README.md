@@ -2,7 +2,7 @@
 
 一个本地 Markdown 日记应用，使用 Tauri 2、React、TypeScript 和 Rust，提供 macOS 与 Windows 两个平行桌面版本。日记与附件只保存在用户选择的本地文件夹。
 
-M1–M6 已完成，macOS 正式版为 `1.0.0`；macOS 当前版本为 `1.3.2`，Windows x64 安装包为 `1.3.0`。旧文件批量导入工具属于后续额外工作。
+M1–M6 已完成，macOS 正式版为 `1.0.0`；macOS 当前版本为 `1.3.3`，Windows x64 安装包为 `1.3.0`。旧文件批量导入工具属于后续额外工作。
 
 [项目规划](./docs/Diary-Project-Plan.md) · [进度与任务](./docs/Diary-Project-Progress.md) · [使用说明](./docs/Diary-User-Guide.md) · [平台支持与源码分区](./docs/Platform-Support.md) · [1.1.0 交互规划](./docs/Diary-Interaction-Iteration-Plan.md)
 
@@ -33,11 +33,11 @@ M1–M6 已完成，macOS 正式版为 `1.0.0`；macOS 当前版本为 `1.3.2`�
 
 ## 安装
 
-macOS 最新版本为 `1.3.2`，安装包从 [GitHub Release](https://github.com/Yangsw0-0/Diary/releases/tag/v1.3.2) 下载；Windows 最新安装包仍为 `1.3.0`。
+macOS 最新版本为 `1.3.3`，安装包从 [GitHub Release](https://github.com/Yangsw0-0/Diary/releases/tag/v1.3.3) 下载；Windows 最新安装包仍为 `1.3.0`。
 
 ### macOS
 
-适用于 Apple 芯片 Mac：[Diary_1.3.2_aarch64.zip](https://github.com/Yangsw0-0/Diary/releases/download/v1.3.2/Diary_1.3.2_aarch64.zip)。解压后退出旧版 Diary，再将 `Diary.app` 拖到「应用程序」文件夹替换旧版。首次运行请选择一个已有的日记文件夹。应用使用临时（ad hoc）签名，未做 Apple 公证；macOS 若阻止打开，请在系统设置的「隐私与安全性」中确认你信任此应用后手动放行。
+适用于 Apple 芯片 Mac：[Diary_1.3.3_aarch64.zip](https://github.com/Yangsw0-0/Diary/releases/download/v1.3.3/Diary_1.3.3_aarch64.zip)。解压后退出旧版 Diary，再将 `Diary.app` 拖到「应用程序」文件夹替换旧版。首次运行请选择一个已有的日记文件夹。应用使用临时（ad hoc）签名，未做 Apple 公证；macOS 若阻止打开，请在系统设置的「隐私与安全性」中确认你信任此应用后手动放行。
 
 ### Windows
 

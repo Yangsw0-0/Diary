@@ -1,6 +1,4 @@
-import remarkGfm from 'remark-gfm'
-import remarkParse from 'remark-parse'
-import { unified } from 'unified'
+import { MarkdownDocumentCache } from './MarkdownDocumentCache'
 import type { Nodes } from 'mdast'
 import type { DiaryEntry } from '@/domain/DiaryEntry'
 
@@ -10,7 +8,6 @@ export interface DiaryStatisticsSnapshot {
   readonly skipped: number
 }
 
-const parser = unified().use(remarkParse).use(remarkGfm)
 const graphemes = new Intl.Segmenter('zh-CN', { granularity: 'grapheme' })
 
 function visibleText(node: Nodes): string {
@@ -22,6 +19,12 @@ function visibleText(node: Nodes): string {
 
 /** Derives saved writing totals from the current workspace without touching the files. */
 export class DiaryStatistics {
+  private readonly documents: MarkdownDocumentCache
+
+  constructor(documents = new MarkdownDocumentCache()) {
+    this.documents = documents
+  }
+
   private readonly cache = new Map<string, { revision: string; markdown: string; count: number }>()
 
   calculate(entries: readonly DiaryEntry[]): DiaryStatisticsSnapshot {
@@ -54,7 +57,7 @@ export class DiaryStatistics {
   }
 
   private count(entry: DiaryEntry): number {
-    const document = parser.parse(entry.markdown)
+    const document = this.documents.parse(entry.markdown)
     const firstDateHeading = document.children.findIndex(
       (node) => node.type === 'heading' && node.depth === 1,
     )

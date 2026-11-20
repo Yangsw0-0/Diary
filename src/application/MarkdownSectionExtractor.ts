@@ -1,7 +1,5 @@
+import { MarkdownDocumentCache } from './MarkdownDocumentCache'
 import { toString } from 'mdast-util-to-string'
-import remarkParse from 'remark-parse'
-import remarkGfm from 'remark-gfm'
-import { unified } from 'unified'
 import type { Heading } from 'mdast'
 import type { DiaryDate } from '@/domain/DiaryDate'
 import type { DiarySummary } from '@/domain/DiaryEntry'
@@ -13,12 +11,16 @@ export interface ExtractedDay {
   readonly occurrences: readonly TagOccurrence[]
 }
 
-const parser = unified().use(remarkParse).use(remarkGfm)
-
 /** Pure Markdown parser; offsets refer to the exact input string (UTF-16 code units). */
 export class MarkdownSectionExtractor {
+  private readonly documents: MarkdownDocumentCache
+
+  constructor(documents = new MarkdownDocumentCache()) {
+    this.documents = documents
+  }
+
   parse(markdown: string, date: DiaryDate, revision: string): ExtractedDay {
-    const document = parser.parse(markdown)
+    const document = this.documents.parse(markdown)
     const firstHeading = document.children.find(
       (node): node is Heading => node.type === 'heading' && node.depth === 1,
     )

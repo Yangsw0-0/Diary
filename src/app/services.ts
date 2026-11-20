@@ -1,3 +1,6 @@
+import { MarkdownDocumentCache } from '@/application/MarkdownDocumentCache'
+import { MarkdownSectionExtractor } from '@/application/MarkdownSectionExtractor'
+import { DiaryStatistics } from '@/application/DiaryStatistics'
 import { DiaryService } from '@/application/DiaryService'
 import { DiarySession } from '@/application/DiarySession'
 import { TagIndex } from '@/application/TagIndex'
@@ -10,6 +13,7 @@ import { AttachmentService, type AttachmentGateway } from '@/application/Attachm
 import { TauriAttachmentGateway } from '@/infrastructure/TauriAttachmentGateway'
 
 export interface AppServices {
+  statistics: DiaryStatistics
   diary: DiaryService
   session: DiarySession
   tagIndex: TagIndex
@@ -23,9 +27,12 @@ export function createServices(
   workspaceGateway: WorkspaceGateway = new TauriWorkspaceGateway(),
   attachmentGateway: AttachmentGateway = new TauriAttachmentGateway(),
 ): AppServices {
-  const tagIndex = new TagIndex()
-  const diary = new DiaryService(repository, tagIndex)
+  const documents = new MarkdownDocumentCache()
+  const extractor = new MarkdownSectionExtractor(documents)
+  const tagIndex = new TagIndex(extractor)
+  const diary = new DiaryService(repository, tagIndex, extractor, () => documents.clear())
   return {
+    statistics: new DiaryStatistics(documents),
     diary,
     session: new DiarySession(diary),
     tagIndex,
