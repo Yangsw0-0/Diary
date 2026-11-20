@@ -1,3 +1,5 @@
+import type { NodePalette } from '@/application/NodePalette'
+import type { NodesSession } from '@/application/NodesSession'
 import {
   Fragment,
   useEffect,
@@ -28,6 +30,8 @@ const MAX_LIST_WIDTH = 420
 const MIN_DETAIL_WIDTH = 300
 
 interface AppShellProps {
+  readonly nodePalette?: NodePalette
+  readonly nodes?: NodesSession
   readonly statistics?: DiaryStatistics
   readonly registry: ModuleCatalog
   readonly session: DiarySession
@@ -48,6 +52,8 @@ interface AppShellProps {
 
 export function AppShell({
   registry,
+  nodes,
+  nodePalette,
   statistics: sharedStatistics,
   session,
   root,
@@ -102,7 +108,7 @@ export function AppShell({
   const visibleListWidth = Math.min(listWidth, maxListWidth)
   const sessionSnapshot = useSyncExternalStore(session.subscribe, session.getSnapshot)
   const { navigation, navigating, registerContent, updateScroll, waitForDiaryReady } =
-    useAppNavigation(session)
+    useAppNavigation(session, nodes)
   const { adjacentPreview, boundaryNotice, trackElement, previewElement, diaryContentElement } =
     useAdjacentDiaryNavigation({
       sessionSnapshot,
@@ -267,7 +273,7 @@ export function AppShell({
                   onClick={() => {
                     setSettingsOpen(false)
                     setDetailExpanded(false)
-                    if (module.id === 'diary' || module.id === 'tags')
+                    if (module.id === 'diary' || module.id === 'tags' || module.id === 'nodes')
                       void navigation.openModule(module.id)
                   }}
                   disabled={navigating}
@@ -388,6 +394,7 @@ export function AppShell({
           )}
           {settingsOpen && (
             <SettingsPanel
+              nodePalette={nodePalette}
               root={root}
               choosingRoot={!!choosingRoot}
               onChooseRoot={onChooseRoot}
@@ -401,6 +408,18 @@ export function AppShell({
             />
           )}
           {registry.list().map((module) => {
+            if (module.layout === 'canvas') {
+              const Detail = module.Detail
+              return (
+                <div
+                  key={module.id}
+                  className="workspace-canvas"
+                  hidden={settingsOpen || activeId !== module.id}
+                >
+                  <Detail />
+                </div>
+              )
+            }
             const List = module.List
             const Detail = module.Detail
             const Provider = module.Provider

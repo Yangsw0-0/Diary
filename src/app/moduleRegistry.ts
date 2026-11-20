@@ -1,16 +1,20 @@
 import type { ComponentType, PropsWithChildren } from 'react'
 import type { LucideIcon } from 'lucide-react'
 
-export interface FeatureModule {
+interface ModuleBase {
   readonly id: string
   readonly label: string
   readonly Icon: LucideIcon
-  readonly listLabel: string
   readonly detailLabel: string
-  readonly List: ComponentType
   readonly Detail: ComponentType
   readonly Provider?: ComponentType<PropsWithChildren>
 }
+
+export type FeatureModule = ModuleBase &
+  (
+    | { readonly layout?: 'split'; readonly List: ComponentType; readonly listLabel: string }
+    | { readonly layout: 'canvas' }
+  )
 
 /** Read-only view consumed by the shell; registration stays in the composition root. */
 export interface ModuleCatalog {

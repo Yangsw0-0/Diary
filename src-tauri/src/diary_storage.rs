@@ -314,7 +314,7 @@ fn replace_file(source: &Path, destination: &Path) -> std::io::Result<()> {
     Err(last_error.unwrap_or_else(|| std::io::Error::other("rename failed")))
 }
 
-fn atomic_write_checked(
+pub(crate) fn atomic_write_checked(
     path: &Path,
     bytes: &[u8],
     check: impl FnOnce() -> Result<(), AppError>,

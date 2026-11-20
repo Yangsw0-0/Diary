@@ -1,3 +1,4 @@
+import { SaveIndicator } from '@/shared/SaveIndicator'
 import {
   createContext,
   useContext,
@@ -358,17 +359,13 @@ export function DiaryDetail() {
           <span id="diary-save-state" role="status" className="diary-visually-hidden">
             {status}
           </span>
-          <button
-            type="button"
-            className="diary-save-indicator"
-            data-state={saveState}
+          <SaveIndicator
+            state={saveState}
             title={`${status}，点击手动保存`}
-            onClick={() => void session.flush()}
-            aria-label="保存日记"
-            aria-describedby="diary-save-state"
-          >
-            <span className="diary-save-dot" aria-hidden="true" />
-          </button>
+            onSave={() => void session.flush()}
+            label="保存日记"
+            describedBy="diary-save-state"
+          />
         </div>
       </div>
       {attachmentError && (

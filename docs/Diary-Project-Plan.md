@@ -220,3 +220,7 @@ src-tauri/src/
 - [Tauri 2 文件系统 API](https://v2.tauri.app/reference/javascript/fs/)
 - [Milkdown Crepe 使用说明](https://milkdown.dev/docs/guide/using-crepe)
 - [remark / mdast](https://unifiedjs.com/explore/package/remark/)
+
+## M8 节点（1.4.0）
+
+详见 [节点工作计划](./Diary-Node-Plan.md) 与末尾实施修订。一天一个日期节点、一天可有多条事件；独立 Nodes.json、全宽时间轴与轮盘、六槽自定义色板、自动保存和冲突保护。模型、会话、仓储、展示分层；日记Markdown不改动。

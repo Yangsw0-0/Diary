@@ -1512,3 +1512,271 @@
 .tag-section-date-button:hover {
   text-decoration: underline;
 }
+
+.workspace-canvas {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  position: relative;
+}
+.workspace-canvas[hidden] {
+  display: none;
+}
+.nodes-panel {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+  background: var(--background);
+  color: var(--foreground);
+}
+.nodes-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 24px;
+  flex-shrink: 0;
+}
+.nodes-header h1 {
+  font-size: 20px;
+}
+.nodes-error {
+  padding: 8px 24px;
+  background: color-mix(in oklab, red 10%, var(--background));
+  font-size: 13px;
+}
+.nodes-error button {
+  margin-left: 12px;
+  text-decoration: underline;
+}
+.nodes-add {
+  position: absolute;
+  bottom: 24px;
+  right: 28px;
+  padding: 10px 18px;
+  border-radius: 20px;
+  background: var(--foreground);
+  color: var(--background);
+  z-index: 3;
+}
+.nodes-add:disabled {
+  opacity: 0.4;
+}
+.nodes-empty {
+  margin: auto;
+  text-align: center;
+}
+.node-timeline {
+  flex: 0 0 190px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  mask-image: linear-gradient(to right, transparent, black 7%, black 93%, transparent);
+  touch-action: pan-y;
+  cursor: grab;
+}
+.node-timeline-inner {
+  height: 100%;
+  position: relative;
+}
+.node-axis {
+  position: absolute;
+  top: 50%;
+  height: 1px;
+  background: var(--border);
+  width: 100%;
+}
+.node-time-point {
+  position: absolute;
+  top: 50%;
+  width: 14px;
+  height: 14px;
+  margin: -7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.node-time-point[aria-current] {
+  outline: 3px solid color-mix(in oklab, currentColor 35%, transparent);
+  outline-offset: 4px;
+}
+.node-time-label {
+  position: absolute;
+  left: 50%;
+  font-size: 12px;
+  line-height: 1.35;
+  text-align: center;
+}
+.node-time-label::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 0;
+  height: 10px;
+  width: 1px;
+  background: currentColor;
+}
+.node-time-label small,
+.node-time-label strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.node-wheel {
+  flex: 1;
+  min-height: 180px;
+  position: relative;
+  overflow: hidden;
+  touch-action: none;
+  mask-image: linear-gradient(to bottom, transparent, black 12%, black 88%, transparent);
+  cursor: grab;
+  outline-offset: -4px;
+}
+.node-pointer {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  z-index: 2;
+  transform: translateY(-50%);
+  color: var(--muted-foreground);
+}
+.node-rotor {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 0;
+  height: 0;
+  transition: transform 240ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.node-wheel[data-dragging='true'] .node-rotor {
+  transition: none;
+}
+.node-wheel-item {
+  position: absolute;
+  left: 0;
+  top: -40px;
+  transform-origin: 0 40px;
+  width: clamp(170px, 25vw, 320px);
+  height: 80px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-left: 3px solid var(--event-color);
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: color-mix(in oklab, var(--event-color) 10%, var(--background));
+  color: var(--foreground);
+  opacity: 0.45;
+  transition:
+    opacity 200ms,
+    box-shadow 200ms;
+}
+.node-wheel-item[data-focused='true'] {
+  opacity: 1;
+  box-shadow: 0 5px 24px #0002;
+}
+.node-event-text {
+  text-align: left;
+  min-width: 0;
+  flex: 1;
+}
+.node-event-text small {
+  display: block;
+  font-size: 12px;
+  opacity: 0.7;
+}
+.node-event-text strong {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 18px;
+}
+.node-swatches {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+.node-swatches button {
+  width: 16px;
+  height: 16px;
+  border: 1px solid #8886;
+  border-radius: 50%;
+}
+.node-swatches button[aria-pressed='true'] {
+  outline: 2px solid var(--foreground);
+  outline-offset: 2px;
+}
+.node-wheel-item .node-swatches {
+  position: absolute;
+  right: 0;
+  bottom: -20px;
+  opacity: 0;
+  pointer-events: none;
+}
+.node-wheel-item:hover .node-swatches,
+.node-wheel-item:focus-within .node-swatches,
+.node-wheel-item[data-focused='true'] .node-swatches {
+  opacity: 1;
+  pointer-events: auto;
+}
+.node-editor {
+  background: var(--background);
+  color: var(--foreground);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  width: min(460px, 90vw);
+  padding: 24px;
+  box-shadow: 0 16px 80px #0004;
+}
+.node-editor h2 {
+  font-size: 22px;
+  margin-bottom: 18px;
+}
+.node-editor label {
+  display: block;
+  margin-top: 12px;
+}
+.node-editor input {
+  display: block;
+  width: 100%;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--background);
+  color: var(--foreground);
+}
+.node-editor p,
+.node-editor small {
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+.node-editor .node-swatches {
+  margin: 20px 0;
+}
+.node-editor footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 20px;
+  margin-top: 20px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .node-rotor,
+  .node-wheel-item {
+    transition: none;
+  }
+}
+.node-time-label {
+  color: color-mix(in oklab, currentColor 24%, var(--foreground));
+}
+.node-time-point::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: -12px;
+  height: 12px;
+  width: 1px;
+  background: currentColor;
+  opacity: 0.6;
+}

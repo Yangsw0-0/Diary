@@ -1,3 +1,6 @@
+import { NodesPanel } from '@/features/nodes/NodesPanel'
+import { createElement } from 'react'
+import { Milestone } from 'lucide-react'
 import { BookOpenText, Tags } from 'lucide-react'
 import type { DiaryRepository } from '@/domain/DiaryRepository'
 import { createDiaryPanels } from '@/features/diary/DiaryPanels'
@@ -62,6 +65,15 @@ export function createApp(
     List: tagPanels.List,
     Detail: tagPanels.Detail,
     Provider: tagPanels.Provider,
+  })
+  const palette = services.nodePalette
+  registry.register({
+    id: 'nodes',
+    label: '节点',
+    Icon: Milestone,
+    layout: 'canvas',
+    detailLabel: '节点画布',
+    Detail: () => createElement(NodesPanel, { session: services.nodes, palette }),
   })
   registry.validate()
   return { services, registry }

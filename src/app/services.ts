@@ -1,3 +1,6 @@
+import { NodePalette } from '@/application/NodePalette'
+import { NodesSession } from '@/application/NodesSession'
+import { TauriNodeRepository } from '@/infrastructure/TauriNodeRepository'
 import { MarkdownDocumentCache } from '@/application/MarkdownDocumentCache'
 import { MarkdownSectionExtractor } from '@/application/MarkdownSectionExtractor'
 import { DiaryStatistics } from '@/application/DiaryStatistics'
@@ -13,6 +16,8 @@ import { AttachmentService, type AttachmentGateway } from '@/application/Attachm
 import { TauriAttachmentGateway } from '@/infrastructure/TauriAttachmentGateway'
 
 export interface AppServices {
+  nodePalette: NodePalette
+  nodes: NodesSession
   statistics: DiaryStatistics
   diary: DiaryService
   session: DiarySession
@@ -32,6 +37,8 @@ export function createServices(
   const tagIndex = new TagIndex(extractor)
   const diary = new DiaryService(repository, tagIndex, extractor, () => documents.clear())
   return {
+    nodePalette: new NodePalette(window.localStorage),
+    nodes: new NodesSession(new TauriNodeRepository()),
     statistics: new DiaryStatistics(documents),
     diary,
     session: new DiarySession(diary),

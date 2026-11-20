@@ -1,3 +1,4 @@
+import type { NodesSession } from '@/application/NodesSession'
 import { useCallback, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
 import {
   NavigationHistory,
@@ -12,7 +13,7 @@ import type { NavigationContextValue } from '@/shared/NavigationContext'
 
 const extractor = new MarkdownSectionExtractor()
 
-export function useAppNavigation(session: DiarySession) {
+export function useAppNavigation(session: DiarySession, nodes?: NodesSession) {
   const [history] = useState(() => new NavigationHistory())
   const snapshot = useSyncExternalStore(history.subscribe, history.getSnapshot)
   const renamed = useSyncExternalStore(session.subscribe, () => session.getSnapshot().renamed)
@@ -39,7 +40,7 @@ export function useAppNavigation(session: DiarySession) {
     const element = content.current.get(current.moduleId)
     if (element) history.updateScroll(element.scrollTop)
     if (current.moduleId === 'diary') lastDiary.current = history.current
-    else lastTags.current = history.current
+    else if (current.moduleId === 'tags') lastTags.current = history.current
   }, [history])
 
   const restoreScroll = useCallback(() => {
@@ -135,6 +136,12 @@ export function useAppNavigation(session: DiarySession) {
 
   const activate = useCallback(
     async (view: NavigationView): Promise<boolean> => {
+      if (nodes && history.current.moduleId === 'nodes') await nodes.flush()
+      if (view.moduleId === 'nodes') {
+        if (!(await session.flush())) return false
+        await nodes?.ensureLoaded()
+        return true
+      }
       if (view.moduleId === 'tags') return session.flush()
       if (view.date === null) return session.deselect()
       if (session.getSnapshot().selected?.date.equals(view.date)) {
@@ -144,7 +151,7 @@ export function useAppNavigation(session: DiarySession) {
       }
       return session.open(view.date)
     },
-    [session],
+    [session, nodes, history],
   )
 
   const navigate = useCallback(
@@ -281,8 +288,9 @@ export function useAppNavigation(session: DiarySession) {
   )
 
   const openModule = useCallback(
-    (moduleId: 'diary' | 'tags') => {
+    (moduleId: 'diary' | 'tags' | 'nodes') => {
       if (history.current.moduleId === moduleId) return Promise.resolve(true)
+      if (moduleId === 'nodes') return navigate({ moduleId: 'nodes', scrollTop: 0 })
       if (moduleId === 'tags') {
         const recent = lastTags.current
         return navigate(

@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { NodePalette } from '@/application/NodePalette'
+import { useState, useSyncExternalStore } from 'react'
 import { BookOpenText, FolderOpen, Moon, Sun } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ThemePalette } from '@/application/ThemePalette'
@@ -6,6 +7,7 @@ import { AppearancePreferences, type AppearanceValues } from '@/application/Appe
 import { HelpDialog } from '@/features/help/HelpDialog'
 
 interface SettingsPanelProps {
+  nodePalette?: NodePalette | undefined
   root: string | undefined
   choosingRoot: boolean
   onChooseRoot?: (() => void) | undefined
@@ -19,6 +21,7 @@ interface SettingsPanelProps {
 }
 
 export function SettingsPanel({
+  nodePalette: sharedNodePalette,
   root,
   choosingRoot,
   onChooseRoot,
@@ -30,11 +33,47 @@ export function SettingsPanel({
   appearance = AppearancePreferences.defaults,
   onSaveAppearance,
 }: SettingsPanelProps) {
+  const [fallbackPalette] = useState(() => new NodePalette(window.localStorage))
+  const nodePalette = sharedNodePalette ?? fallbackPalette
+  const nodeColors = useSyncExternalStore(nodePalette.subscribe, nodePalette.getSnapshot)
   const [helpOpen, setHelpOpen] = useState(false)
   return (
     <section className="settings-panel" aria-label="设置">
       <p className="eyebrow">PREFERENCES</p>
       <h1>设置</h1>
+      <div className="settings-card">
+        <div>
+          <h2>节点颜色</h2>
+          <p>修改后所有使用该颜色的事件和时间轴同步更新。</p>
+        </div>
+        <div className="settings-colors">
+          {nodeColors.map((color, index) => (
+            <label key={index}>
+              颜色 {index + 1}
+              <input
+                type="color"
+                aria-label={`节点颜色 ${index + 1}`}
+                value={color}
+                onChange={(e) => {
+                  try {
+                    nodePalette.setColor(index, e.target.value)
+                  } catch (error) {
+                    onError(String(error))
+                  }
+                }}
+              />
+            </label>
+          ))}
+          <Button
+            variant="outline"
+            onClick={() => {
+              nodePalette.reset()
+            }}
+          >
+            恢复节点默认色
+          </Button>
+        </div>
+      </div>
       <div className="settings-card">
         <div>
           <h2>日记文件夹</h2>

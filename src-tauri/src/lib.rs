@@ -4,6 +4,8 @@ mod diary_commands;
 mod diary_storage;
 mod error;
 mod external_link;
+mod nodes_commands;
+mod nodes_storage;
 mod platform;
 #[cfg(target_os = "macos")]
 mod scroll_phase;
@@ -35,6 +37,9 @@ pub fn run() {
             workspace::choose_diary_root,
             workspace::save_ui_preferences,
             workspace::save_theme,
+            nodes_commands::read_nodes,
+            nodes_commands::save_nodes,
+            nodes_commands::backup_nodes_file,
             diary_commands::list_diaries,
             diary_commands::read_diary,
             diary_commands::save_diary,
