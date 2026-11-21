@@ -4,7 +4,7 @@
 
 ## 当前版本与平台
 
-- macOS Apple 芯片当前版本为 `1.5.0`（[发布记录](./Release-1.5.0.md)）；Windows 10/11 x64 最新安装包为 `1.3.0`（[发布记录](./Release-1.3.0.md)）。Windows 真机窗口验收仍待完成。
+- macOS Apple 芯片当前版本为 `1.5.0`（[发布记录](./Release-1.5.0.md)）；Windows 10/11 x64 当前版本为 `1.5.0`（[发布记录](./Release-1.5.0.md)）。Windows 真机窗口验收仍待完成。
 - M1–M6 已完成。M7 Windows 适配的自动检查与打包已通过；**M7-07 Windows 真机安装和窗口交互验收仍待完成**。不得把 CI 成功表述为真实 Windows 设备已验收。
 - 本地前端 `npm run check` 通过，测试为 109 项；Rust 23 项测试与严格 clippy 通过，macOS 1.5.0 安装包已构建、ad-hoc 签名并打出 ZIP（SHA-256 见发布记录）；Windows 安装包待 CI 构建；节点画布拖动、时间轴居中和轮盘手感仍需实际窗口复核。
 
