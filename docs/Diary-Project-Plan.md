@@ -221,6 +221,6 @@ src-tauri/src/
 - [Milkdown Crepe 使用说明](https://milkdown.dev/docs/guide/using-crepe)
 - [remark / mdast](https://unifiedjs.com/explore/package/remark/)
 
-## M8 节点（1.4.0）
+## M8 节点（1.4.0 / 1.5.0）
 
-详见 [节点工作计划](./Diary-Node-Plan.md) 与末尾实施修订。一天一个日期节点、一天可有多条事件；独立 Nodes.json、全宽时间轴与轮盘、六槽自定义色板、自动保存和冲突保护。模型、会话、仓储、展示分层；日记Markdown不改动。
+详见 [节点工作计划](./Diary-Node-Plan.md) 与末尾实施修订。一天一个日期节点、一天可有多条事件；独立 Nodes.json、全宽时间轴与轮盘、六槽自定义色板、自动保存和冲突保护。模型、会话、仓储、展示分层；日记Markdown不改动。1.5.0 按手绘稿重做节点画布：时间轴日期与事件上下交替、首末事件可居中并吸附最近节点，轮盘改笔刷软边卡片、长指针与圆环装饰，并修复保存失败离开、拖动后点击、错误中文提示与云盘目录兼容。

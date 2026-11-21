@@ -1,6 +1,7 @@
 import { NodePalette } from '@/application/NodePalette'
 import { NodesSession } from '@/application/NodesSession'
 import { TauriNodeRepository } from '@/infrastructure/TauriNodeRepository'
+import type { NodeRepository } from '@/domain/NodeRepository'
 import { MarkdownDocumentCache } from '@/application/MarkdownDocumentCache'
 import { MarkdownSectionExtractor } from '@/application/MarkdownSectionExtractor'
 import { DiaryStatistics } from '@/application/DiaryStatistics'
@@ -31,6 +32,7 @@ export function createServices(
   repository: DiaryRepository = new TauriDiaryRepository(),
   workspaceGateway: WorkspaceGateway = new TauriWorkspaceGateway(),
   attachmentGateway: AttachmentGateway = new TauriAttachmentGateway(),
+  nodeRepository: NodeRepository = new TauriNodeRepository(),
 ): AppServices {
   const documents = new MarkdownDocumentCache()
   const extractor = new MarkdownSectionExtractor(documents)
@@ -38,7 +40,7 @@ export function createServices(
   const diary = new DiaryService(repository, tagIndex, extractor, () => documents.clear())
   return {
     nodePalette: new NodePalette(window.localStorage),
-    nodes: new NodesSession(new TauriNodeRepository()),
+    nodes: new NodesSession(nodeRepository),
     statistics: new DiaryStatistics(documents),
     diary,
     session: new DiarySession(diary),

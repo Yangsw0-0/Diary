@@ -1,8 +1,8 @@
 import { NodesPanel } from '@/features/nodes/NodesPanel'
 import { createElement } from 'react'
-import { Milestone } from 'lucide-react'
-import { BookOpenText, Tags } from 'lucide-react'
+import { BookOpenText, Milestone, Tags } from 'lucide-react'
 import type { DiaryRepository } from '@/domain/DiaryRepository'
+import type { NodeRepository } from '@/domain/NodeRepository'
 import { createDiaryPanels } from '@/features/diary/DiaryPanels'
 import { CrepeEditorAdapter } from '@/infrastructure/CrepeEditorAdapter'
 import { TagCompletion } from '@/application/TagCompletion'
@@ -19,8 +19,9 @@ export function createApp(
   repository?: DiaryRepository,
   workspaceGateway?: WorkspaceGateway,
   attachmentGateway?: AttachmentGateway,
+  nodeRepository?: NodeRepository,
 ) {
-  const services = createServices(repository, workspaceGateway, attachmentGateway)
+  const services = createServices(repository, workspaceGateway, attachmentGateway, nodeRepository)
   const completion = new TagCompletion((prefix) =>
     services.tagIndex.getCompletionCandidates(prefix),
   )
@@ -73,7 +74,12 @@ export function createApp(
     Icon: Milestone,
     layout: 'canvas',
     detailLabel: '节点画布',
-    Detail: () => createElement(NodesPanel, { session: services.nodes, palette }),
+    Detail: (props: { active?: boolean }) =>
+      createElement(NodesPanel, {
+        session: services.nodes,
+        palette,
+        active: props.active ?? true,
+      }),
   })
   registry.validate()
   return { services, registry }

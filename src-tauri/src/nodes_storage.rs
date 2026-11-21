@@ -11,19 +11,10 @@ pub struct NodesFile {
     pub json: String,
     pub revision: String,
 }
-#[cfg(windows)]
-fn is_reparse(meta: &fs::Metadata) -> bool {
-    use std::os::windows::fs::MetadataExt;
-    meta.file_attributes() & 0x400 != 0
-}
-#[cfg(not(windows))]
-fn is_reparse(_: &fs::Metadata) -> bool {
-    false
-}
 fn checked_path(root: &Path) -> Result<std::path::PathBuf, AppError> {
     let path = root.join("Nodes.json");
     match fs::symlink_metadata(&path) {
-        Ok(meta) if !meta.is_file() || meta.file_type().is_symlink() || is_reparse(&meta) => {
+        Ok(meta) if !meta.is_file() || meta.file_type().is_symlink() => {
             return Err(AppError::new("invalid_data", "Nodes.json 不能是链接或目录"));
         }
         Err(e) if e.kind() != std::io::ErrorKind::NotFound => return Err(AppError::from_io(e)),
@@ -33,10 +24,13 @@ fn checked_path(root: &Path) -> Result<std::path::PathBuf, AppError> {
 }
 pub fn read(root: &Path) -> Result<Option<NodesFile>, AppError> {
     let path = checked_path(root)?;
-    let file = match fs::File::open(path) {
+    let file = match crate::platform::open_read_no_follow(&path) {
         Ok(file) => file,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
-        Err(e) => return Err(AppError::from_io(e)),
+        Err(e) if e.code == "not_found" => return Ok(None),
+        Err(e) => return Err(e),
+    };
+    if !file.metadata().map_err(AppError::from_io)?.is_file() {
+        return Err(AppError::new("invalid_data", "Nodes.json 不能是链接或目录"));
     };
     let mut bytes = Vec::new();
     file.take(LIMIT + 1)
@@ -50,6 +44,24 @@ pub fn read(root: &Path) -> Result<Option<NodesFile>, AppError> {
         .map_err(|_| AppError::new("corrupt_file", "节点文件不是 UTF-8"))?;
     Ok(Some(NodesFile { json, revision }))
 }
+fn valid_timestamp(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    if bytes.len() < 19 {
+        return false;
+    }
+    let digits = |start: usize, end: usize| bytes[start..end].iter().all(u8::is_ascii_digit);
+    bytes[4] == b'-'
+        && bytes[7] == b'-'
+        && bytes[10] == b'T'
+        && bytes[13] == b':'
+        && bytes[16] == b':'
+        && digits(0, 4)
+        && digits(5, 7)
+        && digits(8, 10)
+        && digits(11, 13)
+        && digits(14, 16)
+        && digits(17, 19)
+}
 fn validate(json: &str) -> Result<(), AppError> {
     let invalid = || AppError::new("invalid_data", "节点文件结构、日期或事件无效");
     if json.len() as u64 > LIMIT {
@@ -61,6 +73,9 @@ fn validate(json: &str) -> Result<(), AppError> {
         return Err(invalid());
     }
     let nodes = doc["nodes"].as_array().ok_or_else(invalid)?;
+    if nodes.len() > 1000 {
+        return Err(invalid());
+    }
     let mut dates = HashSet::new();
     let mut ids = HashSet::new();
     let mut count = 0;
@@ -111,7 +126,10 @@ fn validate(json: &str) -> Result<(), AppError> {
                 return Err(invalid());
             }
             for field in ["createdAt", "updatedAt"] {
-                if event[field].as_str().is_none_or(|v| !v.contains('T')) {
+                if event[field]
+                    .as_str()
+                    .is_none_or(|value| !valid_timestamp(value))
+                {
                     return Err(invalid());
                 }
             }
@@ -162,8 +180,13 @@ pub fn backup(root: &Path) -> Result<Option<String>, AppError> {
     fs::remove_file(&temporary).map_err(AppError::from_io)?;
     let name = temporary.with_extension("nodes-backup.json");
     // Rename preserves even corrupt/non-UTF8/oversized bytes without reading or overwriting them.
-    fs::hard_link(&path, &name).map_err(AppError::from_io)?;
-    fs::remove_file(path).map_err(AppError::from_io)?;
+    // Hard links are unavailable on some filesystems (for example exFAT or cloud drives), so fall
+    // back to a rename, which is still atomic within the workspace.
+    if fs::hard_link(&path, &name).is_ok() {
+        fs::remove_file(&path).map_err(AppError::from_io)?;
+    } else {
+        fs::rename(&path, &name).map_err(AppError::from_io)?;
+    }
     Ok(Some(
         name.file_name().unwrap().to_string_lossy().into_owned(),
     ))

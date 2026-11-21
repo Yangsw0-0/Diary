@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
+import type { CSSProperties } from 'react'
 import type { flattenNodes } from '@/domain/NodesDocument'
 import { snapWheel, wheelPosition, wheelStep, wheelWindow } from '@/application/nodeWheel'
+
 export function NodeWheel({
   events,
   focusedId,
@@ -16,30 +18,41 @@ export function NodeWheel({
   onColor: (id: string, color: number) => void
   colors: readonly string[]
 }) {
-  const moved = useRef(false)
-  const root = useRef<HTMLDivElement>(null),
-    drag = useRef<{ y: number; start: number; distance: number } | null>(null)
-  const [radius, setRadius] = useState(360),
-    [dragPosition, setPosition] = useState(0),
-    [dragging, setDragging] = useState(false)
+  const root = useRef<HTMLDivElement>(null)
+  const drag = useRef<{ y: number; start: number; distance: number } | null>(null)
+  const swallowClick = useRef(false)
+  const lastFocused = useRef<string | null>(null)
+  const positionRef = useRef(0)
+  const [radius, setRadius] = useState(360)
+  const [dragPosition, setDragPosition] = useState(0)
+  const [dragging, setDragging] = useState(false)
   const index = Math.max(
     0,
-    events.findIndex((e) => e.id === focusedId),
+    events.findIndex((event) => event.id === focusedId),
   )
   const position = dragging ? dragPosition : index
+
   useEffect(() => {
-    const el = root.current!
-    const observer = new ResizeObserver(() =>
-      setRadius(Math.max(120, Math.min(860, el.clientHeight * 0.92, el.clientWidth * 0.48))),
-    )
+    const el = root.current
+    if (!el) return
+    const measure = () =>
+      setRadius(Math.max(260, Math.min(860, el.clientHeight * 0.92, el.clientWidth * 0.5)))
+    const observer = new ResizeObserver(measure)
     observer.observe(el)
+    measure()
     return () => observer.disconnect()
   }, [])
+
   const focus = (value: number) => {
-    const i = snapWheel(value, events.length)
-    setPosition(i)
-    if (events[i]) onFocus(events[i].id)
+    const next = snapWheel(value, events.length)
+    setDragPosition(next)
+    positionRef.current = next
+    const row = events[next]
+    if (row && row.id !== focusedId) onFocus(row.id)
   }
+
+  if (events.length === 0) return null
+
   return (
     <div
       className="node-wheel"
@@ -48,50 +61,54 @@ export function NodeWheel({
       role="group"
       aria-label="事件轮盘"
       data-dragging={dragging}
-      onKeyDown={(e) => {
-        if (!['ArrowUp', 'ArrowDown', 'Home', 'End', 'Enter'].includes(e.key)) return
-        e.preventDefault()
-        if (e.key === 'Enter') {
+      style={{ '--wheel-radius': `${radius}px` } as CSSProperties}
+      onKeyDown={(event) => {
+        if (!['ArrowUp', 'ArrowDown', 'Home', 'End', 'Enter'].includes(event.key)) return
+        event.preventDefault()
+        if (event.key === 'Enter') {
           if (focusedId) onEdit(focusedId)
         } else
           focus(
-            e.key === 'Home'
+            event.key === 'Home'
               ? 0
-              : e.key === 'End'
+              : event.key === 'End'
                 ? events.length - 1
-                : index + (e.key === 'ArrowDown' ? 1 : -1),
+                : index + (event.key === 'ArrowDown' ? 1 : -1),
           )
       }}
-      onClickCapture={(e) => {
-        if (moved.current) {
-          e.stopPropagation()
-          e.preventDefault()
-          moved.current = false
-        }
-      }}
-      onPointerDown={(e) => {
-        if ((e.target as HTMLElement).closest('.node-swatches, .node-pencil')) return
-        drag.current = { y: e.clientY, start: position, distance: 0 }
-        moved.current = false
+      onPointerDown={(event) => {
+        if ((event.target as HTMLElement).closest('.node-swatches, .node-pencil')) return
+        drag.current = { y: event.clientY, start: position, distance: 0 }
+        swallowClick.current = false
+        lastFocused.current = null
+        setDragPosition(position)
+        positionRef.current = position
         setDragging(true)
       }}
-      onPointerMove={(e) => {
+      onPointerMove={(event) => {
         if (!drag.current) return
-        const dy = e.clientY - drag.current.y
+        const dy = event.clientY - drag.current.y
         drag.current.distance = Math.abs(dy)
-        if (Math.abs(dy) > 4) {
-          moved.current = true
-          e.currentTarget.setPointerCapture(e.pointerId)
+        if (drag.current.distance > 4) {
+          swallowClick.current = true
+          event.currentTarget.setPointerCapture?.(event.pointerId)
         }
         const next = wheelPosition(drag.current.start, dy, radius, events.length)
-        setPosition(next)
+        setDragPosition(next)
+        positionRef.current = next
         const row = events[snapWheel(next, events.length)]
-        if (row) onFocus(row.id)
+        if (row && row.id !== focusedId && row.id !== lastFocused.current) {
+          lastFocused.current = row.id
+          onFocus(row.id)
+        }
       }}
       onPointerUp={() => {
+        if (!drag.current) return
+        const moved = drag.current.distance > 4
         drag.current = null
         setDragging(false)
-        focus(position)
+        focus(positionRef.current)
+        if (moved) window.setTimeout(() => (swallowClick.current = false), 0)
       }}
       onPointerCancel={() => {
         drag.current = null
@@ -99,12 +116,15 @@ export function NodeWheel({
         focus(index)
       }}
     >
-      <div className="node-pointer" aria-hidden="true">
-        ◉ ▷
+      <div className="node-pointer" aria-hidden="true" style={{ width: Math.max(64, radius - 4) }}>
+        <i className="node-pointer-hub" />
+        <i className="node-pointer-line" />
+        <i className="node-pointer-tip" />
       </div>
       <div className="node-rotor" style={{ transform: `rotate(${-position * wheelStep}deg)` }}>
         {wheelWindow(position, events.length).map((i) => {
           const event = events[i]!
+          const date = event.date.replaceAll('-', '.')
           return (
             <div
               key={event.id}
@@ -114,31 +134,31 @@ export function NodeWheel({
                 {
                   transform: `rotate(${i * wheelStep}deg) translateX(${radius}px)`,
                   '--event-color': colors[event.colorIndex],
-                } as React.CSSProperties
+                } as CSSProperties
               }
             >
               <button
                 className="node-event-text"
                 title={event.title}
                 onClick={() => {
-                  if (!drag.current || drag.current.distance < 5) onFocus(event.id)
+                  if (swallowClick.current) {
+                    swallowClick.current = false
+                    return
+                  }
+                  onFocus(event.id)
                 }}
                 onDoubleClick={() => onEdit(event.id)}
               >
-                <small>{event.date.replaceAll('-', '.')}</small>
+                <small>{date}</small>
+                <span className="node-separator" aria-hidden="true" />
                 <strong>{event.title}</strong>
+                <span className="node-separator" aria-hidden="true" />
               </button>
-              <button
-                className="node-pencil"
-                aria-label={`编辑 ${event.title}`}
-                onClick={() => onEdit(event.id)}
-              >
-                ✎
-              </button>
-              <div className="node-swatches">
+              <div className="node-swatches" role="group" aria-label={`${event.title} 颜色`}>
                 {colors.map((color, n) => (
                   <button
                     key={n}
+                    type="button"
                     style={{ background: color }}
                     aria-label={`${event.title} 颜色 ${n + 1}`}
                     aria-pressed={event.colorIndex === n}
@@ -146,6 +166,14 @@ export function NodeWheel({
                   />
                 ))}
               </div>
+              <button
+                className="node-pencil"
+                type="button"
+                aria-label={`编辑 ${event.title}`}
+                onClick={() => onEdit(event.id)}
+              >
+                ✎
+              </button>
             </div>
           )
         })}

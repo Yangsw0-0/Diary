@@ -2,7 +2,7 @@
 
 一个本地 Markdown 日记应用，使用 Tauri 2、React、TypeScript 和 Rust，提供 macOS 与 Windows 两个平行桌面版本。日记与附件只保存在用户选择的本地文件夹。
 
-M1–M6 已完成，macOS 正式版为 `1.0.0`；macOS 当前版本为 `1.4.0`，Windows x64 安装包为 `1.3.0`。旧文件批量导入工具属于后续额外工作。
+M1–M6 已完成，macOS 正式版为 `1.0.0`；macOS 当前版本为 `1.5.0`，Windows x64 安装包为 `1.3.0`。旧文件批量导入工具属于后续额外工作。
 
 [项目规划](./docs/Diary-Project-Plan.md) · [进度与任务](./docs/Diary-Project-Progress.md) · [使用说明](./docs/Diary-User-Guide.md) · [平台支持与源码分区](./docs/Platform-Support.md) · [1.1.0 交互规划](./docs/Diary-Interaction-Iteration-Plan.md)
 
@@ -33,11 +33,11 @@ M1–M6 已完成，macOS 正式版为 `1.0.0`；macOS 当前版本为 `1.4.0`�
 
 ## 安装
 
-macOS 最新版本为 `1.4.0`，安装包从 [GitHub Release](https://github.com/Yangsw0-0/Diary/releases/tag/v1.4.0) 下载；Windows 最新安装包仍为 `1.3.0`。
+macOS 最新版本为 `1.5.0`，安装包从 [GitHub Release](https://github.com/Yangsw0-0/Diary/releases/tag/v1.5.0) 下载；Windows 最新安装包仍为 `1.3.0`。
 
 ### macOS
 
-适用于 Apple 芯片 Mac：[Diary_1.4.0_aarch64.zip](https://github.com/Yangsw0-0/Diary/releases/download/v1.4.0/Diary_1.4.0_aarch64.zip)。解压后退出旧版 Diary，再将 `Diary.app` 拖到「应用程序」文件夹替换旧版。首次运行请选择一个已有的日记文件夹。应用使用临时（ad hoc）签名，未做 Apple 公证；macOS 若阻止打开，请在系统设置的「隐私与安全性」中确认你信任此应用后手动放行。
+适用于 Apple 芯片 Mac：[Diary_1.5.0_aarch64.zip](https://github.com/Yangsw0-0/Diary/releases/download/v1.5.0/Diary_1.5.0_aarch64.zip)。解压后退出旧版 Diary，再将 `Diary.app` 拖到「应用程序」文件夹替换旧版。首次运行请选择一个已有的日记文件夹。应用使用临时（ad hoc）签名，未做 Apple 公证；macOS 若阻止打开，请在系统设置的「隐私与安全性」中确认你信任此应用后手动放行。
 
 ### Windows
 
@@ -85,4 +85,4 @@ deactivate
 
 本项目后续只在当前 Diary 目录及其子目录写文件；其他本地文件仅可读。确需改动项目目录以外的路径时，先向用户说明并请求许可。具体约束见 [AGENTS.md](./AGENTS.md)。`.venv/` 与本地缓存均被 Git 忽略。
 
-1.4.0 新增节点画布：按天分组的多事件时间轴与轮盘、六槽自定义颜色、Nodes.json独立自动保存。使用方式见设置中的帮助。
+1.5.0 重做节点画布：日期与事件交替排布的时间轴、可居中对齐的拖动与「起点 / to be continue…」边界、无边框笔刷事件卡片、长指针和圆环装饰；同时修复节点保存失败离开提示、拖动后点击色块、OneDrive 目录兼容和损坏文件中文提示。使用方式见设置中的帮助。

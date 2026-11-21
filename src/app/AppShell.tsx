@@ -410,13 +410,10 @@ export function AppShell({
           {registry.list().map((module) => {
             if (module.layout === 'canvas') {
               const Detail = module.Detail
+              const visible = !settingsOpen && activeId === module.id
               return (
-                <div
-                  key={module.id}
-                  className="workspace-canvas"
-                  hidden={settingsOpen || activeId !== module.id}
-                >
-                  <Detail />
+                <div key={module.id} className="workspace-canvas" hidden={!visible}>
+                  <Detail active={visible} />
                 </div>
               )
             }

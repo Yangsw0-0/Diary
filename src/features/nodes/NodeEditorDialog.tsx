@@ -76,7 +76,12 @@ export function NodeEditorDialog({
           <p>同一天的事件自动归入同一个节点。</p>
           <label>
             时间概述
-            <input required value={title} onChange={(e) => setTitle(e.target.value)} />
+            <input
+              required
+              maxLength={60}
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+            />
           </label>
           <small>{Array.from(title).length}/60 字</small>
           <div className="node-swatches" role="group" aria-label="事件颜色">
@@ -99,8 +104,12 @@ export function NodeEditorDialog({
                 <button
                   type="button"
                   onClick={() => {
-                    session.remove(event.id)
-                    onClose()
+                    try {
+                      session.remove(event.id)
+                      onClose()
+                    } catch (err) {
+                      setError(err instanceof Error ? err.message : '无法删除事件')
+                    }
                   }}
                 >
                   确认删除

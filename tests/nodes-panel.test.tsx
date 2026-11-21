@@ -27,6 +27,15 @@ it('adds two events to one date, renders the canvas and edits via keyboard', asy
   fireEvent.change(screen.getByLabelText('时间概述'), { target: { value: '初见' } })
   fireEvent.click(screen.getByRole('button', { name: '保存事件' }))
   expect(await screen.findByRole('group', { name: '事件轮盘' })).toBeInTheDocument()
+  const wheel = screen.getByRole('group', { name: '事件轮盘' })
+  fireEvent.pointerDown(wheel, { clientY: 400, pointerId: 1 })
+  fireEvent.pointerMove(wheel, { clientY: 320, pointerId: 1 })
+  fireEvent.pointerUp(wheel, { pointerId: 1 })
+  fireEvent.click(screen.getByRole('button', { name: '初见 颜色 2' }))
+  expect(
+    session.getSnapshot().document.nodes[0]?.events.find((event) => event.title === '初见')
+      ?.colorIndex,
+  ).toBe(1)
   fireEvent.click(add)
   fireEvent.change(screen.getByLabelText('日期'), { target: { value: '2026-01-01' } })
   fireEvent.change(screen.getByLabelText('时间概述'), { target: { value: '再见' } })

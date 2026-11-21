@@ -1,32 +1,82 @@
 export const gapPx = (days: number) => 64 + 24 * Math.log1p(Math.max(0, days))
+
+/**
+ * Places nodes along the axis. The first node sits at half a viewport so it can
+ * reach the middle of the timeline, and the last node keeps half a viewport of
+ * empty space after it for the same reason.
+ */
 export function timelinePositions(dates: readonly string[], width: number): number[] {
-  const positions = [64]
+  if (dates.length === 0) return []
+  const pad = Math.max(120, width / 2)
+  const positions = [pad]
   for (let i = 1; i < dates.length; i++)
     positions.push(
       positions[i - 1]! + gapPx((Date.parse(dates[i]!) - Date.parse(dates[i - 1]!)) / 86400000),
     )
-  if (dates.length === 0) return []
-  if (dates.length === 1) return [width / 2]
-  const total = positions.at(-1)! - 64
-  if (total > 0 && total < width - 128)
-    return positions.map((x) => 64 + ((x - 64) * (width - 128)) / total)
   return positions
 }
-export function labelLanes(positions: readonly number[], width = 148) {
-  const ends = Array.from({ length: 6 }, () => -Infinity)
+
+export function timelineWidth(positions: readonly number[], width: number): number {
+  return Math.max(width, (positions.at(-1) ?? 0) + Math.max(120, width / 2))
+}
+
+/** Index of the node closest to the horizontal centre of the viewport. */
+export function nearestNodeIndex(
+  scrollLeft: number,
+  positions: readonly number[],
+  width: number,
+): number {
+  if (positions.length === 0) return -1
+  const centre = scrollLeft + width / 2
+  let best = 0
+  let distance = Number.POSITIVE_INFINITY
+  positions.forEach((x, index) => {
+    const next = Math.abs(x - centre)
+    if (next < distance) {
+      best = index
+      distance = next
+    }
+  })
+  return best
+}
+
+export type TimelineLabelSide = -1 | 1
+export interface TimelineLabel {
+  side: TimelineLabelSide
+  lane: number
+  width: number
+  offset: number
+}
+export interface TimelineLabelPair {
+  date: TimelineLabel
+  event: TimelineLabel
+}
+
+/**
+ * Alternates a node's date and event labels above and below the axis, stacking
+ * same-side labels into up to three lanes so they never collide.
+ */
+export function labelLayout(
+  positions: readonly number[],
+  dateWidth = 66,
+  eventWidth = 148,
+): TimelineLabelPair[] {
+  const ends: Record<TimelineLabelSide, number[]> = {
+    [-1]: [Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY],
+    [1]: [Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY],
+  }
+  const place = (side: TimelineLabelSide, width: number, x: number): TimelineLabel => {
+    const lanes = ends[side]
+    let lane = lanes.findIndex((end) => end < x - width / 2 - 8)
+    if (lane < 0) lane = lanes.indexOf(Math.min(...lanes))
+    lanes[lane] = x + width / 2
+    return { side, lane, width, offset: 16 + lane * 20 }
+  }
   return positions.map((x, index) => {
-    const preferred = index % 2
-    let slot = [
-      preferred,
-      1 - preferred,
-      preferred + 2,
-      3 - preferred,
-      preferred + 4,
-      5 - preferred,
-    ].find((s) => ends[s]! < x - width / 2 - 8)
-    if (slot === undefined) slot = ends.indexOf(Math.min(...ends))
-    const available = Math.max(12, Math.min(width, 2 * (x - ends[slot]! - 8)))
-    ends[slot] = x + available / 2
-    return { side: slot % 2 === 0 ? -1 : 1, lane: Math.floor(slot / 2), width: available }
+    const dateSide: TimelineLabelSide = index % 2 === 0 ? -1 : 1
+    return {
+      date: place(dateSide, dateWidth, x),
+      event: place(dateSide === -1 ? 1 : -1, eventWidth, x),
+    }
   })
 }

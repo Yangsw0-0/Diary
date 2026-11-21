@@ -6,7 +6,7 @@ interface ModuleBase {
   readonly label: string
   readonly Icon: LucideIcon
   readonly detailLabel: string
-  readonly Detail: ComponentType
+  readonly Detail: ComponentType<{ active?: boolean }>
   readonly Provider?: ComponentType<PropsWithChildren>
 }
 

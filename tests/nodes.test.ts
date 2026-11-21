@@ -2,7 +2,7 @@ import { afterEach, expect, it, vi } from 'vitest'
 import { decodeNodes, emptyNodes, flattenNodes } from '@/domain/NodesDocument'
 import { NodesSession } from '@/application/NodesSession'
 import { NodePalette } from '@/application/NodePalette'
-import { gapPx, timelinePositions, labelLanes } from '@/application/nodeTimeline'
+import { gapPx, labelLayout, nearestNodeIndex, timelinePositions } from '@/application/nodeTimeline'
 import { wheelPosition, snapWheel, wheelWindow } from '@/application/nodeWheel'
 import type { NodeRepository, NodesFile } from '@/domain/NodeRepository'
 const event = {
@@ -104,14 +104,61 @@ it('keeps timeline gaps strictly increasing even for long spans and windows whee
   const spans = [1, 180, 365, 3650, 7300, 3000000].map(gapPx)
   expect(spans.every((v, i) => !i || v > spans[i - 1]!)).toBe(true)
   const positions = timelinePositions(['2020-01-01', '2021-01-01', '2023-01-01'], 1000)
-  expect(positions[0]).toBe(64)
-  expect(positions[2]).toBeCloseTo(936)
-  const lanes = labelLanes(positions)
-  expect(lanes.every((l) => l.width > 0)).toBe(true)
+  expect(positions[0]).toBe(500)
+  expect(positions[2]).toBeCloseTo(500 + gapPx(366) + gapPx(730))
+  expect(timelinePositions(['2020-01-01'], 1000)).toEqual([500])
+  const labels = labelLayout(positions)
+  expect(labels.map((pair) => pair.date.side)).toEqual([-1, 1, -1])
+  expect(labels.every((pair) => pair.date.width === 66 && pair.event.width === 148)).toBe(true)
+  expect(labels.every((pair) => pair.date.offset >= 16 && pair.event.offset >= 16)).toBe(true)
+  expect(nearestNodeIndex(600, positions, 400)).toBe(1)
+  expect(nearestNodeIndex(0, positions, 400)).toBe(0)
   expect(wheelPosition(2, 50, 360, 10)).toBeLessThan(2)
   expect(wheelPosition(0, 10000, 360, 10)).toBe(-0.35)
   expect(snapWheel(15, 4)).toBe(3)
   expect(wheelWindow(500, 1000)).toHaveLength(9)
+  expect(wheelWindow(0, 10)).toEqual([0, 1, 2, 3, 4])
+  expect(wheelWindow(9.6, 10)).toEqual([5, 6, 7, 8, 9])
+})
+it('publishes focus changes only for a different event', async () => {
+  const repo = repository(),
+    session = new NodesSession(repo)
+  await session.ensureLoaded()
+  session.edit('2026-01-01', '一', 0)
+  session.edit('2026-01-01', '二', 1)
+  await session.flush()
+  const [first, second] = flattenNodes(session.getSnapshot().document)
+  const listener = vi.fn()
+  session.subscribe(listener)
+  session.focus(first!.id)
+  expect(listener).toHaveBeenCalledTimes(1)
+  listener.mockClear()
+  session.focus(first!.id)
+  expect(listener).not.toHaveBeenCalled()
+  session.focus(second!.id)
+  expect(listener).toHaveBeenCalledTimes(1)
+  session.reset()
+})
+it('clears the saving flag on reset even while a save is pending', async () => {
+  const repo = repository(),
+    session = new NodesSession(repo)
+  await session.ensureLoaded()
+  let reject!: (error: Error) => void
+  vi.mocked(repo.save).mockImplementationOnce(
+    () =>
+      new Promise((_, fail) => {
+        reject = fail
+      }),
+  )
+  session.edit('2026-01-01', '草稿', 0)
+  const saving = session.flush()
+  expect(session.getSnapshot().saving).toBe(true)
+  session.reset()
+  expect(session.getSnapshot().saving).toBe(false)
+  reject(new Error('aborted'))
+  await saving
+  expect(session.getSnapshot().saving).toBe(false)
+  session.reset()
 })
 it('persists a validated six-slot palette and restores defaults', () => {
   localStorage.clear()

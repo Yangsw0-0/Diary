@@ -11,12 +11,19 @@ export interface NodesSnapshot {
   readonly focusedId: string | null
   readonly savedAt: string | null
 }
-const message = (error: unknown) =>
-  error instanceof Error
-    ? error.message
-    : error && typeof error === 'object' && 'message' in error
-      ? String(error.message)
-      : '节点读写失败'
+const message = (error: unknown) => {
+  if (error instanceof SyntaxError) return '节点文件内容损坏'
+  const text =
+    error instanceof Error
+      ? error.message
+      : error && typeof error === 'object' && 'message' in error
+        ? String(error.message)
+        : ''
+  if (!text) return '节点读写失败'
+  if (text.startsWith('Invalid diary date')) return '节点日期无效'
+  if (text.includes('Unexpected end of JSON') || text.includes('JSON')) return '节点文件内容损坏'
+  return text
+}
 export class NodesSession {
   private snapshot: NodesSnapshot = {
     document: emptyNodes(),
@@ -87,6 +94,7 @@ export class NodesSession {
     return this.loading
   }
   focus(id: string) {
+    if (id === this.snapshot.focusedId) return
     if (flattenNodes(this.snapshot.document).some((e) => e.id === id))
       this.publish({ focusedId: id })
   }
@@ -135,7 +143,7 @@ export class NodesSession {
   }
   flush(force = false): Promise<boolean> {
     clearTimeout(this.timer)
-    if (this.saving) return this.saving
+    if (this.saving) return force ? this.saving.then(() => this.flush(true)) : this.saving
     if (!this.snapshot.dirty) return Promise.resolve(true)
     if (this.snapshot.blocked && !force) return Promise.resolve(false)
     const epoch = this.epoch
@@ -199,10 +207,13 @@ export class NodesSession {
     this.epoch++
     this.revision = null
     this.version = 0
+    this.saving = null
+    this.loading = null
     this.publish({
       document: emptyNodes(),
       loaded: false,
       loading: false,
+      saving: false,
       dirty: false,
       blocked: false,
       error: null,

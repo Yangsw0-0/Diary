@@ -1,22 +1,34 @@
 import { SaveIndicator } from '@/shared/SaveIndicator'
-import { useEffect, useState, useSyncExternalStore } from 'react'
+import { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import { flattenNodes } from '@/domain/NodesDocument'
 import type { NodesSession } from '@/application/NodesSession'
 import { NodePalette } from '@/application/NodePalette'
 import { NodeEditorDialog } from './NodeEditorDialog'
 import { NodeTimeline } from './NodeTimeline'
 import { NodeWheel } from './NodeWheel'
-export function NodesPanel({ session, palette }: { session: NodesSession; palette: NodePalette }) {
+export function NodesPanel({
+  session,
+  palette,
+  active = true,
+}: {
+  session: NodesSession
+  palette: NodePalette
+  active?: boolean
+}) {
   const snapshot = useSyncExternalStore(session.subscribe, session.getSnapshot),
     colors = useSyncExternalStore(palette.subscribe, palette.getSnapshot)
   const [editor, setEditor] = useState<string | null>(null),
     [actionError, setActionError] = useState('')
   useEffect(() => {
-    void session.ensureLoaded()
-  }, [session])
-  const rows = flattenNodes(snapshot.document),
+    if (!active) return
+    void session.ensureLoaded().catch((err) => {
+      setActionError(err instanceof Error ? err.message : '无法读取节点')
+    })
+  }, [active, session])
+  const rows = useMemo(() => flattenNodes(snapshot.document), [snapshot.document]),
     event = rows.find((e) => e.id === editor)
   const run = (action: () => Promise<unknown>) => {
+    setActionError('')
     void action().catch((err) => setActionError(err instanceof Error ? err.message : '操作失败'))
   }
   const status = snapshot.error
@@ -79,12 +91,20 @@ export function NodesPanel({ session, palette }: { session: NodesSession; palett
             onFocus={(id) => session.focus(id)}
             colors={colors}
           />
+          <div className="node-divider-line" aria-hidden="true" />
           <NodeWheel
             events={rows}
             focusedId={snapshot.focusedId}
             onFocus={(id) => session.focus(id)}
             onEdit={setEditor}
-            onColor={(id, color) => session.setColor(id, color)}
+            onColor={(id, color) => {
+              setActionError('')
+              try {
+                session.setColor(id, color)
+              } catch (err) {
+                setActionError(err instanceof Error ? err.message : '无法更新颜色')
+              }
+            }}
             colors={colors}
           />
         </>

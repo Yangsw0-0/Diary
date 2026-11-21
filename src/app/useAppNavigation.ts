@@ -136,10 +136,14 @@ export function useAppNavigation(session: DiarySession, nodes?: NodesSession) {
 
   const activate = useCallback(
     async (view: NavigationView): Promise<boolean> => {
-      if (nodes && history.current.moduleId === 'nodes') await nodes.flush()
+      if (nodes && history.current.moduleId === 'nodes' && !(await nodes.flush())) return false
       if (view.moduleId === 'nodes') {
         if (!(await session.flush())) return false
-        await nodes?.ensureLoaded()
+        try {
+          await nodes?.ensureLoaded()
+        } catch {
+          return false
+        }
         return true
       }
       if (view.moduleId === 'tags') return session.flush()
@@ -170,6 +174,7 @@ export function useAppNavigation(session: DiarySession, nodes?: NodesSession) {
             setNotice(
               session.getSnapshot().selected?.error?.message ??
                 session.getSnapshot().error?.message ??
+                nodes?.getSnapshot().error ??
                 '保存或打开日记失败，已留在当前页面。',
             )
           return false
