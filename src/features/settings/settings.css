@@ -1,0 +1,202 @@
+/* Settings owns its layout and controls; the app shell owns only the entry button. */
+.settings-panel {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.settings-header {
+  padding: 24px 28px 18px;
+  border-bottom: 1px solid var(--border);
+}
+.settings-header h1 {
+  margin-top: 6px;
+  font-size: 26px;
+  font-weight: 650;
+}
+.settings-layout {
+  display: grid;
+  grid-template-columns: clamp(144px, 18vw, 208px) minmax(0, 1fr);
+  flex: 1;
+  min-height: 0;
+}
+.settings-categories {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow-y: auto;
+  padding: 18px 12px;
+  border-right: 1px solid var(--border);
+  background: var(--card);
+}
+.settings-categories button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: none;
+  padding: 11px 12px;
+  border-radius: 9px;
+  color: var(--muted-foreground);
+  text-align: left;
+  font-size: 14px;
+  cursor: pointer;
+}
+.settings-categories svg {
+  width: 17px;
+  height: 17px;
+  flex: none;
+}
+.settings-categories button:hover {
+  background: var(--muted);
+  color: var(--foreground);
+}
+.settings-categories button[aria-selected='true'] {
+  background: var(--accent);
+  color: var(--accent-foreground);
+  font-weight: 600;
+}
+.settings-categories button:focus-visible,
+.settings-content:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: -2px;
+}
+.settings-content {
+  min-width: 0;
+  overflow: auto;
+  padding: 28px clamp(16px, 3vw, 40px);
+  scrollbar-gutter: stable;
+}
+.settings-content[hidden] {
+  display: none;
+}
+.settings-page-header {
+  margin-bottom: 24px;
+}
+.settings-page-header h2 {
+  font-size: 22px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.settings-page-header p {
+  color: var(--muted-foreground);
+  font-size: 13px;
+  line-height: 1.7;
+}
+.settings-card {
+  flex-wrap: wrap;
+  min-width: 0;
+}
+.settings-card > * {
+  min-width: 0;
+  max-width: 100%;
+}
+.settings-colors > label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+.settings-colors input[type='color'] {
+  width: 36px;
+  height: 30px;
+  cursor: pointer;
+}
+.settings-theme {
+  flex-wrap: wrap;
+}
+.settings-typography {
+  display: grid;
+  gap: 12px;
+  width: min(100%, 360px);
+}
+.settings-typography label {
+  display: grid;
+  grid-template-columns: 4em minmax(60px, 1fr) 3.5em;
+  align-items: center;
+  gap: 8px;
+}
+.settings-typography output {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.settings-colors {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.settings-color-swatch {
+  width: 30px;
+  height: 30px;
+  border: 2px solid var(--card);
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px var(--border);
+  cursor: pointer;
+}
+.settings-color-swatch[aria-pressed='true'] {
+  box-shadow: 0 0 0 2px var(--foreground);
+}
+.settings-color-custom {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+.settings-color-custom input {
+  width: 36px;
+  height: 30px;
+  cursor: pointer;
+}
+.settings-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 18px;
+  padding: 24px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--card);
+}
+.settings-card h3 {
+  margin-bottom: 6px;
+  font-size: 16px;
+  font-weight: 600;
+}
+.settings-card p {
+  margin-bottom: 12px;
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+.settings-card code {
+  display: block;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+}
+.settings-theme {
+  display: flex;
+  gap: 8px;
+}
+
+@media (max-width: 760px) {
+  .settings-header {
+    padding: 18px;
+  }
+  .settings-layout {
+    grid-template-columns: 128px minmax(0, 1fr);
+  }
+  .settings-categories {
+    padding: 14px 6px;
+  }
+  .settings-categories button {
+    gap: 7px;
+    padding: 10px 8px;
+    font-size: 12px;
+  }
+  .settings-card {
+    padding: 18px;
+    gap: 16px;
+  }
+}

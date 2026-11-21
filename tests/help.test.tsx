@@ -23,6 +23,7 @@ it('opens the bundled manual from settings, switches chapters, and restores focu
   render(<AppShell registry={app.registry} session={app.services.session} />)
 
   await user.click(screen.getByRole('button', { name: '设置' }))
+  await user.click(screen.getByRole('tab', { name: '帮助' }))
   const trigger = screen.getByRole('button', { name: '打开使用说明' })
   await user.click(trigger)
   const dialog = screen.getByRole('dialog', { name: 'Diary 使用说明' })
