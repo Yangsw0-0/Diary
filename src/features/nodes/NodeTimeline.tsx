@@ -7,6 +7,7 @@ import {
   nearestNodeIndex,
   timelinePositions,
   timelineWidth,
+  yearTicks,
 } from '@/application/nodeTimeline'
 
 const reducedMotion = () =>
@@ -28,6 +29,7 @@ export function NodeTimeline({
   const drag = useRef<{ x: number; left: number; distance: number } | null>(null)
   const suppressCenter = useRef(0)
   const wheelAt = useRef(0)
+  const wheelTimer = useRef(0)
   const frame = useRef(0)
   const [dragging, setDragging] = useState(false)
   const [elastic, setElastic] = useState(0)
@@ -37,23 +39,33 @@ export function NodeTimeline({
   useEffect(() => {
     const el = viewport.current
     if (!el) return
+    setWidth(el.clientWidth)
+    if (typeof ResizeObserver === 'undefined') return
     const observer = new ResizeObserver(() => setWidth(el.clientWidth))
     observer.observe(el)
-    setWidth(el.clientWidth)
     return () => observer.disconnect()
   }, [])
 
-  const { positions, labels } = useMemo(() => {
-    const positions = timelinePositions(
-      model.nodes.map((node) => node.date),
-      width,
-    )
-    return { positions, labels: labelLayout(positions) }
+  useEffect(() => () => window.clearTimeout(wheelTimer.current), [])
+
+  const { positions, labels, ticks, startYear } = useMemo(() => {
+    const dates = model.nodes.map((node) => node.date)
+    const positions = timelinePositions(dates, width)
+    return {
+      positions,
+      labels: labelLayout(positions),
+      ticks: yearTicks(dates, positions),
+      startYear: dates[0]?.slice(0, 4) ?? '',
+    }
   }, [model, width])
 
   const index = model.nodes.findIndex((node) => node.events.some((event) => event.id === focusedId))
   const ink = (color: string) =>
     readableInk(color, document.documentElement.classList.contains('dark') ? '#141414' : '#ffffff')
+  const axisLeft = Math.max(14, (positions[0] ?? 0) - 150)
+  const continueX = (positions.at(-1) ?? 0) + 56
+  const axisEnd = Math.max(axisLeft, continueX - 14)
+  const innerWidth = Math.max(timelineWidth(positions, width), continueX + 190)
 
   useEffect(() => {
     const el = viewport.current
@@ -110,6 +122,10 @@ export function NodeTimeline({
       }}
       onWheel={() => {
         wheelAt.current = Date.now()
+        window.clearTimeout(wheelTimer.current)
+        wheelTimer.current = window.setTimeout(() => {
+          if (!drag.current) settle()
+        }, 280)
       }}
       onPointerDown={(event) => {
         if ((event.target as HTMLElement).closest('button')) return
@@ -143,28 +159,33 @@ export function NodeTimeline({
       <div
         className="node-timeline-inner"
         style={{
-          width: timelineWidth(positions, width),
+          width: innerWidth,
           transform: `translateX(${elastic}px)`,
           transition: dragging ? 'none' : 'transform 240ms ease-out',
         }}
       >
         {positions.length > 0 && (
           <>
-            <div
-              className="node-axis"
-              style={{
-                left: Math.max(14, positions[0]! - 150),
-                width: Math.max(
-                  0,
-                  (positions.at(-1) ?? 0) + 60 - Math.max(14, positions[0]! - 150),
-                ),
-              }}
-            />
-            <div className="node-origin" style={{ left: Math.max(14, positions[0]! - 150) }}>
+            <div className="node-axis" style={{ left: axisLeft, width: axisEnd - axisLeft }} />
+            <div className="node-origin" style={{ left: axisLeft }}>
               <i />
               <span>起点</span>
             </div>
-            <div className="node-continue" style={{ left: (positions.at(-1) ?? 0) + 60 }}>
+            <span className="node-year-start" style={{ left: axisLeft + 28 }}>
+              {startYear}
+            </span>
+            {ticks.map((tick) => (
+              <span
+                key={`${tick.left}-${tick.right}`}
+                className="node-year-tick"
+                style={{ left: tick.x }}
+              >
+                <i />
+                <b data-side="left">{tick.left}</b>
+                <b data-side="right">{tick.right}</b>
+              </span>
+            ))}
+            <div className="node-continue" style={{ left: continueX }}>
               <span>to be continue…</span>
               <i />
             </div>
@@ -178,6 +199,7 @@ export function NodeTimeline({
           if (!event) return null
           const title = node.events.map((item) => item.title).join(' · ')
           const date = node.date.replaceAll('-', '.')
+          const monthDay = date.slice(5)
           const color = colors[event.colorIndex]!
           const readable = ink(color) === color ? color : undefined
           return (
@@ -201,7 +223,7 @@ export function NodeTimeline({
                   } as CSSProperties
                 }
               >
-                {date}
+                {monthDay}
               </span>
               <span
                 className="node-event-label"

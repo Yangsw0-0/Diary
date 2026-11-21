@@ -1,11 +1,27 @@
 import { SaveIndicator } from '@/shared/SaveIndicator'
-import { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react'
 import { flattenNodes } from '@/domain/NodesDocument'
 import type { NodesSession } from '@/application/NodesSession'
 import { NodePalette } from '@/application/NodePalette'
 import { NodeEditorDialog } from './NodeEditorDialog'
 import { NodeTimeline } from './NodeTimeline'
 import { NodeWheel } from './NodeWheel'
+
+const splitKey = 'diary.nodeTimelineHeight.v1'
+const MIN_TIMELINE = 120
+const MIN_WHEEL = 220
+
+function readHeight(): number {
+  try {
+    const value = Number(window.localStorage.getItem(splitKey))
+    if (Number.isFinite(value) && value > 0) return Math.max(MIN_TIMELINE, Math.min(560, value))
+  } catch {
+    // Storage can be unavailable; the default keeps the layout usable.
+  }
+  return 176
+}
+
 export function NodesPanel({
   session,
   palette,
@@ -19,6 +35,47 @@ export function NodesPanel({
     colors = useSyncExternalStore(palette.subscribe, palette.getSnapshot)
   const [editor, setEditor] = useState<string | null>(null),
     [actionError, setActionError] = useState('')
+  const panel = useRef<HTMLDivElement>(null)
+  const split = useRef<{ y: number; height: number } | null>(null)
+  const [timelineHeight, setTimelineHeight] = useState(readHeight)
+  const [panelHeight, setPanelHeight] = useState(0)
+  useEffect(() => {
+    const el = panel.current
+    if (!el) return
+    setPanelHeight(el.clientHeight)
+    if (typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(() => setPanelHeight(el.clientHeight))
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
+  const maxTimeline = Math.max(
+    MIN_TIMELINE,
+    Math.min(560, panelHeight ? panelHeight - MIN_WHEEL - 60 : 560),
+  )
+  useEffect(() => {
+    setTimelineHeight((height) => Math.min(height, maxTimeline))
+  }, [maxTimeline])
+  const applyHeight = (value: number) => {
+    const next = Math.max(MIN_TIMELINE, Math.min(maxTimeline, value))
+    setTimelineHeight(next)
+    try {
+      window.localStorage.setItem(splitKey, String(next))
+    } catch {
+      // The layout still works when storage is unavailable.
+    }
+  }
+  const startSplit = (event: ReactPointerEvent<HTMLDivElement>) => {
+    event.preventDefault()
+    event.currentTarget.setPointerCapture?.(event.pointerId)
+    split.current = { y: event.clientY, height: timelineHeight }
+  }
+  const moveSplit = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!split.current) return
+    applyHeight(split.current.height + event.clientY - split.current.y)
+  }
+  const endSplit = () => {
+    split.current = null
+  }
   useEffect(() => {
     if (!active) return
     void session.ensureLoaded().catch((err) => {
@@ -39,7 +96,11 @@ export function NodesPanel({
         ? 'dirty'
         : 'saved'
   return (
-    <div className="nodes-panel">
+    <div
+      ref={panel}
+      className="nodes-panel"
+      style={{ '--nodes-timeline-height': `${timelineHeight}px` } as CSSProperties}
+    >
       <header className="nodes-header">
         <SaveIndicator
           state={status}
@@ -90,7 +151,35 @@ export function NodesPanel({
             onFocus={(id) => session.focus(id)}
             colors={colors}
           />
-          <div className="node-divider-line" aria-hidden="true" />
+          <div
+            className="node-splitter"
+            role="separator"
+            aria-label="调整时间轴与轮盘高度"
+            aria-orientation="horizontal"
+            aria-valuemin={MIN_TIMELINE}
+            aria-valuemax={maxTimeline}
+            aria-valuenow={Math.round(timelineHeight)}
+            tabIndex={0}
+            onPointerDown={startSplit}
+            onPointerMove={moveSplit}
+            onPointerUp={endSplit}
+            onPointerCancel={endSplit}
+            onKeyDown={(event) => {
+              const delta =
+                event.key === 'ArrowUp'
+                  ? -16
+                  : event.key === 'ArrowDown'
+                    ? 16
+                    : event.key === 'Home'
+                      ? MIN_TIMELINE - timelineHeight
+                      : event.key === 'End'
+                        ? maxTimeline - timelineHeight
+                        : 0
+              if (!delta) return
+              event.preventDefault()
+              applyHeight(timelineHeight + delta)
+            }}
+          />
           <NodeWheel
             events={rows}
             focusedId={snapshot.focusedId}

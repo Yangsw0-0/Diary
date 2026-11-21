@@ -1583,7 +1583,7 @@
   line-height: 1.9;
 }
 .node-timeline {
-  flex: 0 0 176px;
+  flex: 0 0 var(--nodes-timeline-height, 176px);
   overflow-x: auto;
   overflow-y: hidden;
   scrollbar-width: none;
@@ -1636,16 +1636,58 @@
   font-size: 9px;
   letter-spacing: 0.16em;
 }
+.node-year-start {
+  position: absolute;
+  top: calc(50% - 22px);
+  transform: translateY(-50%);
+  font-size: 9.5px;
+  letter-spacing: 0.16em;
+  font-variant-numeric: tabular-nums;
+  color: color-mix(in oklab, var(--foreground) 32%, transparent);
+  pointer-events: none;
+}
+.node-year-tick {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 9px;
+  color: color-mix(in oklab, var(--foreground) 34%, transparent);
+  pointer-events: none;
+}
+.node-year-tick i {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1px;
+  height: 100%;
+  background: currentColor;
+}
+.node-year-tick b {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 9.5px;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.node-year-tick b[data-side='left'] {
+  right: 6px;
+}
+.node-year-tick b[data-side='right'] {
+  left: 6px;
+}
 .node-continue {
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
   display: flex;
   align-items: center;
-  gap: 9px;
-  color: color-mix(in oklab, var(--foreground) 32%, transparent);
-  font-size: 9px;
-  letter-spacing: 0.13em;
+  gap: 10px;
+  color: color-mix(in oklab, var(--foreground) 34%, transparent);
+  font-size: 10px;
+  letter-spacing: 0.16em;
   white-space: nowrap;
   pointer-events: none;
 }
@@ -1753,7 +1795,11 @@
   left: 50%;
   width: 1px;
   height: calc(var(--offset) - 4px);
-  background: color-mix(in oklab, var(--foreground) 14%, transparent);
+  background: repeating-linear-gradient(
+    to bottom,
+    color-mix(in oklab, currentColor 55%, transparent) 0 3px,
+    transparent 3px 7px
+  );
 }
 .node-date-label[data-side='-1']::before,
 .node-event-label[data-side='-1']::before {
@@ -1853,37 +1899,26 @@
   position: absolute;
   left: 0;
   top: -46px;
-  width: clamp(280px, 34vw, 480px);
+  width: clamp(250px, 30vw, 520px);
   height: 92px;
   transform-origin: 0 46px;
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 0 30px 0 20px;
+  padding: 0 46px 0 18px;
   opacity: 0.5;
   transition: opacity 240ms;
 }
 .node-wheel-item::before {
   content: '';
   position: absolute;
-  inset: -26px -54px;
-  border-radius: 48px;
+  inset: -14px -112px -14px -10px;
+  border-radius: 44px;
   background: var(--event-color);
-  opacity: 0.14;
-  mask-image: radial-gradient(
-    ellipse 122% 66% at 4% 50%,
-    transparent 0,
-    #000 12%,
-    #000 58%,
-    transparent 99%
-  );
-  -webkit-mask-image: radial-gradient(
-    ellipse 122% 66% at 4% 50%,
-    transparent 0,
-    #000 12%,
-    #000 58%,
-    transparent 99%
-  );
+  opacity: 0.15;
+  filter: blur(9px);
+  mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 118px), transparent 100%);
+  -webkit-mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 118px), transparent 100%);
   transition: opacity 240ms;
   pointer-events: none;
 }
@@ -1891,10 +1926,10 @@
   opacity: 1;
 }
 .node-wheel-item[data-focused='true']::before {
-  opacity: 0.27;
+  opacity: 0.3;
 }
 .node-wheel-item:hover::before {
-  opacity: 0.21;
+  opacity: 0.23;
 }
 .node-wheel-item > * {
   position: relative;
@@ -1914,12 +1949,24 @@
   text-align: left;
   cursor: pointer;
 }
-.node-event-text small {
+.node-event-date {
   flex: 0 0 auto;
-  font-size: 11px;
-  letter-spacing: 0.04em;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  line-height: 1;
   font-variant-numeric: tabular-nums;
-  color: color-mix(in oklab, var(--foreground) 62%, transparent);
+}
+.node-event-date b {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.node-event-date small {
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  color: color-mix(in oklab, var(--foreground) 50%, transparent);
 }
 .node-event-text strong {
   flex: 1;
@@ -1938,8 +1985,8 @@
   position: relative;
   flex: 0 0 auto;
   width: 5px;
-  height: 14px;
-  opacity: 0.45;
+  height: 18px;
+  opacity: 0.32;
   background: radial-gradient(circle, currentColor 1.1px, transparent 1.4px) center / 4px 4px
     no-repeat;
 }
@@ -1989,32 +2036,63 @@
 }
 .node-pencil {
   position: absolute;
-  right: 2px;
-  top: 2px;
-  width: 18px;
-  height: 18px;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 22px;
+  height: 22px;
   padding: 0;
   border: 0;
+  border-radius: 50%;
   background: none;
   color: var(--muted-foreground);
-  font-size: 11px;
+  font-size: 12px;
   opacity: 0;
   cursor: pointer;
-  transition: opacity 180ms;
+  transition:
+    opacity 180ms,
+    background 180ms;
+}
+.node-pencil:hover {
+  background: color-mix(in oklab, var(--foreground) 7%, transparent);
 }
 .node-wheel-item:hover .node-pencil,
 .node-wheel-item:focus-within .node-pencil,
 .node-wheel-item[data-focused='true'] .node-pencil {
-  opacity: 0.55;
+  opacity: 0.6;
 }
-.node-divider-line {
-  flex-shrink: 0;
+.node-splitter {
+  flex: 0 0 auto;
+  height: 14px;
+  margin: -3px 24px 1px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: row-resize;
+  touch-action: none;
+  outline-offset: 2px;
+}
+.node-splitter::before {
+  content: '';
+  width: 56px;
   height: 1px;
-  margin: 2px 28px 0;
   background: linear-gradient(
     to right,
     transparent,
-    color-mix(in oklab, var(--foreground) 12%, transparent),
+    color-mix(in oklab, var(--foreground) 14%, transparent),
+    transparent
+  );
+  transition:
+    width 160ms ease,
+    background 160ms ease;
+}
+.node-splitter:hover::before,
+.node-splitter:focus-visible::before {
+  width: 92px;
+  background: linear-gradient(
+    to right,
+    transparent,
+    color-mix(in oklab, var(--foreground) 30%, transparent),
     transparent
   );
 }

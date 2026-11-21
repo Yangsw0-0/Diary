@@ -40,6 +40,40 @@ export function nearestNodeIndex(
   return best
 }
 
+export interface YearTick {
+  x: number
+  left: number
+  right: number
+}
+
+/**
+ * Places a tick at every new year between the first and last node. Years
+ * without events still receive both of their boundaries, so a gap between two
+ * recorded years stays visible on the axis.
+ */
+export function yearTicks(dates: readonly string[], positions: readonly number[]): YearTick[] {
+  if (dates.length < 2) return []
+  const days = dates.map((date) => Date.parse(date))
+  const firstYear = new Date(days[0]!).getUTCFullYear()
+  const lastYear = new Date(days.at(-1)!).getUTCFullYear()
+  const ticks: YearTick[] = []
+  for (let year = firstYear + 1; year <= lastYear; year++) {
+    const boundary = Date.UTC(year, 0, 1)
+    let segment = 0
+    while (segment < days.length - 2 && days[segment + 1]! < boundary) segment++
+    const start = days[segment]!
+    const end = days[segment + 1]!
+    if (start > boundary) continue
+    const ratio = end > start ? Math.min(1, Math.max(0, (boundary - start) / (end - start))) : 0
+    ticks.push({
+      x: positions[segment]! + (positions[segment + 1]! - positions[segment]!) * ratio,
+      left: year - 1,
+      right: year,
+    })
+  }
+  return ticks
+}
+
 export type TimelineLabelSide = -1 | 1
 export interface TimelineLabel {
   side: TimelineLabelSide

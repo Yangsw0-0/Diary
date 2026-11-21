@@ -122,7 +122,7 @@ export function NodeWheel({
       <div className="node-rotor" style={{ transform: `rotate(${-position * wheelStep}deg)` }}>
         {wheelWindow(position, events.length).map((i) => {
           const event = events[i]!
-          const date = event.date.replaceAll('-', '.')
+          const [year = '', month = '', day = ''] = event.date.split('-')
           return (
             <div
               key={event.id}
@@ -147,10 +147,14 @@ export function NodeWheel({
                 }}
                 onDoubleClick={() => onEdit(event.id)}
               >
-                <small>{date}</small>
+                <span className="node-event-date">
+                  <b>
+                    {month}.{day}
+                  </b>
+                  <small>{year}</small>
+                </span>
                 <span className="node-separator" aria-hidden="true" />
                 <strong>{event.title}</strong>
-                <span className="node-separator" aria-hidden="true" />
               </button>
               <button
                 className="node-pencil"

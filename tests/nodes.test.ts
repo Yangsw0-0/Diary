@@ -2,7 +2,13 @@ import { afterEach, expect, it, vi } from 'vitest'
 import { decodeNodes, emptyNodes, flattenNodes } from '@/domain/NodesDocument'
 import { NodesSession } from '@/application/NodesSession'
 import { NodePalette } from '@/application/NodePalette'
-import { gapPx, labelLayout, nearestNodeIndex, timelinePositions } from '@/application/nodeTimeline'
+import {
+  gapPx,
+  labelLayout,
+  nearestNodeIndex,
+  timelinePositions,
+  yearTicks,
+} from '@/application/nodeTimeline'
 import { wheelPosition, snapWheel, wheelWindow } from '@/application/nodeWheel'
 import type { NodeRepository, NodesFile } from '@/domain/NodeRepository'
 const event = {
@@ -119,6 +125,15 @@ it('keeps timeline gaps strictly increasing even for long spans and windows whee
   expect(wheelWindow(500, 1000)).toHaveLength(9)
   expect(wheelWindow(0, 10)).toEqual([0, 1, 2, 3, 4])
   expect(wheelWindow(9.6, 10)).toEqual([5, 6, 7, 8, 9])
+  const sparse = timelinePositions(['2023-06-01', '2025-02-01'], 1000)
+  const sparseTicks = yearTicks(['2023-06-01', '2025-02-01'], sparse)
+  expect(sparseTicks.map((tick) => [tick.left, tick.right])).toEqual([
+    [2023, 2024],
+    [2024, 2025],
+  ])
+  expect(sparseTicks[0]!.x).toBeGreaterThan(sparse[0]!)
+  expect(sparseTicks[1]!.x).toBeLessThan(sparse[1]!)
+  expect(yearTicks(['2024-02-29'], [500])).toEqual([])
 })
 it('publishes focus changes only for a different event', async () => {
   const repo = repository(),
