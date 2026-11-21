@@ -82,7 +82,7 @@
 - 删除起点「起点」文字，只保留空心圆环；`.node-origin` 仍以圆心对齐轴线。
 - 轴线右端改为连续到 `continueX`，与箭头线相接，修复原先 14px 断口。
 - 测试更新：日期宽度 76、偏移 ≥14；删除 `yearTicks` 断言。前端 113 项测试通过。
-- 验证：`npm run check` 通过；Rust 23 项、fmt、严格 clippy 通过；macOS 1.6.3 包 6,203,587 字节，SHA-256 `63a488a8c1fec49dbb26d1771be1a673846dfe0291b794bb22746096d68d89de`；Windows 包待 CI 产出。
+- 验证：`npm run check` 通过；Rust 23 项、fmt、严格 clippy 通过；macOS 1.6.3 包 6,203,587 字节，SHA-256 `63a488a8c1fec49dbb26d1771be1a673846dfe0291b794bb22746096d68d89de`；Windows 包 4,222,299 字节，SHA-256 `fee1d9ce9f0e921e7e864ed89de22001e2acdc9a5bac5206319a62bf0eea6a66`；两包摘要已与 GitHub Release 核对。
 
 ## 1.6.2 节点画布修正（2026-11-21）
 
