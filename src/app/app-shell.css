@@ -1554,56 +1554,6 @@
   border-radius: 50%;
   background: var(--background);
 }
-.node-origin span {
-  font-size: 9px;
-  letter-spacing: 0.16em;
-}
-.node-year-start {
-  position: absolute;
-  top: calc(50% - 30px);
-  transform: translateY(-50%);
-  font-size: 9.5px;
-  letter-spacing: 0.16em;
-  font-variant-numeric: tabular-nums;
-  color: color-mix(in oklab, var(--foreground) 32%, transparent);
-  pointer-events: none;
-}
-.node-year-tick {
-  position: absolute;
-  top: 50%;
-  height: 8px;
-  transform: translateY(-4px);
-  color: color-mix(in oklab, var(--foreground) 34%, transparent);
-  pointer-events: none;
-}
-.node-year-tick i {
-  position: absolute;
-  left: 0;
-  top: 0;
-  width: 1px;
-  height: 100%;
-  background: currentColor;
-}
-.node-year-tick b {
-  position: absolute;
-  bottom: 100%;
-  margin-bottom: 4px;
-  padding: 1px 3px;
-  background: var(--background);
-  font-size: 9.5px;
-  line-height: 1;
-  z-index: 2;
-  font-weight: 400;
-  letter-spacing: 0.08em;
-  white-space: nowrap;
-  font-variant-numeric: tabular-nums;
-}
-.node-year-tick b[data-side='left'] {
-  right: 6px;
-}
-.node-year-tick b[data-side='right'] {
-  left: 6px;
-}
 .node-continue {
   position: absolute;
   top: 50%;

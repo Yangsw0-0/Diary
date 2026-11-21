@@ -2,7 +2,7 @@
 
 一个本地 Markdown 日记应用，使用 Tauri 2、React、TypeScript 和 Rust，提供 macOS 与 Windows 两个平行桌面版本。日记与附件只保存在用户选择的本地文件夹。
 
-M1–M6 已完成，macOS 正式版为 `1.0.0`；macOS 与 Windows x64 当前版本均为 `1.6.2`。旧文件批量导入工具属于后续额外工作。
+M1–M6 已完成，macOS 正式版为 `1.0.0`；macOS 与 Windows x64 当前版本均为 `1.6.3`。旧文件批量导入工具属于后续额外工作。
 
 [项目规划](./docs/Diary-Project-Plan.md) · [进度与任务](./docs/Diary-Project-Progress.md) · [使用说明](./docs/Diary-User-Guide.md) · [平台支持与源码分区](./docs/Platform-Support.md) · [1.1.0 交互规划](./docs/Diary-Interaction-Iteration-Plan.md)
 
@@ -33,15 +33,15 @@ M1–M6 已完成，macOS 正式版为 `1.0.0`；macOS 与 Windows x64 当前版
 
 ## 安装
 
-macOS 与 Windows 最新版本均为 `1.6.2`，安装包从 [GitHub Release](https://github.com/Yangsw0-0/Diary/releases/tag/v1.6.2) 下载。
+macOS 与 Windows 最新版本均为 `1.6.3`，安装包从 [GitHub Release](https://github.com/Yangsw0-0/Diary/releases/tag/v1.6.3) 下载。
 
 ### macOS
 
-适用于 Apple 芯片 Mac：[Diary_1.6.2_aarch64.zip](https://github.com/Yangsw0-0/Diary/releases/download/v1.6.2/Diary_1.6.2_aarch64.zip)。解压后退出旧版 Diary，再将 `Diary.app` 拖到「应用程序」文件夹替换旧版。首次运行请选择一个已有的日记文件夹。应用使用临时（ad hoc）签名，未做 Apple 公证；macOS 若阻止打开，请在系统设置的「隐私与安全性」中确认你信任此应用后手动放行。
+适用于 Apple 芯片 Mac：[Diary_1.6.3_aarch64.zip](https://github.com/Yangsw0-0/Diary/releases/download/v1.6.3/Diary_1.6.3_aarch64.zip)。解压后退出旧版 Diary，再将 `Diary.app` 拖到「应用程序」文件夹替换旧版。首次运行请选择一个已有的日记文件夹。应用使用临时（ad hoc）签名，未做 Apple 公证；macOS 若阻止打开，请在系统设置的「隐私与安全性」中确认你信任此应用后手动放行。
 
 ### Windows
 
-适用于 Windows 10/11 x64：[Diary_1.6.2_x64-setup.exe](https://github.com/Yangsw0-0/Diary/releases/download/v1.6.2/Diary_1.6.2_x64-setup.exe)。运行 NSIS 安装程序即可，按当前用户安装，不需要管理员权限；升级时直接运行新安装包覆盖安装。
+适用于 Windows 10/11 x64：[Diary_1.6.3_x64-setup.exe](https://github.com/Yangsw0-0/Diary/releases/download/v1.6.3/Diary_1.6.3_x64-setup.exe)。运行 NSIS 安装程序即可，按当前用户安装，不需要管理员权限；升级时直接运行新安装包覆盖安装。
 
 Windows 11 已内置 WebView2；Windows 10 缺少时，安装程序会联网下载运行时。安装包未做代码签名，SmartScreen 可能提示“未知发布者”，确认文件来自本仓库后可选择“更多信息 → 仍要运行”。当前不提供 MSI 和 Windows ARM64 版本。
 
@@ -84,6 +84,8 @@ deactivate
 ```
 
 本项目后续只在当前 Diary 目录及其子目录写文件；其他本地文件仅可读。确需改动项目目录以外的路径时，先向用户说明并请求许可。具体约束见 [AGENTS.md](./AGENTS.md)。`.venv/` 与本地缓存均被 Git 忽略。
+
+1.6.3 调整节点时间轴：取消跨年刻度，节点恢复「年.月.日」并紧贴轴线，日期不再使用引线，起点只留圆环，修复轴线右端与箭头之间的断线。
 
 1.6.2 修正节点画布：时间轴年份刻度移到轴线上方独立一行，起点圆点回到轴线，恢复节点到日期/事件标签的虚线引线，保存指示器浮到右上角不再占行，「to be continue…」移到箭头下方；轮盘卡片降低高度、标题限两行、年份居中、笔刷渐变拉长、铅笔放大。
 

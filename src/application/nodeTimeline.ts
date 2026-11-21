@@ -40,40 +40,6 @@ export function nearestNodeIndex(
   return best
 }
 
-export interface YearTick {
-  x: number
-  left: number
-  right: number
-}
-
-/**
- * Places a tick at every new year between the first and last node. Years
- * without events still receive both of their boundaries, so a gap between two
- * recorded years stays visible on the axis.
- */
-export function yearTicks(dates: readonly string[], positions: readonly number[]): YearTick[] {
-  if (dates.length < 2) return []
-  const days = dates.map((date) => Date.parse(date))
-  const firstYear = new Date(days[0]!).getUTCFullYear()
-  const lastYear = new Date(days.at(-1)!).getUTCFullYear()
-  const ticks: YearTick[] = []
-  for (let year = firstYear + 1; year <= lastYear; year++) {
-    const boundary = Date.UTC(year, 0, 1)
-    let segment = 0
-    while (segment < days.length - 2 && days[segment + 1]! < boundary) segment++
-    const start = days[segment]!
-    const end = days[segment + 1]!
-    if (start > boundary) continue
-    const ratio = end > start ? Math.min(1, Math.max(0, (boundary - start) / (end - start))) : 0
-    ticks.push({
-      x: positions[segment]! + (positions[segment + 1]! - positions[segment]!) * ratio,
-      left: year - 1,
-      right: year,
-    })
-  }
-  return ticks
-}
-
 export type TimelineLabelSide = -1 | 1
 export interface TimelineLabel {
   side: TimelineLabelSide
@@ -92,25 +58,31 @@ export interface TimelineLabelPair {
  */
 export function labelLayout(
   positions: readonly number[],
-  dateWidth = 64,
+  dateWidth = 76,
   eventWidth = 216,
 ): TimelineLabelPair[] {
   const ends: Record<TimelineLabelSide, number[]> = {
     [-1]: [Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY],
     [1]: [Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY],
   }
-  const place = (side: TimelineLabelSide, width: number, x: number): TimelineLabel => {
+  const place = (
+    side: TimelineLabelSide,
+    width: number,
+    x: number,
+    base: number,
+    step: number,
+  ): TimelineLabel => {
     const lanes = ends[side]
     let lane = lanes.findIndex((end) => end < x - width / 2 - 8)
     if (lane < 0) lane = lanes.indexOf(Math.min(...lanes))
     lanes[lane] = x + width / 2
-    return { side, lane, width, offset: 40 + lane * 38 }
+    return { side, lane, width, offset: base + lane * step }
   }
   return positions.map((x, index) => {
     const dateSide: TimelineLabelSide = index % 2 === 0 ? -1 : 1
     return {
-      date: place(dateSide, dateWidth, x),
-      event: place(dateSide === -1 ? 1 : -1, eventWidth, x),
+      date: place(dateSide, dateWidth, x, 14, 16),
+      event: place(dateSide === -1 ? 1 : -1, eventWidth, x, 40, 38),
     }
   })
 }
