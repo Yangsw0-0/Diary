@@ -19,7 +19,7 @@ macOS 与 Windows 使用同一套节点数据和交互，差异仅限平台打�
 | 平台 | 文件 | 大小 | SHA-256 |
 | --- | --- | --- | --- |
 | macOS（Apple 芯片） | `Diary_1.5.1_aarch64.zip` | 5.91 MiB（6,202,129 字节） | `3a93594c2018654b7d6eac65d63ff38ff9f191cad70eced2feb9409c7f384e78` |
-| Windows（10/11 x64） | `Diary_1.5.1_x64-setup.exe` | 待 CI 构建 | 待 CI 构建 |
+| Windows（10/11 x64） | `Diary_1.5.1_x64-setup.exe` | 4.02 MiB（4,217,059 字节） | `fc0562e9d69eb440e61883a900e8e8aa019f0b3badfca4d55433f624cdf07f73` |
 
 macOS 安装包使用临时（ad hoc）签名，未做 Apple 公证；首次打开若被阻止，请在「系统设置 → 隐私与安全性」中确认来源后放行。Windows 安装包未签名，SmartScreen 可能提示「未知发布者」。
 
