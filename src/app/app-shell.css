@@ -2048,6 +2048,7 @@
   color: var(--muted-foreground);
   font-size: 12px;
   opacity: 0;
+  pointer-events: none;
   cursor: pointer;
   transition:
     opacity 180ms,
@@ -2060,6 +2061,7 @@
 .node-wheel-item:focus-within .node-pencil,
 .node-wheel-item[data-focused='true'] .node-pencil {
   opacity: 0.6;
+  pointer-events: auto;
 }
 .node-splitter {
   flex: 0 0 auto;
