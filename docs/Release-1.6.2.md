@@ -14,7 +14,7 @@
 | 平台 | 文件 | 大小 | SHA-256 |
 | --- | --- | --- | --- |
 | macOS Apple 芯片 | `Diary_1.6.2_aarch64.zip` | 6,203,940 字节 | `841159bcacdfdd9ae6accd09aaee0d422dab1369ccb51c69c0228a81c8b9b577` |
-| Windows 10/11 x64 | `Diary_1.6.2_x64-setup.exe` | 待填 | 待填 |
+| Windows 10/11 x64 | `Diary_1.6.2_x64-setup.exe` | 4,222,070 字节 | `b82f3546881d4284ba387e4a3e6b7df94e295239418380657fbebd88bb23422d` |
 
 ## 验证
 
