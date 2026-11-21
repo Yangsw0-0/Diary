@@ -186,8 +186,8 @@ export function NodeTimeline({
               </span>
             ))}
             <div className="node-continue" style={{ left: continueX }}>
-              <span>to be continue…</span>
               <i />
+              <span>to be continue…</span>
             </div>
           </>
         )}
@@ -213,6 +213,23 @@ export function NodeTimeline({
               style={{ left: x, '--event-color': color } as CSSProperties}
             >
               <i className="node-dot" />
+              <i
+                className="node-leader"
+                data-side={label.date.side}
+                style={{ '--offset': `${label.date.offset}px` } as CSSProperties}
+                aria-hidden="true"
+              />
+              <i
+                className="node-leader node-leader-event"
+                data-side={label.event.side}
+                style={
+                  {
+                    '--offset': `${label.event.offset}px`,
+                    color,
+                  } as CSSProperties
+                }
+                aria-hidden="true"
+              />
               <span
                 className="node-date-label"
                 data-side={label.date.side}

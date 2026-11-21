@@ -116,7 +116,7 @@ it('keeps timeline gaps strictly increasing even for long spans and windows whee
   const labels = labelLayout(positions)
   expect(labels.map((pair) => pair.date.side)).toEqual([-1, 1, -1])
   expect(labels.every((pair) => pair.date.width === 64 && pair.event.width === 216)).toBe(true)
-  expect(labels.every((pair) => pair.date.offset >= 12 && pair.event.offset >= 12)).toBe(true)
+  expect(labels.every((pair) => pair.date.offset >= 40 && pair.event.offset >= 40)).toBe(true)
   expect(nearestNodeIndex(600, positions, 400)).toBe(1)
   expect(nearestNodeIndex(0, positions, 400)).toBe(0)
   expect(wheelPosition(2, 50, 360, 10)).toBeLessThan(2)

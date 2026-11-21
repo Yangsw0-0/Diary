@@ -104,7 +104,7 @@ export function labelLayout(
     let lane = lanes.findIndex((end) => end < x - width / 2 - 8)
     if (lane < 0) lane = lanes.indexOf(Math.min(...lanes))
     lanes[lane] = x + width / 2
-    return { side, lane, width, offset: 12 + lane * 36 }
+    return { side, lane, width, offset: 40 + lane * 38 }
   }
   return positions.map((x, index) => {
     const dateSide: TimelineLabelSide = index % 2 === 0 ? -1 : 1
