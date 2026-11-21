@@ -54,23 +54,23 @@ export interface TimelineLabelPair {
 
 /**
  * Alternates a node's date and event labels above and below the axis, stacking
- * same-side labels into up to three lanes so they never collide.
+ * same-side labels into two lanes so two-line titles stay clear of the axis.
  */
 export function labelLayout(
   positions: readonly number[],
-  dateWidth = 66,
-  eventWidth = 148,
+  dateWidth = 64,
+  eventWidth = 216,
 ): TimelineLabelPair[] {
   const ends: Record<TimelineLabelSide, number[]> = {
-    [-1]: [Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY],
-    [1]: [Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY],
+    [-1]: [Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY],
+    [1]: [Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY],
   }
   const place = (side: TimelineLabelSide, width: number, x: number): TimelineLabel => {
     const lanes = ends[side]
     let lane = lanes.findIndex((end) => end < x - width / 2 - 8)
     if (lane < 0) lane = lanes.indexOf(Math.min(...lanes))
     lanes[lane] = x + width / 2
-    return { side, lane, width, offset: 16 + lane * 20 }
+    return { side, lane, width, offset: 12 + lane * 36 }
   }
   return positions.map((x, index) => {
     const dateSide: TimelineLabelSide = index % 2 === 0 ? -1 : 1

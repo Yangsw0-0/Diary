@@ -1534,15 +1534,10 @@
 }
 .nodes-header {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: center;
-  padding: 16px 28px 8px;
+  padding: 12px 28px 6px;
   flex-shrink: 0;
-}
-.nodes-header h1 {
-  font-size: 19px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
 }
 .nodes-error {
   margin: 0 28px 4px;
@@ -1588,7 +1583,7 @@
   line-height: 1.9;
 }
 .node-timeline {
-  flex: 0 0 200px;
+  flex: 0 0 176px;
   overflow-x: auto;
   overflow-y: hidden;
   scrollbar-width: none;
@@ -1714,21 +1709,25 @@
   left: 50%;
   transform: translateX(-50%);
   display: block;
-  white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
   text-align: center;
   line-height: 1.35;
   pointer-events: none;
 }
 .node-date-label {
+  white-space: nowrap;
+  text-overflow: ellipsis;
   font-size: 10px;
   letter-spacing: 0.06em;
   font-variant-numeric: tabular-nums;
   color: color-mix(in oklab, var(--foreground) 45%, transparent);
 }
 .node-event-label {
-  font-size: 12px;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  white-space: normal;
+  font-size: 11px;
   padding: 2px 6px;
   border-radius: 7px;
   color: color-mix(in oklab, var(--event-color) 52%, var(--foreground));
@@ -1853,26 +1852,38 @@
 .node-wheel-item {
   position: absolute;
   left: 0;
-  top: -38px;
-  width: clamp(250px, 30vw, 420px);
-  height: 76px;
-  transform-origin: 0 38px;
+  top: -46px;
+  width: clamp(280px, 34vw, 480px);
+  height: 92px;
+  transform-origin: 0 46px;
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 0 16px 0 18px;
+  padding: 0 30px 0 20px;
   opacity: 0.5;
   transition: opacity 240ms;
 }
 .node-wheel-item::before {
   content: '';
   position: absolute;
-  inset: -24px -36px;
-  border-radius: 44px;
+  inset: -26px -54px;
+  border-radius: 48px;
   background: var(--event-color);
-  opacity: 0.13;
-  mask-image: radial-gradient(ellipse 96% 46% at 12% 50%, #000 0 38%, transparent 100%);
-  -webkit-mask-image: radial-gradient(ellipse 96% 46% at 12% 50%, #000 0 38%, transparent 100%);
+  opacity: 0.14;
+  mask-image: radial-gradient(
+    ellipse 122% 66% at 4% 50%,
+    transparent 0,
+    #000 12%,
+    #000 58%,
+    transparent 99%
+  );
+  -webkit-mask-image: radial-gradient(
+    ellipse 122% 66% at 4% 50%,
+    transparent 0,
+    #000 12%,
+    #000 58%,
+    transparent 99%
+  );
   transition: opacity 240ms;
   pointer-events: none;
 }
@@ -1880,10 +1891,10 @@
   opacity: 1;
 }
 .node-wheel-item[data-focused='true']::before {
-  opacity: 0.24;
+  opacity: 0.27;
 }
 .node-wheel-item:hover::before {
-  opacity: 0.19;
+  opacity: 0.21;
 }
 .node-wheel-item > * {
   position: relative;
@@ -1913,10 +1924,13 @@
 .node-event-text strong {
   flex: 1;
   min-width: 0;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 17px;
+  white-space: normal;
+  font-size: 16px;
+  line-height: 1.32;
   font-weight: 500;
   letter-spacing: 0.01em;
 }
@@ -1950,15 +1964,6 @@
   align-items: center;
   gap: 4px;
   flex: 0 0 auto;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 180ms;
-}
-.node-wheel-item:hover .node-swatches,
-.node-wheel-item:focus-within .node-swatches,
-.node-wheel-item[data-focused='true'] .node-swatches {
-  opacity: 1;
-  pointer-events: auto;
 }
 .node-swatches button {
   width: 13px;
@@ -1986,13 +1991,13 @@
   position: absolute;
   right: 2px;
   top: 2px;
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
   padding: 0;
   border: 0;
   background: none;
   color: var(--muted-foreground);
-  font-size: 10px;
+  font-size: 11px;
   opacity: 0;
   cursor: pointer;
   transition: opacity 180ms;

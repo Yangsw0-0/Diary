@@ -8,14 +8,12 @@ export function NodeWheel({
   focusedId,
   onFocus,
   onEdit,
-  onColor,
   colors,
 }: {
   events: ReturnType<typeof flattenNodes>
   focusedId: string | null
   onFocus: (id: string) => void
   onEdit: (id: string) => void
-  onColor: (id: string, color: number) => void
   colors: readonly string[]
 }) {
   const root = useRef<HTMLDivElement>(null)
@@ -77,7 +75,7 @@ export function NodeWheel({
           )
       }}
       onPointerDown={(event) => {
-        if ((event.target as HTMLElement).closest('.node-swatches, .node-pencil')) return
+        if ((event.target as HTMLElement).closest('.node-pencil')) return
         drag.current = { y: event.clientY, start: position, distance: 0 }
         swallowClick.current = false
         lastFocused.current = null
@@ -154,18 +152,6 @@ export function NodeWheel({
                 <strong>{event.title}</strong>
                 <span className="node-separator" aria-hidden="true" />
               </button>
-              <div className="node-swatches" role="group" aria-label={`${event.title} 颜色`}>
-                {colors.map((color, n) => (
-                  <button
-                    key={n}
-                    type="button"
-                    style={{ background: color }}
-                    aria-label={`${event.title} 颜色 ${n + 1}`}
-                    aria-pressed={event.colorIndex === n}
-                    onClick={() => onColor(event.id, n)}
-                  />
-                ))}
-              </div>
               <button
                 className="node-pencil"
                 type="button"

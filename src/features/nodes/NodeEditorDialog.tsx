@@ -78,12 +78,12 @@ export function NodeEditorDialog({
             时间概述
             <input
               required
-              maxLength={60}
+              maxLength={36}
               value={title}
               onChange={(e) => setTitle(e.target.value)}
             />
           </label>
-          <small>{Array.from(title).length}/60 字</small>
+          <small>{Array.from(title).length}/36 字</small>
           <div className="node-swatches" role="group" aria-label="事件颜色">
             {colors.map((c, i) => (
               <button

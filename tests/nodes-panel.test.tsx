@@ -31,7 +31,10 @@ it('adds two events to one date, renders the canvas and edits via keyboard', asy
   fireEvent.pointerDown(wheel, { clientY: 400, pointerId: 1 })
   fireEvent.pointerMove(wheel, { clientY: 320, pointerId: 1 })
   fireEvent.pointerUp(wheel, { pointerId: 1 })
-  fireEvent.click(screen.getByRole('button', { name: '初见 颜色 2' }))
+  expect(screen.queryByRole('button', { name: '初见 颜色 2' })).toBeNull()
+  fireEvent.click(screen.getByRole('button', { name: '编辑 初见' }))
+  fireEvent.click(screen.getByRole('button', { name: '颜色 2' }))
+  fireEvent.click(screen.getByRole('button', { name: '保存事件' }))
   expect(
     session.getSnapshot().document.nodes[0]?.events.find((event) => event.title === '初见')
       ?.colorIndex,

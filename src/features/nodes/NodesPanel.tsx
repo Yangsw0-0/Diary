@@ -41,7 +41,6 @@ export function NodesPanel({
   return (
     <div className="nodes-panel">
       <header className="nodes-header">
-        <h1>节点</h1>
         <SaveIndicator
           state={status}
           label="保存节点"
@@ -97,14 +96,6 @@ export function NodesPanel({
             focusedId={snapshot.focusedId}
             onFocus={(id) => session.focus(id)}
             onEdit={setEditor}
-            onColor={(id, color) => {
-              setActionError('')
-              try {
-                session.setColor(id, color)
-              } catch (err) {
-                setActionError(err instanceof Error ? err.message : '无法更新颜色')
-              }
-            }}
             colors={colors}
           />
         </>
