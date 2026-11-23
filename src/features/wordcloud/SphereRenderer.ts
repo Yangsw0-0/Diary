@@ -306,6 +306,7 @@ export class SphereRenderer {
     if (pointer && this.canvas.hasPointerCapture(pointer.id))
       this.canvas.releasePointerCapture(pointer.id)
     this.setHover(null)
+    this.canvas.style.cursor = 'grab'
     this.invalidate()
   }
   private lost = (event: PointerEvent) => {
@@ -492,6 +493,8 @@ export class SphereRenderer {
   }
   destroy() {
     this.disposed = true
+    this.hovered = null
+    this.cancel()
     this.stop()
     this.observer.disconnect()
     this.themeObserver.disconnect()
