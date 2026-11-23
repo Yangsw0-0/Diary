@@ -183,13 +183,18 @@ export class SphereRenderer {
   }
   private resize = () => {
     const box = this.canvas.getBoundingClientRect()
+    const dpr = Math.min(3, window.devicePixelRatio || 1)
+    if (this.width === box.width && this.height === box.height && this.dpr === dpr) return
     this.width = box.width
     this.height = box.height
-    this.dpr = Math.min(3, window.devicePixelRatio || 1)
+    this.dpr = dpr
     this.canvas.width = Math.max(1, Math.round(this.width * this.dpr))
     this.canvas.height = Math.max(1, Math.round(this.height * this.dpr))
     this.labels.clear()
-    this.invalidate()
+    this.stop()
+    // ResizeObserver runs after RAF: paint now so its buffer reset cannot blank this frame.
+    if (this.active && !document.hidden && this.width > 0 && this.height > 0)
+      this.draw(performance.now())
   }
   private visibility = () => {
     if (document.hidden) {

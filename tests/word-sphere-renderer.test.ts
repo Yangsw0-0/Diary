@@ -160,3 +160,21 @@ it('culls overlapping labels in a dense cloud while keeping a finite drawing wor
   renderer.destroy()
   canvas.remove()
 })
+
+it('repaints immediately after a resize instead of leaving the cleared canvas until the next frame', () => {
+  const { step, renderer, canvas, context } = setup()
+  step(600)
+  vi.mocked(performance.now).mockReturnValue(600)
+  context.fillText.mockClear()
+  vi.mocked(canvas.getBoundingClientRect).mockReturnValue({
+    left: 0,
+    top: 0,
+    width: 500,
+    height: 600,
+  } as DOMRect)
+  window.dispatchEvent(new Event('resize'))
+  expect(canvas.width).toBe(500)
+  expect(context.fillText).toHaveBeenCalled()
+  renderer.destroy()
+  canvas.remove()
+})
