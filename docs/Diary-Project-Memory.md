@@ -4,7 +4,7 @@
 
 ## 当前版本与平台
 
-- macOS Apple 芯片本轮版本为 `1.9.0`（[发布记录](./Release-1.9.0.md)）；Windows 10/11 x64 当前版本为 `1.7.0`（[发布记录](./Release-1.7.0.md)）。Windows 真机窗口验收仍待完成。
+- macOS Apple 芯片当前版本为 `1.9.0`（[发布记录](./Release-1.9.0.md)）；Windows 10/11 x64 当前版本为 `1.7.0`（[发布记录](./Release-1.7.0.md)）。Windows 真机窗口验收仍待完成。
 - M1–M6 已完成。M7 Windows 适配的自动检查与打包已通过；**M7-07 Windows 真机安装和窗口交互验收仍待完成**。不得把 CI 成功表述为真实 Windows 设备已验收。
 - 已发布1.7.0的验证记录：前端130项、Rust26项及严格clippy通过；macOS 1.7.0 安装包已构建、ad-hoc 签名并打出 ZIP（SHA-256 见发布记录）；Windows 安装包已由 CI 构建，两个安装包的 ZIP/EXE 摘要均已核对；节点画布拖动、时间轴居中和轮盘手感仍需实际窗口复核。
 
@@ -156,3 +156,5 @@
 - 本轮前端142项、Rust26项、类型/格式/lint/生产构建已通过；浏览器内存真实Crepe核对首尾/输入居中、虚拟光标对齐、手动阅读、重新开启、跨日期、亮暗主题与34px按钮。未读写真实日记；原生macOS输入法候选窗、长期连续输入及多屏高DPI仍需实机验收。实现边界见Typewriter-Mode.md。
 
 1.9.0 Rust26项、fmt、严格clippy通过；macOS包版本/arm64/签名/ZIP与包内文件已核对，摘要见Release-1.9.0.md，本地releases/v1.9.0/保留。
+
+1.9.0 已正式发布：[Release](https://github.com/Yangsw0-0/Diary/releases/tag/v1.9.0)，源码f882e5a；[CI](https://github.com/Yangsw0-0/Diary/actions/runs/45160678352)前端与macOS成功、Windows跳过。本地与远端macOS ZIP摘要一致，发布资产不含日记或附件数据。

@@ -310,4 +310,4 @@ P1–P5已实现：模型迁移、存储、会话队列、画布、时间轴、�
 - [x] 删除日记滑动切换专用前端/原生代码、依赖及样式，补不换日期回归；节点/词云监听保留。
 - [x] 前端142项、类型/格式/lint/生产构建；浏览器内存真实编辑器验证。
 - [x] Rust26项、fmt、严格clippy；macOS1.9.0包版本/签名/ZIP/摘要核对并本地留存。
-- [ ] GitHub提交与发布。
+- [x] 源码f882e5a已推送；[CI](https://github.com/Yangsw0-0/Diary/actions/runs/45160678352)前端/macOS成功、Windows跳过；[1.9.0](https://github.com/Yangsw0-0/Diary/releases/tag/v1.9.0)正式发布，远端摘要与本地一致。

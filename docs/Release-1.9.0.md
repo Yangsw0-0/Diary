@@ -16,3 +16,5 @@ Rust26项测试、fmt与严格clippy通过。macOS1.9.0版本、arm64、ad hoc�
 [Diary_1.9.0_aarch64.zip](https://github.com/Yangsw0-0/Diary/releases/download/v1.9.0/Diary_1.9.0_aarch64.zip)：6,213,662字节；SHA-256：`1bf1932106492773d6d411be6eb4c32a7eda17e5e0dd46d6d793d7f8cfaac02a`。
 
 本地`releases/v1.9.0/`保留Diary.app、ZIP与SHA256SUMS.txt，不进入Git。退出旧应用后解压替换原Diary.app；未公证，无自动更新；Windows本轮不打包。
+
+源码f882e5a。[GitHub CI](https://github.com/Yangsw0-0/Diary/actions/runs/45160678352)前端及macOS检查通过，Windows跳过；正式发布资产摘要与本地一致。
