@@ -4,9 +4,9 @@
 
 ## 当前版本与平台
 
-- macOS Apple 芯片当前版本为 `1.6.3`（[发布记录](./Release-1.6.3.md)）；Windows 10/11 x64 当前版本为 `1.6.3`（[发布记录](./Release-1.6.3.md)）。Windows 真机窗口验收仍待完成。
+- macOS Apple 芯片当前版本为 `1.7.0`（[发布记录](./Release-1.7.0.md)）；Windows 10/11 x64 当前版本为 `1.7.0`（[发布记录](./Release-1.7.0.md)）。Windows 真机窗口验收仍待完成。
 - M1–M6 已完成。M7 Windows 适配的自动检查与打包已通过；**M7-07 Windows 真机安装和窗口交互验收仍待完成**。不得把 CI 成功表述为真实 Windows 设备已验收。
-- 已发布1.6.3的验证记录：前端113项、Rust23项及严格clippy通过；macOS 1.6.3 安装包已构建、ad-hoc 签名并打出 ZIP（SHA-256 见发布记录）；Windows 安装包已由 CI 构建，两个安装包的 ZIP/EXE 摘要均已核对；节点画布拖动、时间轴居中和轮盘手感仍需实际窗口复核。
+- 已发布1.7.0的验证记录：前端130项、Rust26项及严格clippy通过；macOS 1.7.0 安装包已构建、ad-hoc 签名并打出 ZIP（SHA-256 见发布记录）；Windows 安装包已由 CI 构建，两个安装包的 ZIP/EXE 摘要均已核对；节点画布拖动、时间轴居中和轮盘手感仍需实际窗口复核。
 
 ## 架构与数据边界
 
@@ -103,20 +103,24 @@
 
 本轮验证：`npm run check`完整通过（113项测试、类型检查和生产构建；lint仍有既有警告）。浏览器内存预览已核对浅/深色和560px设置区域下的分类显示、排版换行；未读写真实日记，未替代原生安装包验收。
 
-## 未发布：词云栏目（2026-11-23）
+## 1.7.0 词云栏目（2026-11-23）
 
 - 在1.6.3基础上新增wordcloud canvas导航，与日记/标签/节点同级；复用导航历史与openTag，不影响日记边界翻页。
 - 新WordCloudSession与TauriWordCloudRepository，用户目录根WordCloud.json保存自定义UUID词及配置，不存标签副本。标签由TagIndex全部主标签（含隐藏）派生，NFC文本合并但保留独立来源。
 - Canvas 2D自研SphereRenderer：Fibonacci Sphere/四元数、共用投影的网格与近邻线、背面剔除、前侧渐变、碰撞避让、惯性、DPR及资源清理，无新增依赖。详见[词云架构](./Word-Cloud-Architecture.md)。
 - 自动保存与关闭/失焦/模块切换/目录切换保护接入；目录reset隔离旧异步结果，读取损坏不覆盖。自定义500词、每词120字符、文件512KiB，标签不受500条限制。
-- 当前发布版本仍为1.6.3，本轮只有源码变化；浏览器模拟验证不等价于原生/Windows真机验收。
+- 当前发布版本更新为1.7.0，包含词云功能；浏览器模拟验证不等价于原生/Windows真机验收。
 
 本轮验证：`npm run check`通过（130项前端测试、类型检查、格式/lint与生产构建，仍有既有lint和打包体积提示）；Rust fmt、严格clippy、26项测试通过。Canvas单元测试覆盖2000词避让；浏览器内存示例验证球面点击进入真实标签内容组件、面板伸缩、添加、标签开关及亮暗主题。原生双平台窗口与超大真实库FPS未作手工验收。
 
-词云最终源码提交a94c12f的[跨平台CI](https://github.com/Yangsw0-0/Diary/actions/runs/45097956403)三项均通过：前端130项与构建、macOS Rust检查、Windows Rust检查与NSIS打包。缩放同步补画已在浏览器重新核对，窗口变窄后无需等待下一帧才恢复球面。未公开发布新的安装包。
+词云最终源码提交a94c12f的[跨平台CI](https://github.com/Yangsw0-0/Diary/actions/runs/45097956403)三项均通过：前端130项与构建、macOS Rust检查、Windows Rust检查与NSIS打包。缩放同步补画已在浏览器重新核对，窗口变窄后无需等待下一帧才恢复球面。后续已随1.7.0安装包发布。
 
 ## 本地安装包保留规则（用户要求，2026-11-23）
 
 每次版本更新或发布都必须在本地`releases/v<版本号>/`保留macOS安装包，核验版本、ZIP完整性和SHA-256；不能仅留GitHub或.cache，历史包不自动清理，安装包不进入Git。该规则同时写入AGENTS.md。
 
 本次核对GitHub最新公开Release仍为v1.6.3，已重新下载macOS包到releases/v1.6.3/Diary_1.6.3_aarch64.zip，与既有本地包及GitHub摘要一致：63a488a8c1fec49dbb26d1771be1a673846dfe0291b794bb22746096d68d89de。词云仍为未发布源码，此包不含词云；下载现有Release不等同于发布新源码安装包。
+
+## 1.7.0 词云安装包发布（2026-11-23）
+
+词云已打包为1.7.0，两个平台安装包均保存在本地releases/v1.7.0/；macOS ZIP与Diary.app版本、签名和完整性已核对，Windows EXE来自同版本CI。130项前端、26项Rust测试及[三项CI](https://github.com/Yangsw0-0/Diary/actions/runs/45111079085)通过；摘要与下载见[发布记录](./Release-1.7.0.md)。原生双平台窗口与超大真实词集帧率仍待手工验收。先前“词云未发布”“最新Release为1.6.3”的文字为发布前历史记录，以本节和当前版本为准。

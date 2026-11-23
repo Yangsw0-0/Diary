@@ -2,7 +2,7 @@
 
 一个本地 Markdown 日记应用，使用 Tauri 2、React、TypeScript 和 Rust，提供 macOS 与 Windows 两个平行桌面版本。日记与附件只保存在用户选择的本地文件夹。
 
-M1–M6 已完成，macOS 正式版为 `1.0.0`；macOS 与 Windows x64 当前版本均为 `1.6.3`。旧文件批量导入工具属于后续额外工作。
+M1–M6 已完成，macOS 正式版为 `1.0.0`；macOS 与 Windows x64 当前版本均为 `1.7.0`。旧文件批量导入工具属于后续额外工作。
 
 [项目规划](./docs/Diary-Project-Plan.md) · [进度与任务](./docs/Diary-Project-Progress.md) · [使用说明](./docs/Diary-User-Guide.md) · [平台支持与源码分区](./docs/Platform-Support.md) · [1.1.0 交互规划](./docs/Diary-Interaction-Iteration-Plan.md)
 
@@ -33,15 +33,15 @@ M1–M6 已完成，macOS 正式版为 `1.0.0`；macOS 与 Windows x64 当前版
 
 ## 安装
 
-macOS 与 Windows 最新版本均为 `1.6.3`，安装包从 [GitHub Release](https://github.com/Yangsw0-0/Diary/releases/tag/v1.6.3) 下载。
+macOS 与 Windows 最新版本均为 `1.7.0`，安装包从 [GitHub Release](https://github.com/Yangsw0-0/Diary/releases/tag/v1.7.0) 下载。
 
 ### macOS
 
-适用于 Apple 芯片 Mac：[Diary_1.6.3_aarch64.zip](https://github.com/Yangsw0-0/Diary/releases/download/v1.6.3/Diary_1.6.3_aarch64.zip)。解压后退出旧版 Diary，再将 `Diary.app` 拖到「应用程序」文件夹替换旧版。首次运行请选择一个已有的日记文件夹。应用使用临时（ad hoc）签名，未做 Apple 公证；macOS 若阻止打开，请在系统设置的「隐私与安全性」中确认你信任此应用后手动放行。
+适用于 Apple 芯片 Mac：[Diary_1.7.0_aarch64.zip](https://github.com/Yangsw0-0/Diary/releases/download/v1.7.0/Diary_1.7.0_aarch64.zip)。解压后退出旧版 Diary，再将 `Diary.app` 拖到「应用程序」文件夹替换旧版。首次运行请选择一个已有的日记文件夹。应用使用临时（ad hoc）签名，未做 Apple 公证；macOS 若阻止打开，请在系统设置的「隐私与安全性」中确认你信任此应用后手动放行。
 
 ### Windows
 
-适用于 Windows 10/11 x64：[Diary_1.6.3_x64-setup.exe](https://github.com/Yangsw0-0/Diary/releases/download/v1.6.3/Diary_1.6.3_x64-setup.exe)。运行 NSIS 安装程序即可，按当前用户安装，不需要管理员权限；升级时直接运行新安装包覆盖安装。
+适用于 Windows 10/11 x64：[Diary_1.7.0_x64-setup.exe](https://github.com/Yangsw0-0/Diary/releases/download/v1.7.0/Diary_1.7.0_x64-setup.exe)。运行 NSIS 安装程序即可，按当前用户安装，不需要管理员权限；升级时直接运行新安装包覆盖安装。
 
 Windows 11 已内置 WebView2；Windows 10 缺少时，安装程序会联网下载运行时。安装包未做代码签名，SmartScreen 可能提示“未知发布者”，确认文件来自本仓库后可选择“更多信息 → 仍要运行”。当前不提供 MSI 和 Windows ARM64 版本。
 
@@ -95,4 +95,4 @@ deactivate
 
 1.5.0 重做节点画布：日期与事件交替排布的时间轴、可居中对齐的拖动与「起点 / to be continue…」边界、无边框笔刷事件卡片、长指针和圆环装饰；同时修复节点保存失败离开提示、拖动后点击色块、OneDrive 目录兼容和损坏文件中文提示。使用方式见设置中的帮助。
 
-词云栏目（未发布源码）：可拖动球形词云、动态标签联动、自定义词语与三种线条模式；数据保存在WordCloud.json，详见[词云架构](./docs/Word-Cloud-Architecture.md)。
+1.7.0 词云栏目：可拖动球形词云、动态标签联动、自定义词语与三种线条模式；数据保存在WordCloud.json，详见[词云架构](./docs/Word-Cloud-Architecture.md)。

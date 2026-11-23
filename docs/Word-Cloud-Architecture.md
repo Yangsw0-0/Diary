@@ -2,7 +2,7 @@
 
 ## 仓库事实与方案选择
 
-基于当前1.6.3源码：ModuleRegistry支持split/canvas模块；NavigationHistory为内存导航，标签跳转使用openTag(key)；TagIndex由Markdown二级标题动态派生主标签，key是现有稳定关联键（项目没有另一个标签UUID）。NodesSession采用独立JSON文件、useSyncExternalStore、串行保存与revision冲突保护。词云沿用相同分层和生命周期模式，不另建数据库。
+基于1.6.3架构新增，首次随1.7.0发布：ModuleRegistry支持split/canvas模块；NavigationHistory为内存导航，标签跳转使用openTag(key)；TagIndex由Markdown二级标题动态派生主标签，key是现有稳定关联键（项目没有另一个标签UUID）。NodesSession采用独立JSON文件、useSyncExternalStore、串行保存与revision冲突保护。词云沿用相同分层和生命周期模式，不另建数据库。
 
 已阅读官方参考：[TagCanvas](https://www.goat1000.com/tagcanvas.php)、[拖拽与减速选项](https://www.goat1000.com/tagcanvas-drag.php)、[TagCloud.js说明](https://github.com/cong-min/TagCloud)。TagCanvas已有Canvas拖拽、减速交互；TagCloud.js提供轻量鼠标旋转词云及更新/暂停/销毁接口。本实现参考交互，使用独立Canvas 2D渲染器，以统一定制背面剔除、透明度与同步线条；不复制两项目源码，不增加图形库或运行时依赖。
 
@@ -43,6 +43,6 @@
 
 前端测试涵盖来源去重、标签动态变化/实际内容跳转、删除撤销、重启配置恢复、保存中编辑、损坏与外部冲突、旧工作区读取隔离、失败导航和原生关闭保护，以及几何/背面点击/惯性/暂停/销毁/密集避让。Rust覆盖读写/冲突/强制保存、UTF-8与大小、结构校验、符号链接及日记扫描隔离。
 
-浏览器内存示例检查了自由拖动、输入Enter添加、标签显示开关、收起面板扩展、球面点击进入标签关联内容、亮暗主题、网格/星座/混合模式与760px最小窗口。未访问真实日记。原生macOS/Windows交互与超大真实词集的帧率仍待真机验收；本轮未发布新安装包。
+浏览器内存示例检查了自由拖动、输入Enter添加、标签显示开关、收起面板扩展、球面点击进入标签关联内容、亮暗主题、网格/星座/混合模式与760px最小窗口。未访问真实日记。原生macOS/Windows交互与超大真实词集的帧率仍待真机验收；词云已随1.7.0安装包发布。
 
-最终结果：`npm run check`通过，130项前端测试、26项Rust测试与严格clippy通过；[a94c12f三项CI](https://github.com/Yangsw0-0/Diary/actions/runs/45097956403)均通过，包括Windows编译与安装包构建。尺寸变化同步补画的回归测试与浏览器复核通过。本轮源码已推送，未发布新安装包。
+最终结果：`npm run check`通过，130项前端测试、26项Rust测试与严格clippy通过；[a94c12f三项CI](https://github.com/Yangsw0-0/Diary/actions/runs/45097956403)均通过，包括Windows编译与安装包构建。尺寸变化同步补画的回归测试与浏览器复核通过。本轮源码已推送，词云已随1.7.0安装包发布。

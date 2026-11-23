@@ -13,3 +13,12 @@
 验证：前端130项测试、类型检查、格式、lint和生产构建通过（仍有既有lint/构建体积提示）；Rust26项测试与严格clippy通过。浏览器内存示例已检查亮暗主题、拖拽、标签跳转、管理面板及窄窗口。原生双平台手工交互和超大真实词集帧率仍待实机验收。
 
 退出旧版后，macOS解压并替换原位置的Diary.app；Windows运行新安装程序覆盖安装。macOS为ad hoc签名、未公证；Windows安装包未签名。应用不提供自动更新。
+
+## 安装包
+
+| 平台 | 下载 | 大小 | SHA-256 |
+| --- | --- | --- | --- |
+| macOS Apple 芯片 | [Diary_1.7.0_aarch64.zip](https://github.com/Yangsw0-0/Diary/releases/download/v1.7.0/Diary_1.7.0_aarch64.zip) | 6,219,159 字节 | `7d5c84d44f1dfd6515c5efd042a9d56f5f10550d626d3d51301da48c170afd0e` |
+| Windows 10/11 x64 | [Diary_1.7.0_x64-setup.exe](https://github.com/Yangsw0-0/Diary/releases/download/v1.7.0/Diary_1.7.0_x64-setup.exe) | 4,241,725 字节 | `5a973a0a7ddba0f83940303c70409230efd9711f8ead48d1dd14a0fd14790901` |
+
+本地安装包与应用副本保存在 `releases/v1.7.0/`，包含 macOS ZIP、Diary.app、Windows EXE 和本地 SHA256SUMS.txt，不进入 Git。macOS 版本、签名、架构、ZIP完整性和包内文件已核对，包内包含词云实现；[1.7.0三项CI](https://github.com/Yangsw0-0/Diary/actions/runs/45111079085)均通过，Windows包来自同一版本提交。
