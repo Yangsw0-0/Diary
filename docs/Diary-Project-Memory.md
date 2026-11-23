@@ -4,7 +4,7 @@
 
 ## 当前版本与平台
 
-- macOS Apple 芯片本轮版本为 `1.8.1`（[发布记录](./Release-1.8.1.md)）；Windows 10/11 x64 当前版本为 `1.7.0`（[发布记录](./Release-1.7.0.md)）。Windows 真机窗口验收仍待完成。
+- macOS Apple 芯片当前版本为 `1.8.1`（[发布记录](./Release-1.8.1.md)）；Windows 10/11 x64 当前版本为 `1.7.0`（[发布记录](./Release-1.7.0.md)）。Windows 真机窗口验收仍待完成。
 - M1–M6 已完成。M7 Windows 适配的自动检查与打包已通过；**M7-07 Windows 真机安装和窗口交互验收仍待完成**。不得把 CI 成功表述为真实 Windows 设备已验收。
 - 已发布1.7.0的验证记录：前端130项、Rust26项及严格clippy通过；macOS 1.7.0 安装包已构建、ad-hoc 签名并打出 ZIP（SHA-256 见发布记录）；Windows 安装包已由 CI 构建，两个安装包的 ZIP/EXE 摘要均已核对；节点画布拖动、时间轴居中和轮盘手感仍需实际窗口复核。
 
@@ -144,3 +144,5 @@
 - 指针改为实线旁16px短连接、标题最多三行，距离驱动非焦点透明度。原节点数据格式/存储与鼠标、纵向触控板交互保持。
 - 前端146项、Rust26项、类型/lint/格式/构建通过。浏览器内存示例已核对亮暗主题、520/760px内容宽度、长标题、正向/反向焦点与编辑弹窗。未访问真实节点；原生macOS触控板手感和持续高频帧率尚未测量。
 - macOS1.8.1包版本、arm64、ad hoc签名、ZIP及摘要已核对，本地releases/v1.8.1/保留；Windows继续1.7.0，本轮不构建。详细结构见Node-Wheel-Layout.md。
+
+1.8.1 已正式发布：[Release](https://github.com/Yangsw0-0/Diary/releases/tag/v1.8.1)，源码提交7d2d770；[CI](https://github.com/Yangsw0-0/Diary/actions/runs/45139115956)前端/macOS均成功，Windows跳过，发布资产仅含已校验的macOS ZIP。

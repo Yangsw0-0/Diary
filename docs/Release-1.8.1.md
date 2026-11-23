@@ -14,3 +14,5 @@ macOS版本1.8.1、arm64、ad hoc签名与ZIP完整性已核对，Rust26项测�
 [Diary_1.8.1_aarch64.zip](https://github.com/Yangsw0-0/Diary/releases/download/v1.8.1/Diary_1.8.1_aarch64.zip)：6,218,242字节。SHA-256：`289fb55907f0f2408a31e37ee1275ac45f4472e3d536bcea09cc5635e1686b09`。
 
 本地安装包、Diary.app与SHA256SUMS.txt留存在`releases/v1.8.1/`，不进入Git。退出旧应用后解压并替换原Diary.app；未做Apple公证，无自动更新。
+
+源码提交7d2d770。[GitHub CI](https://github.com/Yangsw0-0/Diary/actions/runs/45139115956)前端与macOS严格Rust检查通过，Windows跳过；正式发布包的远端SHA-256与本地一致。

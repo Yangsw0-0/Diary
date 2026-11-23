@@ -297,6 +297,6 @@ P1–P5已实现：模型迁移、存储、会话队列、画布、时间轴、�
 - [x] 更新帮助，补几何/反向/拖动/wheel/编辑回归；前端146项及类型/构建通过。
 - [x] 浏览器示例验证亮暗主题、520/760px内容宽度、长标题与编辑入口。
 - [x] macOS1.8.1包版本/架构/签名/ZIP/摘要核对，本地releases/v1.8.1/留存；Rust26项通过。
-- [ ] GitHub提交与发布。
+- [x] GitHub源码7d2d770已推送；[CI](https://github.com/Yangsw0-0/Diary/actions/runs/45139115956)前端/macOS成功、Windows跳过；[1.8.1](https://github.com/Yangsw0-0/Diary/releases/tag/v1.8.1)已正式发布，远端摘要与本地一致。
 
 实现与验证边界见[轮盘布局](./Node-Wheel-Layout.md)。不改节点文件格式、存储或上方时间轴。
