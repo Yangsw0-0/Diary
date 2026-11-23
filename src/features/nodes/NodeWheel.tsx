@@ -1,4 +1,5 @@
 import { wheelDelta } from '@/shared/wheelDelta'
+import { NodeWheelGeometry } from '@/application/NodeWheelGeometry'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import type { flattenNodes } from '@/domain/NodesDocument'
@@ -22,7 +23,8 @@ export function NodeWheel({
   const swallowClick = useRef(false)
   const lastFocused = useRef<string | null>(null)
   const positionRef = useRef(0)
-  const [radius, setRadius] = useState(360)
+  const [geometry, setGeometry] = useState(() => new NodeWheelGeometry())
+  const radius = geometry.solidRadius
   const [dragPosition, setDragPosition] = useState(0)
   const [dragging, setDragging] = useState(false)
   const index = Math.max(
@@ -71,7 +73,12 @@ export function NodeWheel({
     const el = root.current
     if (!el) return
     const measure = () =>
-      setRadius(Math.max(260, Math.min(860, el.clientHeight * 0.92, el.clientWidth * 0.5)))
+      setGeometry((previous) => {
+        const next = new NodeWheelGeometry(el.clientWidth, el.clientHeight)
+        return next.solidRadius === previous.solidRadius && next.cardWidth === previous.cardWidth
+          ? previous
+          : next
+      })
     const observer = new ResizeObserver(measure)
     observer.observe(el)
     measure()
@@ -96,7 +103,17 @@ export function NodeWheel({
       role="group"
       aria-label="事件轮盘"
       data-dragging={dragging}
-      style={{ '--wheel-radius': `${radius}px` } as CSSProperties}
+      style={
+        {
+          '--wheel-radius': radius + 'px',
+          '--wheel-card-width': geometry.cardWidth + 'px',
+          '--wheel-date-offset': geometry.dateOffset + 'px',
+          '--wheel-date-width': geometry.dateWidth + 'px',
+          '--wheel-content-offset': geometry.contentOffset + 'px',
+          '--wheel-pointer-offset': geometry.pointerOffset + 'px',
+          '--wheel-pointer-length': geometry.pointerLength + 'px',
+        } as CSSProperties
+      }
       onKeyDown={(event) => {
         if (!['ArrowUp', 'ArrowDown', 'Home', 'End', 'Enter'].includes(event.key)) return
         event.preventDefault()
@@ -151,12 +168,28 @@ export function NodeWheel({
         focus(index)
       }}
     >
-      <div className="node-pointer" aria-hidden="true" style={{ width: Math.max(64, radius - 4) }}>
-        <i className="node-pointer-hub" />
-        <i className="node-pointer-line" />
-        <i className="node-pointer-tip" />
-      </div>
-      <div className="node-rotor" style={{ transform: `rotate(${-position * wheelStep}deg)` }}>
+      <svg
+        className="node-wheel-tracks"
+        aria-hidden="true"
+        width={radius * 2 + 4}
+        height={radius * 2 + 4}
+        viewBox={[-radius - 2, -radius - 2, radius * 2 + 4, radius * 2 + 4].join(' ')}
+      >
+        <circle className="node-track-solid" r={radius} />
+        <circle
+          className="node-track-dashed"
+          r={geometry.dashedRadius}
+          strokeDasharray="3 8"
+          strokeDashoffset={geometry.textureOffset(position, geometry.dashedRadius)}
+        />
+        <circle
+          className="node-track-highlight"
+          r={radius}
+          strokeDasharray={'18 ' + ((2 * Math.PI * radius) / 12 - 18)}
+          strokeDashoffset={geometry.textureOffset(position, radius)}
+        />
+      </svg>
+      <div className="node-rotor" style={{ transform: `rotate(${geometry.angle(position)}deg)` }}>
         {wheelWindow(position, events.length).map((i) => {
           const event = events[i]!
           const [year = '', month = '', day = ''] = event.date.split('-')
@@ -167,8 +200,9 @@ export function NodeWheel({
               data-focused={event.id === focusedId}
               style={
                 {
-                  transform: `rotate(${i * wheelStep}deg) translateX(${radius}px)`,
+                  transform: `rotate(${i * wheelStep}deg) translateX(${geometry.cardRadius}px)`,
                   '--event-color': colors[event.colorIndex],
+                  '--event-weight': Math.max(0.28, 1 - Math.abs(i - position) * 0.24),
                 } as CSSProperties
               }
             >
@@ -190,7 +224,11 @@ export function NodeWheel({
                   </b>
                   <small>{year}</small>
                 </span>
-                <span className="node-separator" aria-hidden="true" />
+                <span className="node-pointer" aria-hidden="true">
+                  <i className="node-pointer-hub" />
+                  <i className="node-pointer-line" />
+                  <i className="node-pointer-tip" />
+                </span>
                 <strong>{event.title}</strong>
               </button>
               <button
