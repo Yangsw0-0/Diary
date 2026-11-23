@@ -7,8 +7,6 @@ mod external_link;
 mod nodes_commands;
 mod nodes_storage;
 mod platform;
-#[cfg(target_os = "macos")]
-mod scroll_phase;
 mod word_cloud;
 mod workspace;
 
@@ -22,8 +20,6 @@ pub fn run() {
             let settings_path = workspace::settings_path(app.handle())
                 .map_err(|error| std::io::Error::other(error.message))?;
             app.manage(workspace::WorkspaceState::new(settings_path));
-            #[cfg(target_os = "macos")]
-            scroll_phase::install(app.handle());
             if cfg!(debug_assertions) {
                 app.handle().plugin(
                     tauri_plugin_log::Builder::default()

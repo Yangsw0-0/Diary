@@ -4,6 +4,7 @@ import type { EditorAdapter } from '@/application/EditorAdapter'
 import type { DiaryDate } from '@/domain/DiaryDate'
 
 interface Props {
+  readonly typewriter?: boolean
   readonly markdown: string
   readonly onChange: (markdown: string) => void
   readonly onComposing: (value: boolean) => void
@@ -28,6 +29,7 @@ interface Props {
 }
 
 export function CrepeEditor({
+  typewriter = false,
   markdown,
   onChange,
   onComposing,
@@ -44,6 +46,7 @@ export function CrepeEditor({
   onInsertError,
   onRequestAttachment,
 }: Props) {
+  const typewriterRef = useRef(typewriter)
   const root = useRef<HTMLDivElement>(null)
   const onChangeRef = useRef(onChange)
   const onComposingRef = useRef(onComposing)
@@ -117,6 +120,7 @@ export function CrepeEditor({
             else {
               adapterRef.current = adapter
               adapter.setReadonly(readOnlyRef.current)
+              adapter.setTypewriter?.(typewriterRef.current)
               insertIfNeeded(adapter)
               const request = focusRef.current
               const edgeRequest = cursorEdgeRef.current
@@ -142,6 +146,11 @@ export function CrepeEditor({
       void adapter.destroy()
     }
   }, [])
+
+  useEffect(() => {
+    typewriterRef.current = typewriter
+    adapterRef.current?.setTypewriter?.(typewriter)
+  }, [typewriter])
 
   useEffect(() => {
     adapterRef.current?.setReadonly(readOnly)

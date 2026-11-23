@@ -2,7 +2,7 @@
 
 一个本地 Markdown 日记应用，使用 Tauri 2、React、TypeScript 和 Rust，提供 macOS 与 Windows 两个平行桌面版本。日记与附件只保存在用户选择的本地文件夹。
 
-M1–M6 已完成，macOS 正式版为 `1.0.0`；macOS 当前版本为 `1.8.1`，Windows x64 保留 `1.7.0`。旧文件批量导入工具属于后续额外工作。
+M1–M6 已完成，macOS 正式版为 `1.0.0`；macOS 当前版本为 `1.9.0`，Windows x64 保留 `1.7.0`。旧文件批量导入工具属于后续额外工作。
 
 [项目规划](./docs/Diary-Project-Plan.md) · [进度与任务](./docs/Diary-Project-Progress.md) · [使用说明](./docs/Diary-User-Guide.md) · [平台支持与源码分区](./docs/Platform-Support.md) · [1.1.0 交互规划](./docs/Diary-Interaction-Iteration-Plan.md)
 
@@ -25,7 +25,7 @@ M1–M6 已完成，macOS 正式版为 `1.0.0`；macOS 当前版本为 `1.8.1`�
 
 ## 使用和备份
 
-首次启动请选择一个**已有的**文件夹。应用不会替你创建根目录。每天的 Markdown 保存在 `<所选文件夹>/<年份>/<YYYY-MM-DD>.md`；附件保存在同一根目录的 `assets/<年份>/<日期>/`。使用「附件」按钮选择文件，或将文件拖入编辑器、粘贴图片。单个文件须非空且不超过 20 MiB；PNG、JPEG、GIF、WebP、AVIF 可在编辑器及标签页预览，其余文件以链接形式打开。复制成功后才会插入相对链接；删除日记里的链接不会删除附件文件。
+首次启动请选择一个**已有的**文件夹。应用不会替你创建根目录。每天的 Markdown 保存在 `<所选文件夹>/<年份>/<YYYY-MM-DD>.md`；附件保存在同一根目录的 `assets/<年份>/<日期>/`。在正文右键选择「插入插件 → 图片或附件…」，或将文件拖入编辑器、粘贴图片。单个文件须非空且不超过 20 MiB；PNG、JPEG、GIF、WebP、AVIF 可在编辑器及标签页预览，其余文件以链接形式打开。复制成功后才会插入相对链接；删除日记里的链接不会删除附件文件。
 
 备份时请复制**整个日记根目录**，包括所有年份文件夹和 `assets/`。恢复或迁移时保持这套目录结构，再在应用中重新选择新位置。GitHub 仓库不包含你的日记和附件。侧栏可拖动右边缘调整宽度、收起，并在收起后从窗口左边缘悬停唤出；宽度与收起状态保存在应用设置中。
 
@@ -33,11 +33,11 @@ M1–M6 已完成，macOS 正式版为 `1.0.0`；macOS 当前版本为 `1.8.1`�
 
 ## 安装
 
-macOS 当前版本为 `1.8.1`，Windows 保留 `1.7.0`。默认后续更新只发布 macOS，Windows 仅在明确要求时更新。安装包从 [GitHub Release](https://github.com/Yangsw0-0/Diary/releases) 下载。
+macOS 当前版本为 `1.9.0`，Windows 保留 `1.7.0`。默认后续更新只发布 macOS，Windows 仅在明确要求时更新。安装包从 [GitHub Release](https://github.com/Yangsw0-0/Diary/releases) 下载。
 
 ### macOS
 
-适用于 Apple 芯片 Mac：[Diary_1.8.1_aarch64.zip](https://github.com/Yangsw0-0/Diary/releases/download/v1.8.1/Diary_1.8.1_aarch64.zip)。解压后退出旧版 Diary，再将 `Diary.app` 拖到「应用程序」文件夹替换旧版。首次运行请选择一个已有的日记文件夹。应用使用临时（ad hoc）签名，未做 Apple 公证；macOS 若阻止打开，请在系统设置的「隐私与安全性」中确认你信任此应用后手动放行。
+适用于 Apple 芯片 Mac：[Diary_1.9.0_aarch64.zip](https://github.com/Yangsw0-0/Diary/releases/download/v1.9.0/Diary_1.9.0_aarch64.zip)。解压后退出旧版 Diary，再将 `Diary.app` 拖到「应用程序」文件夹替换旧版。首次运行请选择一个已有的日记文件夹。应用使用临时（ad hoc）签名，未做 Apple 公证；macOS 若阻止打开，请在系统设置的「隐私与安全性」中确认你信任此应用后手动放行。
 
 ### Windows
 

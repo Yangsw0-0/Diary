@@ -83,55 +83,6 @@ it('closes settings on Back without changing the underlying page or history', as
   expect(screen.getByRole('region', { name: '日记列表' })).toBeInTheDocument()
 })
 
-it('pulls current and adjacent pages on one track, then switches only one diary', async () => {
-  const user = userEvent.setup()
-  const entries = ['2024-03-03', '2024-03-02', '2024-03-01'].map((value) => ({
-    date: DiaryDate.parse(value),
-    markdown: `# ${value}\n\nA diary entry.`,
-    revision: value,
-  }))
-  renderShell({
-    list: async () => ({ entries, failures: [] }),
-    read: async (date) => entries.find((entry) => entry.date.equals(date))!,
-    save: async (_date, markdown) => ({ ...entries[0]!, markdown }),
-  })
-  await user.click(await screen.findByRole('button', { name: '2024-03-03' }))
-  const content = screen.getByRole('region', { name: '日记正文' })
-  Object.defineProperties(content, {
-    clientHeight: { configurable: true, value: 500 },
-    scrollHeight: { configurable: true, value: 1000 },
-  })
-  content.scrollTop = 200
-  for (let i = 0; i < 4; i++) fireEvent.wheel(content, { deltaY: 90 })
-  const track = content.closest('.adjacent-diary-track') as HTMLElement
-  expect(track.style.transform).toBe('')
-  content.scrollTop = 500
-  fireEvent.wheel(content, { deltaY: 90 })
-  expect(track.style.transform).toBe('translate3d(0px, -64px, 0px)')
-  expect(track.querySelector('.adjacent-diary-preview')).toHaveAttribute('data-direction', 'older')
-  expect(screen.getByRole('button', { name: '2024-03-03' })).toHaveAttribute('aria-current', 'true')
-  fireEvent.wheel(content, { deltaY: 90 })
-  expect(track.style.transform).not.toBe('translate3d(0px, 0px, 0px)')
-  fireEvent.wheel(content, { deltaY: 90 })
-  for (let i = 0; i < 8; i++) fireEvent.wheel(content, { deltaY: 90 })
-  await waitFor(
-    () =>
-      expect(screen.getByRole('button', { name: '2024-03-02' })).toHaveAttribute(
-        'aria-current',
-        'true',
-      ),
-    { timeout: 1500 },
-  )
-  await waitFor(() => expect(track.style.transform).toBe('translate3d(0px, 0px, 0px)'))
-  for (let i = 0; i < 8; i++) fireEvent.wheel(content, { deltaY: 90 })
-  await new Promise((resolve) => setTimeout(resolve, 150))
-  expect(screen.getByRole('button', { name: '2024-03-02' })).toHaveAttribute('aria-current', 'true')
-  expect(screen.getByRole('button', { name: '2024-03-01' })).not.toHaveAttribute(
-    'aria-current',
-    'true',
-  )
-})
-
 it('keeps zoom and panel controls scoped to an open diary and opens settings at the left footer', async () => {
   const user = userEvent.setup()
   const date = DiaryDate.parse('2024-02-29')
@@ -401,4 +352,70 @@ it('offers explicit conflict recovery actions in the editor', async () => {
   } finally {
     confirm.mockRestore()
   }
+})
+
+it('never switches diaries from vertical/horizontal wheel or touch gestures; explicit navigation still works', async () => {
+  const user = userEvent.setup()
+  const entries = ['2026-11-23', '2026-11-22'].map((day) => ({
+    date: DiaryDate.parse(day),
+    markdown: '# ' + day,
+    revision: 'r',
+  }))
+  const read = vi.fn(async (date: DiaryDate) => entries.find((entry) => entry.date.equals(date))!)
+  renderShell({
+    list: async () => ({ entries, failures: [] }),
+    read,
+    save: async () => entries[0]!,
+  })
+  await user.click(await screen.findByRole('button', { name: '2026-11-23' }))
+  const content = screen.getByRole('region', { name: '日记正文' })
+  Object.defineProperties(content, { clientHeight: { value: 500 }, scrollHeight: { value: 1000 } })
+  for (const edge of [0, 500]) {
+    content.scrollTop = edge
+    for (let i = 0; i < 20; i++) {
+      const wheel = new WheelEvent('wheel', {
+        deltaY: edge ? 1000 : -1000,
+        deltaX: 1000,
+        bubbles: true,
+        cancelable: true,
+      })
+      content.dispatchEvent(wheel)
+      expect(wheel.defaultPrevented).toBe(false)
+    }
+    fireEvent.touchMove(content)
+  }
+  expect(read).toHaveBeenCalledTimes(1)
+  expect(screen.getByRole('button', { name: '2026-11-23' })).toHaveAttribute('aria-current', 'true')
+  await user.click(screen.getByRole('button', { name: '2026-11-22' }))
+  expect(read).toHaveBeenCalledTimes(2)
+  expect(screen.getByRole('button', { name: '2026-11-22' })).toHaveAttribute('aria-current', 'true')
+})
+
+it('replaces the attachment toolbar button with a persistent icon-only typewriter switch', async () => {
+  localStorage.removeItem('diary.typewriter.v1')
+  const user = userEvent.setup(),
+    entry = { date: DiaryDate.parse('2026-11-23'), markdown: '# 2026-11-23', revision: 'r' }
+  const repo = {
+    list: async () => ({ entries: [entry], failures: [] }),
+    read: async () => entry,
+    save: async () => entry,
+  }
+  const app = renderShell(repo)
+  await user.click(await screen.findByRole('button', { name: '2026-11-23' }))
+  const button = screen.getByRole('button', { name: '打字机模式' })
+  expect(button).toHaveAttribute('title', '打字机模式')
+  expect(button.textContent).toBe('')
+  expect(screen.queryByRole('button', { name: '添加附件' })).not.toBeInTheDocument()
+  await user.click(button)
+  expect(button).toHaveAttribute('aria-pressed', 'true')
+  expect(localStorage.getItem('diary.typewriter.v1')).toBe('true')
+  await user.click(screen.getByRole('button', { name: '标签' }))
+  await user.click(screen.getByRole('button', { name: '日记' }))
+  expect(screen.getByRole('button', { name: '打字机模式' })).toHaveAttribute('aria-pressed', 'true')
+  cleanup()
+  app.services.session.reset()
+  renderShell(repo)
+  await user.click(await screen.findByRole('button', { name: '2026-11-23' }))
+  expect(screen.getByRole('button', { name: '打字机模式' })).toHaveAttribute('aria-pressed', 'true')
+  localStorage.removeItem('diary.typewriter.v1')
 })

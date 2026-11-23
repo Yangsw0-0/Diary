@@ -4,7 +4,7 @@
 
 ## 当前版本与平台
 
-- macOS Apple 芯片当前版本为 `1.8.1`（[发布记录](./Release-1.8.1.md)）；Windows 10/11 x64 当前版本为 `1.7.0`（[发布记录](./Release-1.7.0.md)）。Windows 真机窗口验收仍待完成。
+- macOS Apple 芯片本轮版本为 `1.9.0`（[发布记录](./Release-1.9.0.md)）；Windows 10/11 x64 当前版本为 `1.7.0`（[发布记录](./Release-1.7.0.md)）。Windows 真机窗口验收仍待完成。
 - M1–M6 已完成。M7 Windows 适配的自动检查与打包已通过；**M7-07 Windows 真机安装和窗口交互验收仍待完成**。不得把 CI 成功表述为真实 Windows 设备已验收。
 - 已发布1.7.0的验证记录：前端130项、Rust26项及严格clippy通过；macOS 1.7.0 安装包已构建、ad-hoc 签名并打出 ZIP（SHA-256 见发布记录）；Windows 安装包已由 CI 构建，两个安装包的 ZIP/EXE 摘要均已核对；节点画布拖动、时间轴居中和轮盘手感仍需实际窗口复核。
 
@@ -15,7 +15,7 @@
 - 前端使用 React 19、TypeScript 和 Milkdown Crepe，桌面与文件层使用 Tauri 2、Rust。日记正文以用户选择目录中的 Markdown 文件为唯一真实来源；附件位于同一根目录的 `assets/`。Git 与发布附件不得包含真实日记、附件、缓存或 `notes/`。
 - macOS 与 Windows 共用业务逻辑和日记目录结构。系统打开链接/文件、安全读取附件由 `src-tauri/src/platform/` 门面分派到 `macos.rs`、`windows.rs`。Windows 打包差异在 `src-tauri/tauri.windows.conf.json`；自动检查在 `.github/workflows/check.yml`。
 - 两个平台均无自动更新和云同步。升级安装程序不代替日记根目录备份。旧单文件日记批量导入仍是额外工作，不属于 M7。
-- macOS 相邻日记手势使用 `src-tauri/src/scroll_phase.rs` 的 AppKit 滚动阶段事件判断手指松开；Web 前端 `AdjacentDiaryNavigator` 负责阈值、回弹和一手势一页。向上翻页落在目标结尾，向下翻页落在目标开头。`AppearancePreferences` 独立保存列表底色、正文行距和字距于应用 WebView 的 localStorage，不改动日记 Markdown。
+- 1.9.0 起日记滑动只滚动正文，不换日期；前端相邻日记手势、预览与原生AppKit阶段监听已删除。打字机模式通过ProseMirror选区更新与独立控制器平滑居中，只持久化开关于localStorage，不改Markdown。`AppearancePreferences` 独立保存列表底色、正文行距和字距于应用 WebView 的 localStorage，不改动日记 Markdown。
 - 左侧栏写作统计由 `DiaryStatistics` 从 `DiarySession.entries` 派生，只统计当前文件夹已保存且成功载入的日记；可见字符按 Markdown 解析后统计，并按日期、revision 与原文缓存。卡片位于设置分隔线上方，文件载入失败时提示数字不完整；统计不写入日记或额外数据库。
 
 ## 本次审查发现的待处理项
@@ -26,7 +26,7 @@
 
 以上待处理项是审查发现的风险或验证缺口，不表示 CI 或现有安装包已失败。修改实现前先用测试复现具体行为；版本状态变化后更新本文件与[平台支持文档](./Platform-Support.md)。
 
-## 1.3.3 维护改动
+## 1.3.3 维护改动（历史记录，手势相关实现在1.9.0已移除）
 
 - 修复无目标的边界手势进入锁定状态，以及物理触控未结束时提前解锁。
 - `EditorReadiness` 统一等待者清理与就绪、取消、超时结果；翻页等待后再次检查取消标记。
@@ -146,3 +146,13 @@
 - macOS1.8.1包版本、arm64、ad hoc签名、ZIP及摘要已核对，本地releases/v1.8.1/保留；Windows继续1.7.0，本轮不构建。详细结构见Node-Wheel-Layout.md。
 
 1.8.1 已正式发布：[Release](https://github.com/Yangsw0-0/Diary/releases/tag/v1.8.1)，源码提交7d2d770；[CI](https://github.com/Yangsw0-0/Diary/actions/runs/45139115956)前端/macOS均成功，Windows跳过，发布资产仅含已校验的macOS ZIP。
+
+## 1.9.0 打字机模式（2026-11-23）
+
+- 工具栏附件入口替换成34px圆形TypewriterButton；右键/拖入/粘贴、附件存储和引用保留。TypewriterPreferences只存开关，切日期/栏目和重启恢复。
+- TypewriterController由局部ProseMirror plugin驱动，单RAF临界阻尼、动态首尾CSS留白；wheel/touch阅读暂停，实际文档/选区变化恢复，减少动态效果直接定位；不修改焦点或IME内容。
+- 布局补偿锚定真实模型首节点，跳过virtual-cursor装饰，并在留白/排版变化后同步Crepe装饰坐标，避免显示光标错位。普通导航历史保留；仅模式开启时不重放日记scrollTop以免与跟随竞争。
+- 删除useAdjacentDiaryNavigation、AdjacentDiaryNavigator、EditorReadiness、专属预览DOM/CSS、原生scroll_phase及三个直接macOS依赖；通用导航改用generation防过期回调。节点和词云wheel未修改。
+- 本轮前端142项、Rust26项、类型/格式/lint/生产构建已通过；浏览器内存真实Crepe核对首尾/输入居中、虚拟光标对齐、手动阅读、重新开启、跨日期、亮暗主题与34px按钮。未读写真实日记；原生macOS输入法候选窗、长期连续输入及多屏高DPI仍需实机验收。实现边界见Typewriter-Mode.md。
+
+1.9.0 Rust26项、fmt、严格clippy通过；macOS包版本/arm64/签名/ZIP与包内文件已核对，摘要见Release-1.9.0.md，本地releases/v1.9.0/保留。

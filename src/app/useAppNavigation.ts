@@ -7,7 +7,6 @@ import {
   type DiarySectionRef,
   type NavigationView,
 } from '@/application/NavigationHistory'
-import { EditorReadiness } from '@/application/EditorReadiness'
 import { MarkdownSectionExtractor } from '@/application/MarkdownSectionExtractor'
 import type { DiarySession } from '@/application/DiarySession'
 import type { DiaryDate } from '@/domain/DiaryDate'
@@ -35,8 +34,13 @@ export function useAppNavigation(
   const focusId = useRef(0)
   const scrollEpoch = useRef(0)
   const pendingEdge = useRef<string | null>(null)
-  const [readiness] = useState(() => new EditorReadiness())
-  useLayoutEffect(() => () => readiness.begin(null), [readiness])
+  const editorGeneration = useRef(0)
+  useLayoutEffect(
+    () => () => {
+      editorGeneration.current++
+    },
+    [],
+  )
   const content = useRef(new Map<string, HTMLElement>())
   const lastDiary = useRef<NavigationView | null>(null)
   const lastTags = useRef<NavigationView | null>(null)
@@ -56,6 +60,7 @@ export function useAppNavigation(
       if (history.getSnapshot().current !== target || scrollEpoch.current !== epoch) return
       const element = content.current.get(target.moduleId)
       if (!element) return
+      if (target.moduleId === 'diary' && element.querySelector('[data-typewriter="true"]')) return
       const maximum = Math.max(0, element.scrollHeight - element.clientHeight)
       element.scrollTop = Math.min(target.scrollTop, maximum)
     }
@@ -69,22 +74,21 @@ export function useAppNavigation(
       const date = editorDate.toString()
       if (history.current.moduleId !== 'diary' || history.current.date?.toString() !== date) return
       restoreScroll()
-      const token = readiness.token
+      const token = editorGeneration.current
       window.requestAnimationFrame(() =>
         window.requestAnimationFrame(() =>
           window.requestAnimationFrame(() => {
-            if (token !== readiness.token) return
+            if (token !== editorGeneration.current) return
             if (pendingEdge.current === date) {
               pendingEdge.current = null
               const element = content.current.get('diary')
               if (element) history.updateScroll(element.scrollTop)
             }
-            readiness.markReady(date, token)
           }),
         ),
       )
     },
-    [history, restoreScroll, readiness],
+    [history, restoreScroll],
   )
 
   const focusFor = useCallback(
@@ -196,7 +200,7 @@ export function useAppNavigation(
           return false
         }
         capture()
-        readiness.begin(next.moduleId === 'diary' ? (next.date?.toString() ?? null) : null)
+        editorGeneration.current++
         pendingEdge.current =
           next.moduleId === 'diary' && next.date && edge === 'end' ? next.date.toString() : null
         history.push(next)
@@ -208,7 +212,7 @@ export function useAppNavigation(
         )
         return true
       }),
-    [activate, capture, focusFor, history, run, session, readiness, cloud],
+    [activate, capture, focusFor, history, run, session, cloud],
   )
 
   const openDiary = useCallback(
@@ -253,13 +257,13 @@ export function useAppNavigation(
         if (!date) return false
         if (history.current.moduleId === 'diary' && history.current.date?.equals(date)) return true
         capture()
-        readiness.begin(date.toString())
+        editorGeneration.current++
         history.push({ moduleId: 'diary', date, section: null, scrollTop: 0 })
         setFocusRequest(null)
         setCursorEdgeRequest({ date, edge: 'start', id: ++focusId.current })
         return true
       }),
-    [capture, history, run, session, readiness],
+    [capture, history, run, session],
   )
 
   const openDiarySection = useCallback(
@@ -281,7 +285,7 @@ export function useAppNavigation(
             .parse(selected.markdown, ref.date, selected.revision ?? '')
             .occurrences.some((item) => item.key === ref.key && item.ordinal === ref.ordinal)
         capture()
-        readiness.begin(ref.date.toString())
+        editorGeneration.current++
         history.push({
           moduleId: 'diary',
           date: ref.date,
@@ -296,7 +300,7 @@ export function useAppNavigation(
         if (!exists) setNotice('小节已变化，已打开该日记。')
         return true
       }),
-    [activate, capture, focusFor, history, run, session, readiness, cloud],
+    [activate, capture, focusFor, history, run, session, cloud],
   )
 
   const openTag = useCallback(
@@ -369,14 +373,14 @@ export function useAppNavigation(
           return false
         }
         capture()
-        readiness.begin(target.moduleId === 'diary' ? (target.date?.toString() ?? null) : null)
+        editorGeneration.current++
         if (direction === 'back') history.back()
         else history.forward()
         setFocusRequest(focusFor(target, true))
         setCursorEdgeRequest(null)
         return true
       }),
-    [activate, capture, focusFor, history, run, session, readiness, cloud],
+    [activate, capture, focusFor, history, run, session, cloud],
   )
 
   const navigation: NavigationContextValue = {
@@ -398,7 +402,7 @@ export function useAppNavigation(
         }
         const { date } = section
         capture()
-        readiness.begin(date.toString())
+        editorGeneration.current++
         history.push({ moduleId: 'diary', date, section, scrollTop: 0 })
         setFocusRequest(focusFor({ moduleId: 'diary', date, section, scrollTop: 0 }))
         setCursorEdgeRequest(null)
@@ -428,6 +432,5 @@ export function useAppNavigation(
         history.updateScroll(scrollTop)
       }
     },
-    waitForDiaryReady: (date: DiaryDate) => readiness.wait(date.toString()),
   }
 }

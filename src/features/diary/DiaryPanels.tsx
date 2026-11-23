@@ -1,3 +1,5 @@
+import { TypewriterPreferences } from '@/application/TypewriterPreferences'
+import { TypewriterButton } from './TypewriterButton'
 import { SaveIndicator } from '@/shared/SaveIndicator'
 import {
   createContext,
@@ -9,7 +11,7 @@ import {
   useSyncExternalStore,
   type PropsWithChildren,
 } from 'react'
-import { BookOpenText, CalendarDays, Paperclip, Plus, RefreshCw } from 'lucide-react'
+import { BookOpenText, CalendarDays, Plus, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { DiarySession, type DiarySessionSnapshot } from '@/application/DiarySession'
 import type { EditorAdapter } from '@/application/EditorAdapter'
@@ -245,6 +247,7 @@ export function DiaryList() {
 export function DiaryDetail() {
   const [session, { selected, opening }, attachments, createAdapter] = useDiary()
   const navigation = useNavigation()
+  const [typewriter, setTypewriter] = useState(() => TypewriterPreferences.load(localStorage))
   const input = useRef<HTMLInputElement>(null)
   const insertId = useRef(0)
   const [insertRequest, setInsertRequest] = useState<{
@@ -346,16 +349,18 @@ export function DiaryDetail() {
               event.currentTarget.value = ''
             }}
           />
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => input.current?.click()}
-            disabled={opening || importing}
-            aria-label="添加附件"
-          >
-            <Paperclip aria-hidden="true" />
-            {importing ? '导入中…' : '附件'}
-          </Button>
+          <TypewriterButton
+            enabled={typewriter}
+            onToggle={() => {
+              const next = !typewriter
+              setTypewriter(next)
+              try {
+                TypewriterPreferences.save(localStorage, next)
+              } catch {
+                setAttachmentError('无法记住打字机模式设置，本次操作仍然有效')
+              }
+            }}
+          />
           <span id="diary-save-state" role="status" className="diary-visually-hidden">
             {status}
           </span>
@@ -416,6 +421,7 @@ export function DiaryDetail() {
       )}
       <CrepeEditor
         key={selected.date.toString() + ':' + selected.editorEpoch}
+        typewriter={typewriter}
         markdown={selected.markdown}
         onChange={(markdown) => session.edit(markdown)}
         onComposing={(value) => session.setComposing(value)}

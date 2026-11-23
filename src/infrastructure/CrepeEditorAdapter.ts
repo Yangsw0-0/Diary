@@ -1,3 +1,6 @@
+import { TypewriterController } from './TypewriterController'
+import { Plugin } from '@milkdown/kit/prose/state'
+import { $prose } from '@milkdown/kit/utils'
 import type { EditorAdapter } from '@/application/EditorAdapter'
 import { TagName } from '@/domain/TagName'
 import type { TagCompletion } from '@/application/TagCompletion'
@@ -18,6 +21,8 @@ export class CrepeEditorAdapter implements EditorAdapter {
   private readonly previewUrls = new Set<string>()
   private readonly previewCache = new Map<string, Promise<string>>()
   private previewEpoch = 0
+  private typewriterEnabled = false
+  private typewriter: TypewriterController | null = null
   private readonly attachments: AttachmentHooks
   private readonly completion: TagCompletion | null
 
@@ -73,6 +78,41 @@ export class CrepeEditorAdapter implements EditorAdapter {
         },
       },
     })
+    editor.editor.use(
+      $prose(
+        () =>
+          new Plugin({
+            props: {
+              handleScrollToSelection: () => {
+                if (!this.typewriter?.active) return false
+                this.typewriter.follow()
+                return true
+              },
+            },
+            view: (view) => {
+              const viewport = root.closest<HTMLElement>('.module-content')
+              const container = root.closest<HTMLElement>('.diary-crepe-container')
+              const controller =
+                viewport && container ? new TypewriterController(view, viewport, container) : null
+              this.typewriter = controller
+              controller?.setEnabled(this.typewriterEnabled)
+              return {
+                update: (next, previous) => {
+                  if (
+                    !next.state.selection.eq(previous.selection) ||
+                    !next.state.doc.eq(previous.doc)
+                  )
+                    controller?.follow()
+                },
+                destroy: () => {
+                  controller?.destroy()
+                  if (this.typewriter === controller) this.typewriter = null
+                },
+              }
+            },
+          }),
+      ),
+    )
     if (this.completion) editor.editor.use(createTagCompletionPlugin(this.completion))
     editor.on((listener) => {
       listener.markdownUpdated((_ctx, next, previous) => {
@@ -88,6 +128,11 @@ export class CrepeEditorAdapter implements EditorAdapter {
       await editor.destroy()
       throw reason
     }
+  }
+
+  setTypewriter(enabled: boolean): void {
+    this.typewriterEnabled = enabled
+    this.typewriter?.setEnabled(enabled)
   }
 
   setReadonly(value: boolean): void {
@@ -125,7 +170,8 @@ export class CrepeEditorAdapter implements EditorAdapter {
         )
       view.focus()
     })
-    target.scrollIntoView({ block: 'start' })
+    if (this.typewriter?.active) this.typewriter.follow()
+    else target.scrollIntoView({ block: 'start' })
     return true
   }
 

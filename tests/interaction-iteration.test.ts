@@ -5,7 +5,6 @@ import { MarkdownSectionExtractor } from '@/application/MarkdownSectionExtractor
 import { TagIndex } from '@/application/TagIndex'
 import { TagVisibility } from '@/application/TagVisibility'
 import { TagCompletion } from '@/application/TagCompletion'
-import { AdjacentDiaryNavigator } from '@/application/AdjacentDiaryNavigator'
 import { ThemePalette } from '@/application/ThemePalette'
 import { AppearancePreferences } from '@/application/AppearancePreferences'
 
@@ -51,81 +50,12 @@ it('sorts visible and hidden tags by distinct days then recency and persists ove
   expect(index.listGroups(restored).singleDay.map((item) => item.key)).toEqual(['A'])
 })
 
-it('offers a suffix and starts boundary feedback in the first wheel burst', () => {
+it('offers an existing heading suffix', () => {
   const completion = new TagCompletion((prefix) =>
     ['探索自我 - 恋爱'].filter((item) => item.startsWith(prefix)),
   )
   expect(completion.suggest('探')).toBe('探索自我 - 恋爱')
   expect(completion.suggest('')).toBeNull()
-  const gesture = new AdjacentDiaryNavigator()
-  expect(gesture.add(80, 0, false, false, 500, 100)).toBeNull()
-  expect(gesture.add(70, 0, false, true, 500, 110)).toMatchObject({
-    direction: 'older',
-    phase: 'feedback',
-    offset: -64,
-  })
-  expect(gesture.add(100, 0, false, true, 500, 120)).toMatchObject({
-    direction: 'older',
-    phase: 'pull',
-  })
-  expect(gesture.release()).toBe('rebound')
-  expect(gesture.add(70, 0, false, true, 500, 300)).toMatchObject({
-    direction: 'older',
-    phase: 'feedback',
-  })
-  expect(gesture.add(100, 0, false, true, 500, 310)).toMatchObject({
-    direction: 'older',
-    phase: 'pull',
-  })
-  expect(gesture.add(90, 0, false, true, 500, 320)).toMatchObject({
-    direction: 'older',
-    phase: 'armed',
-  })
-  expect(gesture.release()).toBe('commit')
-  expect(gesture.isLocked).toBe(true)
-  expect(gesture.add(90, 0, false, true, 500, 330)).toBeNull()
-  gesture.unlock()
-  expect(gesture.add(-1000, 0, true, false, 500, 500)).toMatchObject({
-    direction: 'newer',
-    phase: 'feedback',
-    offset: 64,
-  })
-  expect(gesture.release()).toBe('rebound')
-})
-
-it('flows continuously through feedback, pull and arm with a one-page cap', () => {
-  const gesture = new AdjacentDiaryNavigator()
-  const offsets = [100, 110, 120, 130].map((now) => gesture.add(90, 0, false, true, 500, now)!)
-  expect(offsets.map((item) => item.phase)).toEqual(['feedback', 'pull', 'armed', 'complete'])
-  expect(offsets.map((item) => Math.abs(item.offset))).toEqual(
-    [...offsets.map((item) => Math.abs(item.offset))].sort((a, b) => a - b),
-  )
-  expect(offsets[3]!.progress).toBeGreaterThan(offsets[2]!.progress)
-  expect(gesture.add(90, 0, false, true, 500, 140)).toMatchObject({
-    phase: 'complete',
-    progress: 1,
-    offset: -500,
-  })
-  expect(gesture.add(90, 0, false, true, 500, 150)?.offset).toBe(-500)
-  expect(gesture.release()).toBe('commit')
-})
-
-it('normalizes wheel units and resets a gesture only after the idle gap', () => {
-  const gesture = new AdjacentDiaryNavigator()
-  expect(gesture.add(1, 1, false, true, 600, 100)?.offset).toBe(-16)
-  expect(gesture.add(1, 2, false, true, 600, 120)?.offset).toBeLessThan(-72)
-  expect(gesture.add(1, 2, false, true, 600, 240)?.offset).toBe(-64)
-  expect(gesture.add(-1, 2, true, false, 600, 250)?.offset).toBe(64)
-})
-
-it('keeps a physical trackpad pull at its exact offset while a finger pauses', () => {
-  const gesture = new AdjacentDiaryNavigator()
-  const first = gesture.add(-90, 0, true, false, 600, 100, true)!
-  const second = gesture.add(-90, 0, true, false, 600, 500, true)!
-  expect(first.phase).toBe('feedback')
-  expect(second.phase).toBe('pull')
-  expect(second.offset).toBeGreaterThan(first.offset)
-  expect(gesture.release()).toBe('rebound')
 })
 
 it('persists independent list color and clamps text spacing', () => {

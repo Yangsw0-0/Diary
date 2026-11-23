@@ -22,8 +22,6 @@ import { SettingsPanel } from '@/features/settings/SettingsPanel'
 import { SidebarStatistics } from '@/features/diary/SidebarStatistics'
 import { DiaryStatistics } from '@/application/DiaryStatistics'
 import { ViewControls } from './ViewControls'
-import { useAdjacentDiaryNavigation } from './useAdjacentDiaryNavigation'
-import Markdown from 'react-markdown'
 import type { AppearanceValues } from '@/application/AppearancePreferences'
 
 const MIN_LIST_WIDTH = 168
@@ -110,16 +108,12 @@ export function AppShell({
   )
   const visibleListWidth = Math.min(listWidth, maxListWidth)
   const sessionSnapshot = useSyncExternalStore(session.subscribe, session.getSnapshot)
-  const { navigation, navigating, registerContent, updateScroll, waitForDiaryReady } =
-    useAppNavigation(session, nodes, wordCloud)
-  const { adjacentPreview, boundaryNotice, trackElement, previewElement, diaryContentElement } =
-    useAdjacentDiaryNavigation({
-      sessionSnapshot,
-      navigation,
-      settingsOpen,
-      waitForDiaryReady,
-      onError: setSidebarError,
-    })
+  const { navigation, navigating, registerContent, updateScroll } = useAppNavigation(
+    session,
+    nodes,
+    wordCloud,
+  )
+  const diaryContentElement = useRef<HTMLElement | null>(null)
   const hideBlockControls = () => {
     diaryContentElement.current
       ?.querySelectorAll<HTMLElement>('.milkdown-block-handle')
@@ -388,13 +382,11 @@ export function AppShell({
             </div>
           </header>
           {(navigation.notice ||
-            boundaryNotice ||
             workspaceIssue ||
             sidebarError ||
             sessionSnapshot.error?.message) && (
             <p role="alert" className="app-error-toast">
               {navigation.notice ||
-                boundaryNotice ||
                 workspaceIssue ||
                 sidebarError ||
                 sessionSnapshot.error?.message}
@@ -492,34 +484,7 @@ export function AppShell({
                     <PanelLeftClose aria-hidden="true" />
                   )}
                 </Button>
-                {module.id === 'diary' ? (
-                  <div className="diary-track-viewport">
-                    <div className="adjacent-diary-track" ref={trackElement}>
-                      {contentSection}
-                      {adjacentPreview && activeId === 'diary' && (
-                        <div
-                          ref={previewElement}
-                          className="adjacent-diary-preview"
-                          data-direction={adjacentPreview.direction}
-                          aria-hidden="true"
-                        >
-                          <div className="adjacent-preview-paper">
-                            <Markdown
-                              components={{
-                                img: () => null,
-                                a: ({ children }) => <span>{children}</span>,
-                              }}
-                            >
-                              {adjacentPreview.markdown}
-                            </Markdown>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ) : (
-                  contentSection
-                )}
+                {contentSection}
                 {showViewControls && activeId === module.id && (
                   <ViewControls
                     zoom={moduleZoom}

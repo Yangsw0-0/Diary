@@ -3,6 +3,7 @@ export interface EditorAdapter {
   mount(root: HTMLElement, markdown: string, onChange: (markdown: string) => void): Promise<void>
   getMarkdown(): string
   setReadonly(value: boolean): void
+  setTypewriter?(enabled: boolean): void
   focusSection(key: string, ordinal: number): boolean
   focusEdge?(edge: 'start' | 'end'): void
   placeCursorAt(x: number, y: number): boolean
