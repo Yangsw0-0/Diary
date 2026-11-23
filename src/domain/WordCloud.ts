@@ -18,6 +18,8 @@ export interface CloudWord {
   readonly id: string
   readonly text: string
   readonly source: 'custom' | 'tag'
+  readonly frequency?: number
+  readonly level?: 0 | 1 | 2 | 3 | 4
   readonly customIds: readonly string[]
   readonly tagKey?: string
 }
@@ -73,25 +75,48 @@ export function decodeCloud(value: unknown): CloudDocument {
 }
 export function mergeCloudWords(
   custom: readonly CustomCloudWord[],
-  tags: readonly { key: string; displayTitle: string }[],
+  tags: readonly { key: string; displayTitle: string; frequency?: number }[],
   showTags: boolean,
 ): readonly CloudWord[] {
   const merged = new Map<string, CloudWord>()
   for (const word of custom) {
     const text = normalizeCloudText(word.text)
-    merged.set(text, { id: text, text, source: 'custom', customIds: [word.id] })
+    merged.set(text, {
+      id: text,
+      text,
+      source: 'custom',
+      customIds: [word.id],
+      frequency: 0,
+      level: 0,
+    })
   }
-  if (showTags)
-    for (const tag of tags) {
-      const text = normalizeCloudText(tag.displayTitle),
-        current = merged.get(text)
-      merged.set(text, {
-        id: text,
-        text,
-        source: 'tag',
-        customIds: current?.customIds ?? [],
-        tagKey: tag.key,
-      })
-    }
+  const levels = frequencyLevels(tags.map((tag) => tag.frequency ?? 1))
+  for (const tag of tags) {
+    const text = normalizeCloudText(tag.displayTitle),
+      current = merged.get(text)
+    if (!showTags && !current) continue
+    merged.set(text, {
+      id: text,
+      text,
+      source: 'tag',
+      customIds: current?.customIds ?? [],
+      tagKey: tag.key,
+      frequency: tag.frequency ?? 1,
+      level: levels.get(tag.frequency ?? 1) ?? 0,
+    })
+  }
   return [...merged.values()].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+}
+
+/** Upper cumulative percentile: ties share rank; [0,.2), [.2,.5), [.5,.9), [.9,1]. */
+export function frequencyLevels(
+  frequencies: readonly number[],
+): ReadonlyMap<number, 1 | 2 | 3 | 4> {
+  const sorted = frequencies.filter((n) => n > 0).sort((a, b) => a - b)
+  const result = new Map<number, 1 | 2 | 3 | 4>()
+  sorted.forEach((frequency, i) => {
+    const p = (i + 1) / sorted.length
+    result.set(frequency, p >= 0.9 ? 4 : p >= 0.5 ? 3 : p >= 0.2 ? 2 : 1)
+  })
+  return result
 }

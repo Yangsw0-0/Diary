@@ -54,13 +54,17 @@ export function WordCloudPanel({
   }
   const activate = (word: CloudWord) => {
     setHighlight(word.id)
-    if (word.tagKey)
-      void navigation
-        .openTag(word.tagKey)
+    const operation = word.tagKey
+      ? navigation.openTag(word.tagKey)
+      : navigation.writeCloudTag?.(word.text)
+    if (operation)
+      void operation
         .then((opened) => {
           if (!opened) setNotice('暂时无法打开标签，请先处理保存错误')
         })
-        .catch(() => setNotice('打开标签失败'))
+        .catch((reason: unknown) =>
+          setNotice(reason instanceof Error ? reason.message : '打开标签失败'),
+        )
   }
   const preferences = snapshot.document.preferences
   const state = snapshot.error
@@ -180,6 +184,9 @@ export function WordCloudPanel({
                 {notice}
               </p>
             )}
+            <p className="cloud-hint" aria-label="词频颜色说明">
+              正式标签按频次排名：蓝灰 → 青绿 → 暖棕 → 暖红。未使用词半透明；点击可开始今天的话题。
+            </p>
             <fieldset disabled={!ready} className="cloud-options">
               <legend>显示选项</legend>
               <label>
@@ -246,11 +253,7 @@ export function WordCloudPanel({
                     >
                       <span>{word.text}</span>
                       <small>
-                        {word.customIds.length
-                          ? word.tagKey
-                            ? '自定义 · 标签'
-                            : '自定义'
-                          : '标签'}
+                        {word.customIds.length ? (word.tagKey ? '标签' : '自定义') : '标签'}
                       </small>
                     </button>
                     {word.customIds.length > 0 && (

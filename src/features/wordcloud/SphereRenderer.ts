@@ -1,3 +1,4 @@
+import { wheelDelta } from '@/shared/wheelDelta'
 import type { CloudPreferences, CloudWord } from '@/domain/WordCloud'
 import {
   constellationEdges,
@@ -51,12 +52,14 @@ export class SphereRenderer {
   private height = 0
   private dpr = 1
   private foreground = '#26332c'
+  private palette: string[] = []
   private lineColor = '#8fae94'
   private hits: Hit[] = []
   private frame = 0
   private last = 0
   private active = false
   private disposed = false
+  private wheelUntil = 0
   private velocity = { x: 0, y: 0 }
   private pointer: {
     id: number
@@ -93,6 +96,7 @@ export class SphereRenderer {
       attributes: true,
       attributeFilter: ['class', 'style'],
     })
+    canvas.addEventListener('wheel', this.wheel, { passive: false })
     canvas.addEventListener('pointerdown', this.down)
     canvas.addEventListener('pointermove', this.move)
     canvas.addEventListener('pointerup', this.up)
@@ -175,9 +179,24 @@ export class SphereRenderer {
     const t = this.reduced.matches ? 1 : smoothstep(0, 450, now - p.start)
     return p.leaving ? p.opacity * (1 - t) : p.opacity + (1 - p.opacity) * t
   }
+  private wheel = (event: WheelEvent) => {
+    if (!this.active || this.disposed || event.ctrlKey || this.pointer) return
+    const delta = wheelDelta(event, this.height)
+    if (!delta.x && !delta.y) return
+    event.preventDefault()
+    this.wheelUntil = performance.now() + 140
+    // Natural-scroll content displacement matches the existing pointer drag direction.
+    this.orientation = multiply(dragRotation(-delta.x * 0.004, -delta.y * 0.004), this.orientation)
+    this.velocity = { x: 0, y: 0 } // wheel already contains OS momentum; never double it
+    this.invalidate()
+  }
   private readTheme = () => {
     const style = getComputedStyle(this.canvas)
     this.foreground = style.color
+    const dark = document.documentElement.classList.contains('dark')
+    this.palette = dark
+      ? [style.color, '#a9bcc5', '#a5c8bb', '#cbbda4', '#e4b3a4']
+      : [style.color, '#526d7d', '#3d7565', '#876634', '#a24f40']
     this.lineColor = this.foreground
     this.invalidate()
   }
@@ -365,7 +384,8 @@ export class SphereRenderer {
     const dt = this.last ? Math.min(40, now - this.last) : 16
     this.last = now
     if (!this.pointer && !this.reduced.matches) {
-      const auto = this.preferences.autoRotate && this.particles.length ? 0.00013 : 0
+      const auto =
+        this.preferences.autoRotate && this.particles.length && now > this.wheelUntil ? 0.00013 : 0
       this.orientation = multiply(
         dragRotation((this.velocity.x + auto) * dt, this.velocity.y * dt),
         this.orientation,
@@ -461,7 +481,8 @@ export class SphereRenderer {
               break
             }
       if (overlap) continue
-      ctx.globalAlpha = alpha
+      ctx.globalAlpha = alpha * (particle.word.level === 0 ? 0.55 : 1)
+      ctx.fillStyle = this.palette[particle.word.level ?? 2] ?? this.foreground
       if (
         particle.word.id === this.hovered ||
         (particle.word.id === this.selected && now < this.selectedUntil)
@@ -508,6 +529,7 @@ export class SphereRenderer {
     window.removeEventListener('blur', this.cancel)
     window.removeEventListener('resize', this.resize)
     const c = this.canvas
+    c.removeEventListener('wheel', this.wheel)
     c.removeEventListener('pointerdown', this.down)
     c.removeEventListener('pointermove', this.move)
     c.removeEventListener('pointerup', this.up)

@@ -21,6 +21,7 @@ export interface NavigationContextValue {
   readonly notice: string | null
   openModule(moduleId: 'diary' | 'tags' | 'nodes' | 'wordcloud'): Promise<boolean>
   openDiary(date: DiaryDate, edge?: 'start' | 'end'): Promise<boolean>
+  writeCloudTag?(text: string): Promise<boolean>
   createDiary(): Promise<boolean>
   openDiarySection(ref: DiarySectionRef): Promise<boolean>
   openTag(key: string): Promise<boolean>

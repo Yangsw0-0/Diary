@@ -28,6 +28,8 @@ it('focuses the requested repeated top-level section by key and ordinal', async 
     await adapter.mount(root, '# 2024-02-29\n## 工作\nA\n## 家庭\nB\n## 工作\nC', () => {})
     expect(adapter.focusSection('工作', 1)).toBe(true)
     expect(scroll).toHaveBeenCalledTimes(1)
+    expect(document.activeElement).toBe(root.querySelector('.ProseMirror'))
+    expect(window.getSelection()?.anchorNode?.textContent).toBe('C')
     expect(adapter.focusSection('工作', 2)).toBe(false)
   } finally {
     await adapter.destroy()

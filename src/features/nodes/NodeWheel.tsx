@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react'
+import { wheelDelta } from '@/shared/wheelDelta'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import type { flattenNodes } from '@/domain/NodesDocument'
 import { snapWheel, wheelPosition, wheelStep, wheelWindow } from '@/application/nodeWheel'
@@ -29,7 +30,43 @@ export function NodeWheel({
     events.findIndex((event) => event.id === focusedId),
   )
   const position = dragging ? dragPosition : index
+  const wheelState = useRef({ index, radius, count: events.length, onFocus })
+  useLayoutEffect(() => {
+    wheelState.current = { index, radius, count: events.length, onFocus }
+  }, [index, radius, events.length, onFocus])
+  useEffect(() => {
+    const el = root.current
+    if (!el) return
+    let timer = 0,
+      wheelActive = false
+    const onWheel = (event: WheelEvent) => {
+      if (event.ctrlKey || drag.current) return
+      const dy = wheelDelta(event, el.clientHeight).y
+      if (!dy) return
+      event.preventDefault()
+      const state = wheelState.current
+      const start = wheelActive ? positionRef.current : state.index
+      wheelActive = true
+      const next = wheelPosition(start, -dy, state.radius, state.count)
+      positionRef.current = next
+      setDragPosition(next)
+      setDragging(true)
+      const row = events[snapWheel(next, state.count)]
+      if (row && row.id !== events[state.index]?.id) state.onFocus(row.id)
+      window.clearTimeout(timer)
+      timer = window.setTimeout(() => {
+        wheelActive = false
+        if (!drag.current) setDragging(false)
+      }, 120)
+    }
+    el.addEventListener('wheel', onWheel, { passive: false })
+    return () => {
+      el.removeEventListener('wheel', onWheel)
+      window.clearTimeout(timer)
+    }
+  }, [events])
 
+  const hasEvents = events.length > 0
   useEffect(() => {
     const el = root.current
     if (!el) return
@@ -39,7 +76,7 @@ export function NodeWheel({
     observer.observe(el)
     measure()
     return () => observer.disconnect()
-  }, [])
+  }, [hasEvents])
 
   const focus = (value: number) => {
     const next = snapWheel(value, events.length)

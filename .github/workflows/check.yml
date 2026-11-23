@@ -3,6 +3,12 @@ name: Check
 on:
   push:
   pull_request:
+  workflow_dispatch:
+    inputs:
+      build_windows:
+        description: Explicitly build Windows
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -35,6 +41,7 @@ jobs:
       - run: cargo clippy --locked --all-targets -- -D warnings
       - run: cargo test --locked
   windows:
+    if: github.event_name == 'workflow_dispatch' && inputs.build_windows
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v7

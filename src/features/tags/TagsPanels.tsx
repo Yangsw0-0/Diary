@@ -1,3 +1,4 @@
+import { tagMarkdown } from './tagMarkdown'
 import {
   createContext,
   useContext,
@@ -313,7 +314,7 @@ export function TagsDetail() {
             </div>
             <div className="tag-section-content">
               <Markdown
-                remarkPlugins={[remarkGfm]}
+                remarkPlugins={[remarkGfm, tagMarkdown]}
                 components={{
                   img: ({ src, alt }) => (
                     <TagImage

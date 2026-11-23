@@ -127,3 +127,90 @@ it('keeps cloud drafts and navigation history when a save fails during module sw
   expect(app.services.wordCloud.getSnapshot().dirty).toBe(true)
   app.services.wordCloud.reset()
 })
+it('clicks an unused custom word to append today H2, update cloud classification, and return via history', async () => {
+  const { todayDate } = await import('@/application/DiarySession')
+  const user = userEvent.setup(),
+    date = todayDate()
+  let entry = { date, markdown: `# ${date}\n\n## 旧标签\n原文\n\n`, revision: 'r0' }
+  let file: CloudFile | null = null
+  const app = createApp(
+    {
+      list: async () => ({ entries: [entry], failures: [] }),
+      read: async () => entry,
+      save: async (d, markdown) => {
+        entry = { date: d, markdown, revision: crypto.randomUUID() }
+        return entry
+      },
+    },
+    undefined,
+    undefined,
+    undefined,
+    {
+      read: async () => file,
+      save: async (json) => (file = { json, revision: crypto.randomUUID() }),
+    },
+  )
+  render(
+    <AppShell
+      registry={app.registry}
+      session={app.services.session}
+      wordCloud={app.services.wordCloud}
+    />,
+  )
+  await screen.findByRole('button', { name: date.toString() })
+  await user.click(screen.getByRole('button', { name: '词云' }))
+  const input = screen.getByLabelText('自定义词语')
+  await waitFor(() => expect(input).not.toBeDisabled())
+  await user.type(input, '科研{Enter}')
+  await user.click(within(screen.getByLabelText('测试球面')).getByRole('button', { name: '科研' }))
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: '日记' })).toHaveAttribute('aria-current', 'page'),
+  )
+  expect(entry.markdown).toContain('原文\n\n\n\n## 科研')
+  expect(app.services.tagIndex.getOccurrences('科研')).toHaveLength(1)
+  await user.click(screen.getByRole('button', { name: '返回上一页面' }))
+  expect(screen.getByRole('button', { name: '词云' })).toHaveAttribute('aria-current', 'page')
+  expect(app.services.wordCloud.getSnapshot().document.words[0]?.text).toBe('科研')
+  const row = screen.getByRole('button', { name: '科研标签' })
+  expect(row).toBeInTheDocument()
+  app.services.wordCloud.reset()
+})
+it('opens the inserted draft with retry controls when its first save fails', async () => {
+  const user = userEvent.setup()
+  const app = createApp(
+    {
+      list: async () => ({ entries: [], failures: [] }),
+      read: async () => {
+        throw new Error('unused')
+      },
+      save: async () => {
+        throw new Error('日记不可写')
+      },
+    },
+    undefined,
+    undefined,
+    undefined,
+    { read: async () => null, save: async (json) => ({ json, revision: 'c' }) },
+  )
+  render(
+    <AppShell
+      registry={app.registry}
+      session={app.services.session}
+      wordCloud={app.services.wordCloud}
+    />,
+  )
+  await user.click(screen.getByRole('button', { name: '词云' }))
+  const input = screen.getByLabelText('自定义词语')
+  await waitFor(() => expect(input).not.toBeDisabled())
+  await user.type(input, '科研{Enter}')
+  await user.click(within(screen.getByLabelText('测试球面')).getByRole('button', { name: '科研' }))
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: '日记' })).toHaveAttribute('aria-current', 'page'),
+  )
+  expect(app.services.session.getSnapshot().selected?.error?.message).toBe('日记不可写')
+  expect(app.services.session.getSnapshot().selected?.markdown).toContain('## 科研')
+  expect(app.services.tagIndex.getOccurrences('科研')).toHaveLength(0)
+  expect(screen.getByRole('button', { name: '保存日记' })).toBeInTheDocument()
+  app.services.session.reset()
+  app.services.wordCloud.reset()
+})

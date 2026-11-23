@@ -237,6 +237,14 @@ export class DiarySession {
     if (!this.composing) this.scheduleSave()
   }
 
+  /** Programmatic insertion while the editor is inactive needs a fresh editor document. */
+  appendSection(markdown: string): void {
+    const draft = this.snapshot.selected
+    if (!draft) return
+    this.edit(draft.markdown + markdown)
+    this.updateDraft({ editorEpoch: draft.editorEpoch + 1 })
+  }
+
   setComposing(value: boolean): void {
     this.composing = value
     if (value) this.clearTimer()

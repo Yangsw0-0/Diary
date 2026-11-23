@@ -7,6 +7,7 @@ import type { TagVisibilityPolicy } from './TagVisibilityPolicy'
 export interface TagGroup {
   readonly key: string
   readonly displayTitle: string
+  readonly frequency: number
   readonly dayCount: number
   readonly latestDate: DiaryDate
 }
@@ -183,6 +184,7 @@ export class TagIndex {
         key,
         displayTitle: key,
         dayCount: dates.size,
+        frequency: [...dates.values()].reduce((sum, occurrences) => sum + occurrences.length, 0),
         latestDate: latest.date,
       })
     }

@@ -178,3 +178,21 @@ it('repaints immediately after a resize instead of leaving the cleared canvas un
   renderer.destroy()
   canvas.remove()
 })
+it('rotates both axes with wheel, avoids click activation and removes the local wheel handler', () => {
+  const { step, renderer, canvas, context, activate } = setup()
+  step(600)
+  const first = context.fillText.mock.calls.at(-1)!
+  const wheel = new WheelEvent('wheel', { deltaX: 25, deltaY: 35, cancelable: true })
+  canvas.dispatchEvent(wheel)
+  expect(wheel.defaultPrevented).toBe(true)
+  step(650)
+  const next = context.fillText.mock.calls.at(-1)!
+  expect(next[1]).not.toBe(first[1])
+  expect(next[2]).not.toBe(first[2])
+  expect(activate).not.toHaveBeenCalled()
+  renderer.destroy()
+  const after = new WheelEvent('wheel', { deltaY: 30, cancelable: true })
+  canvas.dispatchEvent(after)
+  expect(after.defaultPrevented).toBe(false)
+  canvas.remove()
+})

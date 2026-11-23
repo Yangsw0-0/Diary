@@ -1,3 +1,4 @@
+import { CloudTagWriter } from '@/application/CloudTagWriter'
 import type { WordCloudSession } from '@/application/WordCloudSession'
 import type { NodesSession } from '@/application/NodesSession'
 import { useCallback, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
@@ -387,6 +388,23 @@ export function useAppNavigation(
     notice,
     openModule,
     openDiary,
+    writeCloudTag: (text) =>
+      run(async () => {
+        if (!((await cloud?.flush()) ?? true) || !((await nodes?.flush()) ?? true)) return false
+        const section = await new CloudTagWriter(session).write(text)
+        if (!section) {
+          setNotice(session.getSnapshot().selected?.error?.message ?? '无法创建标签，草稿已保留')
+          return false
+        }
+        const { date } = section
+        capture()
+        readiness.begin(date.toString())
+        history.push({ moduleId: 'diary', date, section, scrollTop: 0 })
+        setFocusRequest(focusFor({ moduleId: 'diary', date, section, scrollTop: 0 }))
+        setCursorEdgeRequest(null)
+        setNotice(session.getSnapshot().selected?.error?.message ?? null)
+        return true
+      }),
     createDiary,
     openDiarySection,
     openTag,

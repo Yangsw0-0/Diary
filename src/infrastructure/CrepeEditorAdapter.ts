@@ -101,6 +101,30 @@ export class CrepeEditorAdapter implements EditorAdapter {
     )
     const target = headings[ordinal]
     if (!target) return false
+    this.editor?.editor.action((ctx) => {
+      const view = ctx.get(editorViewCtx)
+      let matched = 0,
+        position: number | null = null
+      view.state.doc.forEach((node, offset) => {
+        if (
+          node.type.name === 'heading' &&
+          node.attrs.level === 2 &&
+          TagName.parse(node.textContent)?.key === key
+        ) {
+          if (matched++ === ordinal) position = offset + node.nodeSize
+        }
+      })
+      if (position !== null)
+        view.dispatch(
+          view.state.tr.setSelection(
+            Selection.near(
+              view.state.doc.resolve(Math.min(view.state.doc.content.size, position)),
+              1,
+            ),
+          ),
+        )
+      view.focus()
+    })
     target.scrollIntoView({ block: 'start' })
     return true
   }

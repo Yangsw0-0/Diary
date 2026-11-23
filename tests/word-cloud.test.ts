@@ -29,7 +29,7 @@ it('merges normalized display text while preserving independent custom and tag s
   const both = mergeCloudWords(custom, tags, true)
   expect(both).toHaveLength(1)
   expect(both[0]).toMatchObject({ customIds: ['custom'], tagKey: '成长', source: 'tag' })
-  expect(mergeCloudWords(custom, tags, false)[0]?.source).toBe('custom')
+  expect(mergeCloudWords(custom, tags, false)[0]?.source).toBe('tag')
   expect(mergeCloudWords([], tags, true)[0]?.tagKey).toBe('成长')
   expect(
     mergeCloudWords([{ id: 'a', text: 'e\u0301' }], [{ key: 'é', displayTitle: 'é' }], true),

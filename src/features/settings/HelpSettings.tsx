@@ -7,7 +7,7 @@ export function HelpSettings({ onOpenHelp }: SettingsContentProps) {
       <div className="settings-card">
         <div>
           <h3>帮助</h3>
-          <p>查看写作、标签、附件、备份和更新等使用说明。</p>
+          <p>查看日记、标签、节点、词云、触控板操作与备份说明。</p>
         </div>
         <Button variant="outline" onClick={() => onOpenHelp()}>
           <BookOpenText aria-hidden="true" />

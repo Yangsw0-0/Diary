@@ -46,3 +46,12 @@
 浏览器内存示例检查了自由拖动、输入Enter添加、标签显示开关、收起面板扩展、球面点击进入标签关联内容、亮暗主题、网格/星座/混合模式与760px最小窗口。未访问真实日记。原生macOS/Windows交互与超大真实词集的帧率仍待真机验收；词云已随1.7.0安装包发布。
 
 最终结果：`npm run check`通过，130项前端测试、26项Rust测试与严格clippy通过；[a94c12f三项CI](https://github.com/Yangsw0-0/Diary/actions/runs/45097956403)均通过，包括Windows编译与安装包构建。尺寸变化同步补画的回归测试与浏览器复核通过。本轮源码已推送，词云已随1.7.0安装包发布。
+
+## 1.8.0 增量实现
+
+- `TagGroup.frequency` 为主标签全部正式 H2 occurrence 数之和，区别于列表的 `dayCount`；正文文字不参与。`frequencyLevels` 对正频次采用上累计百分位 `count(f <= current)/N`，相同词频始终同级，恰好 .2/.5/.9 进入较高等级，1 为最高级。只有一个或全体并列时均为最高级。Level 0 不参与排名，文字基础透明度为 .55，再乘现有空间深度透明度；四套固定色调随主题切换。
+- 显示 ID 仍为规范化文本，持久化自定义 UUID 不变；`source/tagKey/frequency/level` 随标签索引派生，不迁移或删除自定义记录。关闭纯标签展示后，自定义来源仍在，但存在正式标签的词继续使用标签点击语义。删除该自定义来源不会动到标签。
+- `CloudTagWriter` 复用 DiarySession.create/edit/flush 与解析器，候选 Markdown 先解析确认能生成 H2，再追加，不裁去原文件尾部空白。程序追加更新 editorEpoch，使隐藏编辑器在进入时使用新文档。导航成功后设置 section 焦点，原 CrepeAdapter.focusSection 同时设置真实 ProseMirror 正文选区。创建失败不推入历史；追加后保存失败仍打开今日草稿，显示既有错误和重试控件，避免草稿困在不可见编辑器里；标签统计仍只使用已保存内容。
+- `tagMarkdown` 只转换 React Markdown 展示树中的 HTML break 节点，删除独立装饰空段；不操作日记或共享解析缓存，不处理代码、转义文字和其他 HTML 为可信可执行内容。
+- `wheelDelta` 统一 pixel/line/page 并限制单事件每轴 ±64px；词云双轴四元数旋转，wheel 使用系统惯性、不再额外施加拖动惯性。手动输入期间暂停自动旋转；节点只取 Y 映射到 wheelPosition，空闲后吸附，拖动时禁用 transform transition。所有监听仅绑定组件区域，保留 Ctrl+wheel 平台行为，销毁清理。
+- 自动化覆盖排名边界/同频、来源转换、今天追加/去重/冲突/未闭合块、实际导航返回、展示 AST、双轴球面与纵轴轮盘及监听清理。新增代码不更改普通日记滚动、相邻日记算法、附件或原生文件安全模块。
