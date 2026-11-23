@@ -114,3 +114,9 @@
 本轮验证：`npm run check`通过（130项前端测试、类型检查、格式/lint与生产构建，仍有既有lint和打包体积提示）；Rust fmt、严格clippy、26项测试通过。Canvas单元测试覆盖2000词避让；浏览器内存示例验证球面点击进入真实标签内容组件、面板伸缩、添加、标签开关及亮暗主题。原生双平台窗口与超大真实库FPS未作手工验收。
 
 词云最终源码提交a94c12f的[跨平台CI](https://github.com/Yangsw0-0/Diary/actions/runs/45097956403)三项均通过：前端130项与构建、macOS Rust检查、Windows Rust检查与NSIS打包。缩放同步补画已在浏览器重新核对，窗口变窄后无需等待下一帧才恢复球面。未公开发布新的安装包。
+
+## 本地安装包保留规则（用户要求，2026-11-23）
+
+每次版本更新或发布都必须在本地`releases/v<版本号>/`保留macOS安装包，核验版本、ZIP完整性和SHA-256；不能仅留GitHub或.cache，历史包不自动清理，安装包不进入Git。该规则同时写入AGENTS.md。
+
+本次核对GitHub最新公开Release仍为v1.6.3，已重新下载macOS包到releases/v1.6.3/Diary_1.6.3_aarch64.zip，与既有本地包及GitHub摘要一致：63a488a8c1fec49dbb26d1771be1a673846dfe0291b794bb22746096d68d89de。词云仍为未发布源码，此包不含词云；下载现有Release不等同于发布新源码安装包。
