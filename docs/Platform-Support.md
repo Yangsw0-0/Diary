@@ -87,7 +87,7 @@ npm run tauri:build -- --bundles nsis
 
 - `frontend`：Ubuntu 上运行格式、lint、Vitest、类型检查和生产构建。
 - `rust`：macOS 上运行 `cargo fmt --check`、`cargo clippy --locked --all-targets -- -D warnings`、`cargo test --locked`。
-- `windows`：Windows 上运行 `cargo test --locked`，并实际构建 NSIS 安装包，作为 `diary-windows-nsis` 构件上传。
+- `windows`（仅手动工作流勾选 `build_windows` 时）：Windows 上运行 `cargo test --locked`，并实际构建 NSIS 安装包，作为 `diary-windows-nsis` 构件上传。
 
 Rust 代码在本地也可以单独检查：
 

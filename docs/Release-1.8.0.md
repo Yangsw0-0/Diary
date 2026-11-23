@@ -21,3 +21,5 @@
 SHA-256：`7db9069bee228afd0d89a40adce76628ee094190ef4b8596d2ed8fe1790dc0d7`。
 
 本地保留于 `releases/v1.8.0/`，包括 Diary.app、ZIP 和 SHA256SUMS.txt；不进入 Git。未构建或更新 Windows。退出旧应用，解压并替换原安装位置的 Diary.app；未做 Apple 公证，无自动更新。
+
+源码提交：7fe4734。[GitHub CI](https://github.com/Yangsw0-0/Diary/actions/runs/45135585364)前端和macOS检查成功，Windows按规则跳过。正式发布的macOS资产摘要与本地一致。

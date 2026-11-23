@@ -134,3 +134,5 @@
 - CloudTagWriter 复用日记保存流程追加今日 H2，逐字符保留已有正文、去重和校验 Markdown 上下文；追加后保存失败仍打开可重试的今日草稿。
 - 标签详情仅转换展示 AST 的 HTML break 和装饰空段；代码/转义和原文件不改。词云局部双轴 wheel、节点纵轴 wheel，增量归一化，不额外叠加系统惯性；原相邻日记算法未改。
 - 本轮前端 143 项、Rust 26 项、类型/构建/fmt/严格 clippy 通过。macOS 1.8.0 包已生成并核对版本/arm64/签名/ZIP，摘要见发布记录，本地 releases/v1.8.0/ 留存。真实 macOS 触控板手感及实际高频连续操作仍需用户复核；本轮未做原生手势手工验收。Windows 不构建，继续标记已发布 1.7.0。
+
+1.8.0 已推送并正式发布：[Release](https://github.com/Yangsw0-0/Diary/releases/tag/v1.8.0)，源码提交7fe4734；[CI](https://github.com/Yangsw0-0/Diary/actions/runs/45135585364)前端与macOS成功、Windows跳过。发布资产只有核对过的macOS ZIP，远端digest与本地一致。

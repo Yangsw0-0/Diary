@@ -285,6 +285,6 @@ P1–P5已实现：模型迁移、存储、会话队列、画布、时间轴、�
 - [x] 帮助手册按实际功能组织，去除版本迭代和内部开发说明。
 - [x] AGENTS、平台文档和 CI 统一 macOS 默认发布策略；Windows 手动启用。
 - [x] 前端143项、Rust26项、类型/构建/格式/严格clippy通过；本地 macOS 1.8.0 包版本/签名/ZIP/摘要已核对并留存。
-- [ ] GitHub 提交与发布（完成后补记）。
+- [x] 源码提交7fe4734已推送；[GitHub CI](https://github.com/Yangsw0-0/Diary/actions/runs/45135585364)前端/macOS均通过，Windows按策略跳过；[v1.8.0](https://github.com/Yangsw0-0/Diary/releases/tag/v1.8.0)正式发布，仅含macOS安装包，远端摘要与本地一致。
 
 本次不更改原始日记文件、不访问真实日记数据；保持相邻日记导航算法和附件逻辑。触控板真实设备的灵敏度与手感需后续实机复核，不能由模拟 wheel 测试代替。
