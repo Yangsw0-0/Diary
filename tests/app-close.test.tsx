@@ -1,3 +1,4 @@
+vi.mock('@/features/wordcloud/WordSphere', () => ({ WordSphere: () => null }))
 import { afterEach, expect, it, vi } from 'vitest'
 import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -53,4 +54,41 @@ it('offers a deliberate discard-and-close path when saving fails', async () => {
   expect(dialog).toHaveTextContent('磁盘不可写')
   await userEvent.setup().click(screen.getByRole('button', { name: '放弃草稿并关闭' }))
   await waitFor(() => expect(destroy).toHaveBeenCalledTimes(1))
+})
+
+it('protects unsaved cloud content on native close and allows explicit discard', async () => {
+  const gateway: WorkspaceGateway = {
+    getStatus: async () => ({ root: '/chosen', configuredRoot: '/chosen', issue: null }),
+    chooseRoot: async () => null,
+  }
+  const repo: DiaryRepository = {
+    list: async () => ({ entries: [], failures: [] }),
+    read: async () => {
+      throw new Error('unused')
+    },
+    save: async () => {
+      throw new Error('unused')
+    },
+  }
+  const app = createApp(repo, gateway, undefined, undefined, {
+    read: async () => null,
+    save: async () => {
+      throw new Error('词云写入失败')
+    },
+  })
+  render(<AppRoot {...app} />)
+  await screen.findByRole('button', { name: '词云' })
+  await app.services.wordCloud.ensureLoaded()
+  app.services.wordCloud.add('不能丢失')
+  await waitFor(() => expect(onClose).toBeDefined())
+  const preventDefault = vi.fn()
+  onClose!({ preventDefault })
+  expect(preventDefault).toHaveBeenCalled()
+  expect(await screen.findByRole('dialog', { name: '未保存的日记' })).toHaveTextContent(
+    '词云写入失败',
+  )
+  expect(destroy).not.toHaveBeenCalled()
+  expect(app.services.wordCloud.getSnapshot().dirty).toBe(true)
+  await userEvent.setup().click(screen.getByRole('button', { name: '放弃草稿并关闭' }))
+  await waitFor(() => expect(destroy).toHaveBeenCalledOnce())
 })

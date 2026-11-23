@@ -13,6 +13,7 @@ export type NavigationView =
       readonly section: DiarySectionRef | null
       readonly scrollTop: number
     }
+  | { readonly moduleId: 'wordcloud'; readonly scrollTop: number }
   | { readonly moduleId: 'nodes'; readonly scrollTop: number }
   | { readonly moduleId: 'tags'; readonly key: string | null; readonly scrollTop: number }
 

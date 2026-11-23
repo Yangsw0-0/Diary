@@ -1,3 +1,4 @@
+import type { WordCloudSession } from '@/application/WordCloudSession'
 import type { NodePalette } from '@/application/NodePalette'
 import type { NodesSession } from '@/application/NodesSession'
 import {
@@ -30,6 +31,7 @@ const MAX_LIST_WIDTH = 420
 const MIN_DETAIL_WIDTH = 300
 
 interface AppShellProps {
+  readonly wordCloud?: WordCloudSession
   readonly nodePalette?: NodePalette
   readonly nodes?: NodesSession
   readonly statistics?: DiaryStatistics
@@ -53,6 +55,7 @@ interface AppShellProps {
 export function AppShell({
   registry,
   nodes,
+  wordCloud,
   nodePalette,
   statistics: sharedStatistics,
   session,
@@ -108,7 +111,7 @@ export function AppShell({
   const visibleListWidth = Math.min(listWidth, maxListWidth)
   const sessionSnapshot = useSyncExternalStore(session.subscribe, session.getSnapshot)
   const { navigation, navigating, registerContent, updateScroll, waitForDiaryReady } =
-    useAppNavigation(session, nodes)
+    useAppNavigation(session, nodes, wordCloud)
   const { adjacentPreview, boundaryNotice, trackElement, previewElement, diaryContentElement } =
     useAdjacentDiaryNavigation({
       sessionSnapshot,
@@ -273,7 +276,12 @@ export function AppShell({
                   onClick={() => {
                     setSettingsOpen(false)
                     setDetailExpanded(false)
-                    if (module.id === 'diary' || module.id === 'tags' || module.id === 'nodes')
+                    if (
+                      module.id === 'diary' ||
+                      module.id === 'tags' ||
+                      module.id === 'nodes' ||
+                      module.id === 'wordcloud'
+                    )
                       void navigation.openModule(module.id)
                   }}
                   disabled={navigating}

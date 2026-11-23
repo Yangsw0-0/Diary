@@ -25,3 +25,6 @@ settings.json
 .DS_Store
 .idea/
 .vscode/
+
+# Workspace word cloud content
+/WordCloud.json

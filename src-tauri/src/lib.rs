@@ -9,6 +9,7 @@ mod nodes_storage;
 mod platform;
 #[cfg(target_os = "macos")]
 mod scroll_phase;
+mod word_cloud;
 mod workspace;
 
 use tauri::Manager;
@@ -33,6 +34,8 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            word_cloud::read_word_cloud,
+            word_cloud::save_word_cloud,
             workspace::get_workspace_status,
             workspace::choose_diary_root,
             workspace::save_ui_preferences,

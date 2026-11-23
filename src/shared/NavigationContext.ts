@@ -19,7 +19,7 @@ export interface NavigationContextValue {
     readonly id: number
   } | null
   readonly notice: string | null
-  openModule(moduleId: 'diary' | 'tags' | 'nodes'): Promise<boolean>
+  openModule(moduleId: 'diary' | 'tags' | 'nodes' | 'wordcloud'): Promise<boolean>
   openDiary(date: DiaryDate, edge?: 'start' | 'end'): Promise<boolean>
   createDiary(): Promise<boolean>
   openDiarySection(ref: DiarySectionRef): Promise<boolean>

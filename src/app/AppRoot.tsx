@@ -64,7 +64,11 @@ export function AppRoot({ registry, services }: AppRootProps) {
 
   useEffect(() => {
     const beforeUnload = (event: BeforeUnloadEvent) => {
-      if (services.session.isDirty() || services.nodes.getSnapshot().dirty) {
+      if (
+        services.session.isDirty() ||
+        services.nodes.getSnapshot().dirty ||
+        services.wordCloud.getSnapshot().dirty
+      ) {
         event.preventDefault()
         event.returnValue = ''
       }
@@ -75,16 +79,27 @@ export function AppRoot({ registry, services }: AppRootProps) {
     if (isTauri()) {
       void getCurrentWindow()
         .onCloseRequested((event) => {
-          if (!services.session.isDirty() && !services.nodes.getSnapshot().dirty) return
+          if (
+            !services.session.isDirty() &&
+            !services.nodes.getSnapshot().dirty &&
+            !services.wordCloud.getSnapshot().dirty
+          )
+            return
           event.preventDefault()
           void services.session.prepareWorkspaceSwitch().then(async (saved) => {
-            if (saved && (await services.nodes.flush()) && !disposed)
+            if (
+              saved &&
+              (await services.nodes.flush()) &&
+              (await services.wordCloud.flush()) &&
+              !disposed
+            )
               void getCurrentWindow().destroy()
             else if (!disposed) {
               services.session.finishWorkspaceSwitch()
               setError(
                 services.session.getSnapshot().selected?.error?.message ??
                   services.nodes.getSnapshot().error ??
+                  services.wordCloud.getSnapshot().error ??
                   '请先完成输入并保存日记',
               )
               setClosePrompt(true)
@@ -101,14 +116,16 @@ export function AppRoot({ registry, services }: AppRootProps) {
       window.removeEventListener('beforeunload', beforeUnload)
       unlisten?.()
     }
-  }, [services.session, services.nodes])
+  }, [services.session, services.nodes, services.wordCloud])
 
   useEffect(() => {
     const check = () => {
+      void services.wordCloud.checkExternalChange()
       void services.nodes.checkExternalChange()
       void services.session.checkExternalChange()
     }
     const blur = () => {
+      void services.wordCloud.flush()
       void services.nodes.flush()
     }
     window.addEventListener('blur', blur)
@@ -117,7 +134,7 @@ export function AppRoot({ registry, services }: AppRootProps) {
       window.removeEventListener('focus', check)
       window.removeEventListener('blur', blur)
     }
-  }, [services.session, services.nodes])
+  }, [services.session, services.nodes, services.wordCloud])
 
   const chooseRoot = useCallback(async () => {
     setChoosing(true)
@@ -133,8 +150,13 @@ export function AppRoot({ registry, services }: AppRootProps) {
         setError(services.nodes.getSnapshot().error ?? '节点尚未保存')
         return
       }
+      if (!(await services.wordCloud.flush())) {
+        setError(services.wordCloud.getSnapshot().error ?? '词云尚未保存')
+        return
+      }
       const next = await services.workspace.chooseRoot()
       if (next && next.root !== status?.root) {
+        services.wordCloud.reset()
         services.nodes.reset()
         void services.session.resetAndLoad()
         setStatus(next)
@@ -145,7 +167,7 @@ export function AppRoot({ registry, services }: AppRootProps) {
       services.session.finishWorkspaceSwitch()
       setChoosing(false)
     }
-  }, [services.workspace, services.session, services.nodes, status?.root])
+  }, [services.workspace, services.session, services.nodes, services.wordCloud, status?.root])
 
   if (loading) return <main className="workspace-onboarding">正在检查日记文件夹…</main>
 
@@ -176,6 +198,7 @@ export function AppRoot({ registry, services }: AppRootProps) {
   return (
     <>
       <AppShell
+        wordCloud={services.wordCloud}
         nodePalette={services.nodePalette}
         nodes={services.nodes}
         statistics={services.statistics}
@@ -213,10 +236,11 @@ export function AppRoot({ registry, services }: AppRootProps) {
             aria-label="未保存的日记"
             className="diary-close-dialog"
           >
-            <h2>日记或节点尚未保存</h2>
+            <h2>日记、节点或词云尚未保存</h2>
             <p>
               {services.session.getSnapshot().selected?.error?.message ??
                 services.nodes.getSnapshot().error ??
+                services.wordCloud.getSnapshot().error ??
                 '当前草稿无法保存。'}
             </p>
             <p>可以继续编辑并重试，或明确放弃草稿后关闭应用。</p>
@@ -227,6 +251,7 @@ export function AppRoot({ registry, services }: AppRootProps) {
               <Button
                 variant="destructive"
                 onClick={() => {
+                  services.wordCloud.reset()
                   services.nodes.reset()
                   void services.session.discardDraft().then(() => void getCurrentWindow().destroy())
                 }}

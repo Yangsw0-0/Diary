@@ -1,3 +1,4 @@
+import type { WordCloudSession } from '@/application/WordCloudSession'
 import type { NodesSession } from '@/application/NodesSession'
 import { useCallback, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
 import {
@@ -13,7 +14,11 @@ import type { NavigationContextValue } from '@/shared/NavigationContext'
 
 const extractor = new MarkdownSectionExtractor()
 
-export function useAppNavigation(session: DiarySession, nodes?: NodesSession) {
+export function useAppNavigation(
+  session: DiarySession,
+  nodes?: NodesSession,
+  cloud?: WordCloudSession,
+) {
   const [history] = useState(() => new NavigationHistory())
   const snapshot = useSyncExternalStore(history.subscribe, history.getSnapshot)
   const renamed = useSyncExternalStore(session.subscribe, () => session.getSnapshot().renamed)
@@ -136,7 +141,13 @@ export function useAppNavigation(session: DiarySession, nodes?: NodesSession) {
 
   const activate = useCallback(
     async (view: NavigationView): Promise<boolean> => {
+      if (cloud && history.current.moduleId === 'wordcloud' && !(await cloud.flush())) return false
       if (nodes && history.current.moduleId === 'nodes' && !(await nodes.flush())) return false
+      if (view.moduleId === 'wordcloud') {
+        if (!(await session.flush())) return false
+        await cloud?.ensureLoaded()
+        return true
+      }
       if (view.moduleId === 'nodes') {
         if (!(await session.flush())) return false
         try {
@@ -155,7 +166,7 @@ export function useAppNavigation(session: DiarySession, nodes?: NodesSession) {
       }
       return session.open(view.date)
     },
-    [session, nodes, history],
+    [session, nodes, cloud, history],
   )
 
   const navigate = useCallback(
@@ -167,6 +178,10 @@ export function useAppNavigation(session: DiarySession, nodes?: NodesSession) {
       run(async () => {
         setNotice(null)
         if (!(await activate(next))) {
+          if (history.current.moduleId === 'wordcloud' && cloud?.getSnapshot().error) {
+            setNotice(cloud.getSnapshot().error)
+            return false
+          }
           if (
             history.current.moduleId === 'tags' ||
             !(session.getSnapshot().selected?.error ?? session.getSnapshot().error)
@@ -192,7 +207,7 @@ export function useAppNavigation(session: DiarySession, nodes?: NodesSession) {
         )
         return true
       }),
-    [activate, capture, focusFor, history, run, session, readiness],
+    [activate, capture, focusFor, history, run, session, readiness, cloud],
   )
 
   const openDiary = useCallback(
@@ -280,7 +295,7 @@ export function useAppNavigation(session: DiarySession, nodes?: NodesSession) {
         if (!exists) setNotice('小节已变化，已打开该日记。')
         return true
       }),
-    [activate, capture, focusFor, history, run, session, readiness],
+    [activate, capture, focusFor, history, run, session, readiness, cloud],
   )
 
   const openTag = useCallback(
@@ -293,8 +308,9 @@ export function useAppNavigation(session: DiarySession, nodes?: NodesSession) {
   )
 
   const openModule = useCallback(
-    (moduleId: 'diary' | 'tags' | 'nodes') => {
+    (moduleId: 'diary' | 'tags' | 'nodes' | 'wordcloud') => {
       if (history.current.moduleId === moduleId) return Promise.resolve(true)
+      if (moduleId === 'wordcloud') return navigate({ moduleId: 'wordcloud', scrollTop: 0 })
       if (moduleId === 'nodes') return navigate({ moduleId: 'nodes', scrollTop: 0 })
       if (moduleId === 'tags') {
         const recent = lastTags.current
@@ -336,6 +352,10 @@ export function useAppNavigation(session: DiarySession, nodes?: NodesSession) {
         if (!target) return false
         setNotice(null)
         if (!(await activate(target))) {
+          if (history.current.moduleId === 'wordcloud' && cloud?.getSnapshot().error) {
+            setNotice(cloud.getSnapshot().error)
+            return false
+          }
           if (
             history.current.moduleId === 'tags' ||
             !(session.getSnapshot().selected?.error ?? session.getSnapshot().error)
@@ -355,7 +375,7 @@ export function useAppNavigation(session: DiarySession, nodes?: NodesSession) {
         setCursorEdgeRequest(null)
         return true
       }),
-    [activate, capture, focusFor, history, run, session, readiness],
+    [activate, capture, focusFor, history, run, session, readiness, cloud],
   )
 
   const navigation: NavigationContextValue = {

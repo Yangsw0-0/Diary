@@ -1,6 +1,8 @@
+import { WordCloudPanel } from '@/features/wordcloud/WordCloudPanel'
+import type { WordCloudRepository } from '@/domain/WordCloudRepository'
 import { NodesPanel } from '@/features/nodes/NodesPanel'
 import { createElement } from 'react'
-import { BookOpenText, Milestone, Tags } from 'lucide-react'
+import { BookOpenText, Milestone, Tags, Orbit } from 'lucide-react'
 import type { DiaryRepository } from '@/domain/DiaryRepository'
 import type { NodeRepository } from '@/domain/NodeRepository'
 import { createDiaryPanels } from '@/features/diary/DiaryPanels'
@@ -20,8 +22,15 @@ export function createApp(
   workspaceGateway?: WorkspaceGateway,
   attachmentGateway?: AttachmentGateway,
   nodeRepository?: NodeRepository,
+  cloudRepository?: WordCloudRepository,
 ) {
-  const services = createServices(repository, workspaceGateway, attachmentGateway, nodeRepository)
+  const services = createServices(
+    repository,
+    workspaceGateway,
+    attachmentGateway,
+    nodeRepository,
+    cloudRepository,
+  )
   const completion = new TagCompletion((prefix) =>
     services.tagIndex.getCompletionCandidates(prefix),
   )
@@ -78,6 +87,20 @@ export function createApp(
       createElement(NodesPanel, {
         session: services.nodes,
         palette,
+        active: props.active ?? true,
+      }),
+  })
+  registry.register({
+    id: 'wordcloud',
+    label: '词云',
+    Icon: Orbit,
+    layout: 'canvas',
+    detailLabel: '词云画布',
+    Detail: (props: { active?: boolean }) =>
+      createElement(WordCloudPanel, {
+        session: services.wordCloud,
+        index: services.tagIndex,
+        diary: services.session,
         active: props.active ?? true,
       }),
   })

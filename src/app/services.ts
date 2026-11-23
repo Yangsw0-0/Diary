@@ -1,3 +1,6 @@
+import { WordCloudSession } from '@/application/WordCloudSession'
+import { TauriWordCloudRepository } from '@/infrastructure/TauriWordCloudRepository'
+import type { WordCloudRepository } from '@/domain/WordCloudRepository'
 import { NodePalette } from '@/application/NodePalette'
 import { NodesSession } from '@/application/NodesSession'
 import { TauriNodeRepository } from '@/infrastructure/TauriNodeRepository'
@@ -17,6 +20,7 @@ import { AttachmentService, type AttachmentGateway } from '@/application/Attachm
 import { TauriAttachmentGateway } from '@/infrastructure/TauriAttachmentGateway'
 
 export interface AppServices {
+  wordCloud: WordCloudSession
   nodePalette: NodePalette
   nodes: NodesSession
   statistics: DiaryStatistics
@@ -33,12 +37,14 @@ export function createServices(
   workspaceGateway: WorkspaceGateway = new TauriWorkspaceGateway(),
   attachmentGateway: AttachmentGateway = new TauriAttachmentGateway(),
   nodeRepository: NodeRepository = new TauriNodeRepository(),
+  cloudRepository: WordCloudRepository = new TauriWordCloudRepository(),
 ): AppServices {
   const documents = new MarkdownDocumentCache()
   const extractor = new MarkdownSectionExtractor(documents)
   const tagIndex = new TagIndex(extractor)
   const diary = new DiaryService(repository, tagIndex, extractor, () => documents.clear())
   return {
+    wordCloud: new WordCloudSession(cloudRepository),
     nodePalette: new NodePalette(window.localStorage),
     nodes: new NodesSession(nodeRepository),
     statistics: new DiaryStatistics(documents),
